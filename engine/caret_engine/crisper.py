@@ -59,11 +59,12 @@ CONTEXT_WORDS = 12
 # --- détection de parole ---------------------------------------------------
 # En dessous, on considère qu'aucun son exploitable n'a été capté.
 ABSOLUTE_SILENCE = 1e-4
-# Rapport minimal entre passages sonores et fond pour que le signal ait la
-# structure de la parole plutôt que celle d'un bruit constant.
-SPEECH_CONTRAST = 2.5
-# Part minimale de trames sonores : un claquement isolé ne suffit pas.
-MIN_VOICED_RATIO = 0.04
+# Dispersion minimale de l'énergie, en décibels, pour qualifier de la parole.
+# Calibré contre des mesures : tous les bruits testés restent sous 2 dB, toute
+# la parole réelle dépasse 8 dB. Le seuil est placé au milieu de cet écart,
+# côté permissif — rejeter une dictée réelle coûte bien plus cher à
+# l'utilisateur que transcrire quelques secondes de bruit.
+SPEECH_MODULATION_DB = 4.0
 
 # --- garde-fou anti-boucle -------------------------------------------------
 # Taille maximale de motif surveillée, en tokens.
@@ -499,20 +500,18 @@ class CrisperWhisperEngine:
         if float(energy.max()) < ABSOLUTE_SILENCE:
             return False
 
-        floor = float(np.percentile(energy, 10))
-        speech = float(np.percentile(energy, 90))
-
-        # Contraste : rapport entre passages forts et fond. Une pièce
-        # silencieuse avec de la parole donne un rapport élevé ; un bruit
-        # continu sans parole reste plat.
-        if speech < floor * SPEECH_CONTRAST + ABSOLUTE_SILENCE:
-            return False
-
-        # Il faut aussi une quantité minimale de son : un seul claquement
-        # produirait du contraste sans être de la parole.
-        threshold = floor + SILENCE_RATIO * (speech - floor)
-        voiced_ratio = float((energy > threshold).mean())
-        return voiced_ratio >= MIN_VOICED_RATIO
+        # Modulation de l'énergie en décibels. La parole alterne syllabes et
+        # pauses, ce qui produit une dispersion large ; un bruit stationnaire
+        # reste plat quel que soit son volume.
+        #
+        # Une version précédente comparait deux centiles d'énergie. Mauvais
+        # critère : mesuré sur voix réelle, ce rapport valait 2,5 à 4,4 pour de
+        # la parole contre 1,8 pour du bruit modulé — marge trop mince, et un
+        # échantillon parfaitement audible tombait pile sur le seuil et était
+        # rejeté. En décibels la séparation est nette : 0 à 2 pour tous les
+        # bruits testés, 8,4 à 13 pour toute la parole.
+        decibels = 20 * np.log10(np.maximum(energy, 1e-9))
+        return float(decibels.std()) >= SPEECH_MODULATION_DB
 
     @staticmethod
     def _silence_boundaries(audio: np.ndarray) -> list[int]:
