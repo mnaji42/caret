@@ -65,6 +65,10 @@ ABSOLUTE_SILENCE = 1e-4
 # côté permissif — rejeter une dictée réelle coûte bien plus cher à
 # l'utilisateur que transcrire quelques secondes de bruit.
 SPEECH_MODULATION_DB = 4.0
+# Part minimale de trames sonores. La modulation seule ne suffit pas : un
+# claquement isolé dans le silence produit un écart-type énorme sans être de
+# la parole. Il faut aussi une certaine *quantité* de son.
+MIN_VOICED_RATIO = 0.04
 
 # --- garde-fou anti-boucle -------------------------------------------------
 # Taille maximale de motif surveillée, en tokens.
@@ -516,7 +520,15 @@ class CrisperWhisperEngine:
         # rejeté. En décibels la séparation est nette : 0 à 2 pour tous les
         # bruits testés, 8,4 à 13 pour toute la parole.
         decibels = 20 * np.log10(np.maximum(energy, 1e-9))
-        return float(decibels.std()) >= SPEECH_MODULATION_DB
+        if float(decibels.std()) < SPEECH_MODULATION_DB:
+            return False
+
+        # Second garde-fou : assez de trames sonores. Un clic unique module
+        # fortement mais n'occupe qu'une trame sur des centaines.
+        floor = float(np.percentile(energy, 10))
+        speech = float(np.percentile(energy, 90))
+        threshold = floor + SILENCE_RATIO * (speech - floor)
+        return float((energy > threshold).mean()) >= MIN_VOICED_RATIO
 
     @staticmethod
     def _silence_boundaries(audio: np.ndarray) -> list[int]:

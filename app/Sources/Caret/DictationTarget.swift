@@ -1,4 +1,5 @@
 import AppKit
+import CaretCore
 
 /// Où atterrit le texte transcrit.
 ///
@@ -50,31 +51,10 @@ enum TargetWriter {
         }
     }
 
-    /// Deux sauts de ligne entre les entrées.
-    ///
-    /// Un seul saut fusionne les paragraphes en Markdown, ce qui collerait les
-    /// notes les unes aux autres. Deux les séparent visuellement et donnent
-    /// des paragraphes distincts au rendu.
-    private static let separator = "\n\n"
-
     static func append(_ text: String, to url: URL) throws {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-
         let existing = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
-
-        // Ne pas ouvrir un fichier vide par des lignes blanches, et ne pas
-        // doubler celles qui s'y trouvent déjà.
-        var prefix = separator
-        if existing.isEmpty {
-            prefix = ""
-        } else if existing.hasSuffix(separator) {
-            prefix = ""
-        } else if existing.hasSuffix("\n") {
-            prefix = "\n"
-        }
-
-        let updated = existing + prefix + trimmed + "\n"
+        let updated = TextComposition.appending(text, to: existing)
+        guard updated != existing else { return }
         do {
             try updated.write(to: url, atomically: true, encoding: .utf8)
         } catch {
@@ -145,25 +125,8 @@ enum TargetWriter {
             window, kAXTitleAttribute as CFString, &value) == .success,
             let title = value as? String, !title.isEmpty else { return nil }
 
-        // Le séparateur est un tiret **entouré d'espaces**. Découper sur le
-        // tiret seul casserait tous les noms qui en contiennent —
-        // « test-caret.md » deviendrait « test ».
-        let parts = title
-            .replacingOccurrences(of: #"\s+[—–-]\s+"#, with: "\u{1}",
-                                  options: .regularExpression)
-            .components(separatedBy: "\u{1}")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-        guard let first = parts.first else { return nil }
-
-        // Retire les marqueurs de modification non enregistrée.
-        let name = first
-            .trimmingCharacters(in: CharacterSet(charactersIn: "●•*◆ "))
-            .trimmingCharacters(in: .whitespaces)
-        guard name.contains("."), !name.isEmpty else { return nil }
-
-        let hints = parts.dropFirst().map { $0.lowercased() }
-        return locate(fileNamed: name, preferring: hints)
+        guard let parsed = TextComposition.parseWindowTitle(title) else { return nil }
+        return locate(fileNamed: parsed.fileName, preferring: parsed.hints)
     }
 
     /// Localise un fichier par son nom via Spotlight.
@@ -185,16 +148,10 @@ enum TargetWriter {
             .map { URL(fileURLWithPath: String($0)) }
             .filter { $0.lastPathComponent == name }
             .compactMap(validated)
-        guard !candidates.isEmpty else { return nil }
+            .map(\.path)
 
-        // Un chemin qui contient le nom du projet l'emporte : c'est ce qui
-        // distingue le bon README.md de tous les autres.
-        for hint in hints where hint.count > 2 {
-            if let match = candidates.first(where: { $0.path.lowercased().contains(hint) }) {
-                return match
-            }
-        }
-        return candidates.count == 1 ? candidates[0] : nil
+        return TextComposition.bestCandidate(among: candidates, preferring: hints)
+            .map { URL(fileURLWithPath: $0) }
     }
 
     /// Un chemin n'est retenu que s'il désigne un fichier réel et inscriptible.

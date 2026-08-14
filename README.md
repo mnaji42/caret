@@ -245,6 +245,26 @@ It also needs no Input Monitoring permission, going through Carbon's
 
 ---
 
+## Tests
+
+```bash
+./scripts/test.sh          # logic only, ~3 s
+./scripts/test.sh --full   # adds model-loaded regression + benchmark, ~1 min
+```
+
+67 fast tests pin the hand-calibrated decisions — the speech-detection
+threshold, pause detection, window floor, loop guard, lexicon echo filter,
+wire protocol, text composition. They exist because this project has had two
+silent regressions: a VAD that started rejecting real speech, and a lexicon
+that grew until it degraded punctuation. Neither raised an error; both were
+caught by measurement after the fact.
+
+The slow suite (`-m slow`) loads the model and checks end-to-end behaviour
+that unit tests cannot see — technical terms surviving, intended mode writing
+digits, verbatim staying distinct from intended, silence producing nothing,
+long audio not being truncated. It needs `poc/samples/`, which is gitignored
+as personal data, and skips without it.
+
 ## Roadmap
 
 - [x] **J0** — validate CrisperWhisper on real French/English developer speech
@@ -277,7 +297,9 @@ re-attempted:
 - **Speculative decoding is impossible on macOS** (needs CTranslate2, no
   Apple Silicon wheel), and the documented `large`+`turbo` pair is mismatched
   anyway: 80 vs 128 mel bins, 51896 vs 51897 vocab.
-- [ ] **J6** — menu bar, settings, history, signing, notarization
+- [x] **J6** — menu bar, settings, history, locked file target
+- [x] **J7** — test suite (67 fast, 11 regression)
+- [ ] **J8** — signing, notarization, DMG
 
 ### Known gaps
 
