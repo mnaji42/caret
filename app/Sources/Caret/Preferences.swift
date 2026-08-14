@@ -27,10 +27,12 @@ final class Preferences {
     /// Termes privilégiés au décodage, un par ligne dans l'interface.
     ///
     /// C'est le principal levier de qualité de l'application : c'est lui qui
-    /// fait sortir `useEffect` plutôt que « use effect ». Mais il a un revers
-    /// mesuré — plus la liste est longue, plus le modèle risque de placer un
-    /// de ces termes sur un passage ambigu où rien n'a été dit. À garder
-    /// court et centré sur les mots qui échouent réellement.
+    /// fait sortir `useEffect` plutôt que « use effect ».
+    ///
+    /// Mais allonger la liste dégrade, et c'est mesuré : à 36 termes le modèle
+    /// perd des virgules — « Dans Next.js j'ai envie » au lieu de « Dans
+    /// Next.js, j'ai envie ». Un prompt plus long dilue le contexte. Il faut
+    /// donc retirer un terme pour en ajouter un, pas empiler.
     var lexicon: [String] {
         didSet { defaults.set(lexicon, forKey: Key.lexicon) }
     }
@@ -85,12 +87,10 @@ final class Preferences {
     /// contenu que la liste intégrée, pour qu'il parte de quelque chose qui
     /// marche plutôt que d'une page blanche.
     static let starterLexicon = [
-        "useEffect", "useState", "useMemo", "useRef", "component", "React",
-        "Next.js", "TypeScript", "hook", "props", "state",
-        "refactor", "merge", "commit", "rebase", "branch", "pull request",
-        "review", "deploy", "build",
-        "endpoint", "middleware", "dependencies", "async", "await", "API",
-        "JSON", "query", "schema", "cache", "buffer",
-        "chunk", "chunking", "prompt", "token", "embedding",
+        "useEffect", "useState", "component", "React", "Next.js", "TypeScript",
+        "hook", "props", "state",
+        "refactor", "merge", "commit", "branch", "pull request",
+        "endpoint", "dependencies", "async", "await",
+        "chunk",
     ]
 }

@@ -85,22 +85,27 @@ PROMPT_ARTIFACT_RE = re.compile(
     re.DOTALL,
 )
 
-# Termes ajoutés au fil des ratés constatés à l'usage : « chunk » ressortait
-# en « chun-teint », « commit » en « commis ». Un mot n'a sa place ici que
-# s'il a réellement échoué — une liste gonflée à titre préventif dilue le
-# conditionnement.
+# Lexique volontairement court, et c'est mesuré.
+#
+# Il avait grossi jusqu'à 36 termes au fil des ratés constatés. Comparaison A/B
+# sur voix réelle : à 36 termes le modèle perd des virgules — « Dans Next.js
+# j'ai envie » au lieu de « Dans Next.js, j'ai envie », « le component sinon »
+# au lieu de « le component, sinon ». Un prompt plus long dilue le contexte et
+# pousse vers un style télégraphique.
+#
+# À 18 termes la ponctuation est intacte et les termes techniques restent
+# corrects. Sans lexique du tout, on retombe sur « use effect », « react » en
+# minuscules et « UseEffect » mal capitalisé — donc il sert bien à quelque
+# chose, mais court.
+#
+# Règle : un terme n'entre ici que s'il a échoué de façon répétée, et il faut
+# en retirer un pour en ajouter un.
 DEFAULT_LEXICON = [
-    # React / front
-    "useEffect", "useState", "useMemo", "useRef", "component", "React",
-    "Next.js", "TypeScript", "hook", "props", "state",
-    # git / flux de travail
-    "refactor", "merge", "commit", "rebase", "branch", "pull request",
-    "review", "deploy", "build",
-    # back / données
-    "endpoint", "middleware", "dependencies", "async", "await", "API",
-    "JSON", "query", "schema", "cache", "buffer",
-    # vocabulaire du domaine
-    "chunk", "chunking", "prompt", "token", "embedding", "latence",
+    "useEffect", "useState", "component", "React", "Next.js", "TypeScript",
+    "hook", "props", "state",
+    "refactor", "merge", "commit", "branch", "pull request",
+    "endpoint", "dependencies", "async", "await",
+    "chunk",
 ]
 
 
