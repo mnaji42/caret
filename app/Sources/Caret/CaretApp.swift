@@ -5,6 +5,7 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var hotkey: HotkeyMonitor!
+    private var historyHotkey: HotkeyMonitor!
     private var modifierKey: ModifierKeyMonitor!
     private var reArmTimer: Timer?
     private var controller: DictationController!
@@ -34,6 +35,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !hotkey.register(shortcut) {
             NSLog("caret: impossible d'enregistrer \(shortcut.label) — raccourci déjà pris ?")
         }
+
+        // Ouvrir le menu au clavier : sans ça, retrouver une transcription
+        // suppose de viser une icône de barre de menus à la souris.
+        historyHotkey = HotkeyMonitor { [weak self] in self?.openMenu() }
+        _ = historyHotkey.register(.history)
 
         // Le système désactive un tap dont le processus a trop tardé ; sans ce
         // réarmement la dictée cesserait de répondre sans prévenir.
@@ -65,6 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         reArmTimer?.invalidate()
         modifierKey?.stop()
         hotkey?.unregister()
+        historyHotkey?.unregister()
     }
 
     // MARK: - Barre de menus
@@ -137,12 +144,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menu.addItem(.separator())
 
+        // Section toujours présente, même vide : masquée, elle est
+        // indécouvrable — on ne cherche pas une fonction dont rien n'indique
+        // l'existence.
         let entries = controller.history.entries
-        if !entries.isEmpty {
-            let header = NSMenuItem(title: "Transcriptions récentes", action: nil, keyEquivalent: "")
-            header.isEnabled = false
-            menu.addItem(header)
+        let header = NSMenuItem(
+            title: "Transcriptions récentes  \(HotkeyMonitor.Shortcut.history.label)",
+            action: nil, keyEquivalent: "")
+        header.isEnabled = false
+        menu.addItem(header)
 
+        if entries.isEmpty {
+            let empty = NSMenuItem(
+                title: controller.history.isEnabled
+                    ? "  aucune pour l'instant"
+                    : "  historique désactivé",
+                action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            menu.addItem(empty)
+        } else {
             for entry in entries {
                 let item = NSMenuItem(title: "  \(entry.preview)",
                                       action: #selector(reinsert(_:)), keyEquivalent: "")
@@ -152,12 +172,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 menu.addItem(item)
             }
 
-            let clear = NSMenuItem(title: "Effacer l'historique",
+            let clear = NSMenuItem(title: "  Effacer l'historique",
                                    action: #selector(clearHistory), keyEquivalent: "")
             clear.target = self
             menu.addItem(clear)
-            menu.addItem(.separator())
         }
+        menu.addItem(.separator())
 
         let sounds = NSMenuItem(title: "Retour sonore", action: #selector(toggleSounds),
                                 keyEquivalent: "")
@@ -207,6 +227,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func triggerDictation() {
         controller.toggle()
+    }
+
+    /// Déroule le menu de la barre de menus par programme.
+    private func openMenu() {
+        Task {
+            await refreshMenu()
+            statusItem.button?.performClick(nil)
+        }
     }
 
     @objc private func retry() {

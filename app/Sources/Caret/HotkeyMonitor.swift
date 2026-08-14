@@ -42,6 +42,14 @@ final class HotkeyMonitor {
             id: 1
         )
 
+        /// Ouvre le menu de Caret sur l'historique.
+        static let history = Shortcut(
+            keyCode: UInt32(kVK_ANSI_H),
+            modifiers: UInt32(controlKey | optionKey | cmdKey),
+            label: "⌃⌥⌘H",
+            id: 3
+        )
+
         /// Échap, capté uniquement pendant l'enregistrement pour annuler.
         static let cancel = Shortcut(
             keyCode: UInt32(kVK_Escape),
