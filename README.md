@@ -274,6 +274,27 @@ as personal data, and skips without it.
 - [x] **J4** — VAD (no inference on silence) and anti-hallucination guards
 - [ ] **J5** — Core ML / Neural Engine backend
 
+### Engine comparison
+
+Three local engines, same real recordings, each with its best setting:
+
+| Engine | Technical terms | Median latency | Cleanup mode | Vocabulary bias |
+|---|---|---|---|---|
+| **CrisperWhisper turbo** | **29/29** | 763 ms | yes (intended) | native `<htx>` |
+| Whisper large-v3-turbo | 29/29 | 960 ms | no | via `<\|startofprev\|>` |
+| Parakeet TDT 0.6b v3 | 26/29 | **420 ms** | no | none |
+
+Parakeet is nearly twice as fast and its French is fluent, but it has no
+vocabulary conditioning: it writes `UseEffect`, `UseState`, `UseEffects`,
+`Future` for "feature", `deuxcent` for "200". Whisper standard matches on terms
+once prompted but returns unpunctuated lowercase text on spontaneous speech —
+it has no intended mode.
+
+The benchmark that ranks CrisperWhisper #1 measures **disfluency F1**, not word
+error rate: how faithfully a system writes down hesitations actually spoken.
+And those rankings are for the **Pro** weights (96.0 F1), which are gated and
+commercial-licence only; the open weights score 89.9.
+
 ### Measured non-results
 
 - **On-device LLM review does not work.** Apple's Foundation Models are
