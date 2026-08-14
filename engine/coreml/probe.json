@@ -1,0 +1,20 @@
+{
+  "15s": {
+    "mps_ms": 289.6,
+    "ANE (+CPU)": 195.4,
+    "ANE (+CPU)_delta": 0.61157,
+    "GPU (+CPU)": 290.6,
+    "GPU (+CPU)_delta": 0.11694,
+    "auto": 200.0,
+    "auto_delta": 0.61157
+  },
+  "30s": {
+    "mps_ms": 689.4,
+    "ANE (+CPU)": 609.9,
+    "ANE (+CPU)_delta": 0.67781,
+    "GPU (+CPU)": 635.9,
+    "GPU (+CPU)_delta": 0.16402,
+    "auto": 608.9,
+    "auto_delta": 0.67781
+  }
+}
