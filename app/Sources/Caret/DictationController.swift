@@ -166,9 +166,13 @@ final class DictationController {
                                      language: language, lexicon: lexicon))
 
             var text = result.text
+            let transcribed = text
             if mode.needsReview, #available(macOS 26, *), !text.isEmpty {
                 overlay.showReviewing()
                 text = await TranscriptReviewer().review(text)
+                if text != transcribed {
+                    ReviewLog.record(before: transcribed, after: text)
+                }
             }
 
             overlay.hide()
@@ -178,7 +182,8 @@ final class DictationController {
                 return
             }
             try await deliver(text)
-            history.add(text, mode: mode)
+            history.add(text, mode: mode,
+                        original: mode.needsReview ? transcribed : nil)
             pendingAudio = nil
             NSLog("caret: %.0f ms, fenêtre %.0fs — %@",
                   result.latency.wallMs, result.windowSeconds, text)
