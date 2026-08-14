@@ -32,6 +32,9 @@ final class DictationController {
 
     var language: String = "fr"
 
+    /// Destination du texte : curseur actif, ou fichier verrouillé.
+    var target: DictationTarget = .caret
+
     private let engine: any SpeechEngine
     private let recorder = AudioRecorder()
     private let injector = TextInjector()
@@ -157,7 +160,7 @@ final class DictationController {
                 state = .idle
                 return
             }
-            try await injector.inject(result.text)
+            try await deliver(result.text)
             history.add(result.text, mode: mode)
             pendingAudio = nil
             NSLog("caret: %.0f ms, fenêtre %.0fs — %@",
@@ -207,13 +210,45 @@ final class DictationController {
         NSLog("caret: diagnostic écrit — %@", url.path)
     }
 
+    /// Achemine le texte vers la destination courante.
+    ///
+    /// Sur cible verrouillée, l'insertion au curseur est délibérément évitée :
+    /// l'intérêt du verrou est justement de pouvoir continuer à travailler
+    /// ailleurs sans que la dictée vienne s'écrire dans le code en cours.
+    private func deliver(_ text: String) async throws {
+        switch target {
+        case .caret:
+            try await injector.inject(text)
+        case .file(let url):
+            try TargetWriter.append(text, to: url)
+            NSLog("caret: ajouté à %@", url.lastPathComponent)
+        }
+    }
+
     /// Insère un texte déjà transcrit — réinsertion depuis l'historique.
     func insert(_ text: String) async {
         do {
-            try await injector.inject(text)
+            try await deliver(text)
         } catch {
             state = .failed(error.localizedDescription)
         }
+    }
+
+    /// Verrouille la destination sur un fichier.
+    ///
+    /// On tente d'abord le document ouvert devant : dans ce cas il suffit de
+    /// poser le curseur dans le fichier voulu, sans passer par un sélecteur.
+    func lockTarget() {
+        if let document = TargetWriter.frontmostDocument() {
+            target = .file(document)
+            NSLog("caret: verrouillé sur %@", document.path)
+        } else if let chosen = TargetWriter.chooseFile() {
+            target = .file(chosen)
+        }
+    }
+
+    func unlockTarget() {
+        target = .caret
     }
 
     /// Relance la transcription de l'audio conservé après un échec.

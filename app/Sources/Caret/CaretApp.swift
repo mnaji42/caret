@@ -86,7 +86,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let button = statusItem.button else { return }
 
         let (symbol, description): (String, String) = switch state {
-        case .idle:       ("mic", "Caret — prêt")
+        case .idle:
+            controller.target.isLocked
+                ? ("mic.badge.plus", "Caret — écrit dans \(controller.target.displayName)")
+                : ("mic", "Caret — prêt")
         case .recording:  ("mic.fill", "Caret — enregistrement")
         case .processing: ("waveform", "Caret — transcription")
         case .failed:     ("exclamationmark.triangle", "Caret — erreur")
@@ -137,6 +140,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                      action: #selector(discard), keyEquivalent: "")
             discard.target = self
             menu.addItem(discard)
+        }
+        menu.addItem(.separator())
+
+        // Destination : le point le plus important à rendre visible, puisque
+        // verrouillé, le texte n'apparaît plus là où on regarde.
+        if let url = controller.target.fileURL {
+            let locked = NSMenuItem(title: "▸ Écrit dans \(url.lastPathComponent)",
+                                    action: nil, keyEquivalent: "")
+            locked.isEnabled = false
+            locked.toolTip = url.path
+            menu.addItem(locked)
+
+            let unlock = NSMenuItem(title: "Déverrouiller (revenir au curseur)",
+                                    action: #selector(unlockTarget), keyEquivalent: "")
+            unlock.target = self
+            menu.addItem(unlock)
+
+            let reveal = NSMenuItem(title: "Afficher dans le Finder",
+                                    action: #selector(revealTarget), keyEquivalent: "")
+            reveal.target = self
+            menu.addItem(reveal)
+        } else {
+            let lock = NSMenuItem(title: "Verrouiller sur un fichier…",
+                                  action: #selector(lockTarget), keyEquivalent: "")
+            lock.target = self
+            lock.toolTip = "Tout ce qui est dicté sera ajouté à ce fichier, "
+                + "où que soit le curseur."
+            menu.addItem(lock)
         }
         menu.addItem(.separator())
 
@@ -283,6 +314,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if prefs.triggerEnabled { modifierKey.start() }
         Task { await refreshMenu() }
+    }
+
+    @objc private func lockTarget() {
+        controller.lockTarget()
+        Task { await refreshMenu() }
+    }
+
+    @objc private func unlockTarget() {
+        controller.unlockTarget()
+        Task { await refreshMenu() }
+    }
+
+    @objc private func revealTarget() {
+        guard let url = controller.target.fileURL else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
     @objc private func retry() {
