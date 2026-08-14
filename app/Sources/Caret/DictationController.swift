@@ -32,10 +32,18 @@ final class DictationController {
     private let engine: any SpeechEngine
     private let recorder = AudioRecorder()
     private let injector = TextInjector()
+    private let overlay = RecordingOverlay()
     private var escapeMonitor: HotkeyMonitor?
 
     init(engine: any SpeechEngine) {
         self.engine = engine
+        overlay.levelProvider = { [weak self] in self?.recorder.level ?? 0 }
+        overlay.onCancel = { [weak self] in self?.cancel() }
+        overlay.onToggleMode = { [weak self] in
+            guard let self else { return }
+            mode = mode == .intended ? .verbatim : .intended
+            overlay.updateMode(mode)
+        }
     }
 
     /// Appelé par le raccourci global : démarre ou termine la dictée.
@@ -54,6 +62,7 @@ final class DictationController {
         guard state == .recording else { return }
         recorder.cancel()
         releaseEscape()
+        overlay.hide()
         state = .idle
     }
 
@@ -85,6 +94,7 @@ final class DictationController {
         do {
             try recorder.start()
             captureEscape()
+            overlay.showRecording(mode: mode)
             state = .recording
         } catch {
             state = .failed(error.localizedDescription)
@@ -94,6 +104,7 @@ final class DictationController {
     private func finishRecording() async {
         let samples = recorder.stop()
         releaseEscape()
+        overlay.showProcessing()
 
         let seconds = Double(samples.count) / AudioRecorder.targetSampleRate
         NSLog("caret: fin d'enregistrement, %.1fs capturées", seconds)
@@ -102,6 +113,7 @@ final class DictationController {
         // de réveiller le moteur. Un vrai VAD reste à faire (cf. README).
         guard samples.count > Int(AudioRecorder.targetSampleRate * 0.3) else {
             NSLog("caret: trop court, ignoré")
+            overlay.hide()
             state = .idle
             return
         }
@@ -111,6 +123,7 @@ final class DictationController {
             let result = try await engine.transcribe(
                 TranscriptionRequest(samples: samples, mode: mode, lexicon: lexicon))
 
+            overlay.hide()
             guard !result.text.isEmpty else {
                 state = .idle
                 return
@@ -120,6 +133,7 @@ final class DictationController {
                   result.latency.wallMs, result.windowSeconds, result.text)
             state = .idle
         } catch {
+            overlay.hide()
             state = .failed(error.localizedDescription)
         }
     }

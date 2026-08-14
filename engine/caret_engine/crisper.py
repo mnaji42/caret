@@ -66,10 +66,22 @@ PROMPT_ARTIFACT_RE = re.compile(
     re.DOTALL,
 )
 
+# Termes ajoutés au fil des ratés constatés à l'usage : « chunk » ressortait
+# en « chun-teint », « commit » en « commis ». Un mot n'a sa place ici que
+# s'il a réellement échoué — une liste gonflée à titre préventif dilue le
+# conditionnement.
 DEFAULT_LEXICON = [
-    "useEffect", "useState", "component", "React", "Next.js", "TypeScript",
-    "hook", "refactor", "merge", "commit", "endpoint", "dependencies",
-    "pull request", "branch", "async", "await", "props", "state",
+    # React / front
+    "useEffect", "useState", "useMemo", "useRef", "component", "React",
+    "Next.js", "TypeScript", "hook", "props", "state",
+    # git / flux de travail
+    "refactor", "merge", "commit", "rebase", "branch", "pull request",
+    "review", "deploy", "build",
+    # back / données
+    "endpoint", "middleware", "dependencies", "async", "await", "API",
+    "JSON", "query", "schema", "cache", "buffer",
+    # vocabulaire du domaine
+    "chunk", "chunking", "prompt", "token", "embedding", "latence",
 ]
 
 

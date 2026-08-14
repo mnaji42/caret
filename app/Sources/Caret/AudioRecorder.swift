@@ -39,6 +39,23 @@ final class AudioRecorder: @unchecked Sendable {
         return Double(samples.count) / Self.targetSampleRate
     }
 
+    /// Niveau sonore courant, entre 0 et 1, pour l'indicateur d'enregistrement.
+    ///
+    /// Lissé par une moyenne mobile : la valeur brute par tampon saute trop
+    /// pour donner un affichage lisible, et un indicateur qui clignote
+    /// n'apprend rien à l'utilisateur sur le fait qu'on l'entend.
+    private(set) var level: Float = 0
+
+    private func updateLevel(_ frame: UnsafeBufferPointer<Float>) {
+        var sum: Float = 0
+        for value in frame { sum += value * value }
+        let rms = (sum / Float(max(frame.count, 1))).squareRoot()
+        // Échelle racine : la perception sonore est loin d'être linéaire, et
+        // une voix normale occuperait sinon le bas de la jauge.
+        let scaled = min(1, (rms * 8).squareRoot())
+        level += (scaled - level) * 0.3
+    }
+
     enum MicrophoneAccess {
         case granted
         /// Jamais demandé : c'est le seul état où macOS acceptera d'afficher
@@ -100,6 +117,7 @@ final class AudioRecorder: @unchecked Sendable {
         lock.lock()
         samples.removeAll(keepingCapacity: true)
         lock.unlock()
+        level = 0
 
         input.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] buffer, _ in
             self?.append(buffer, using: converter, outputFormat: outputFormat)
@@ -160,6 +178,7 @@ final class AudioRecorder: @unchecked Sendable {
               let channel = out.floatChannelData?[0] else { return }
 
         let converted = UnsafeBufferPointer(start: channel, count: Int(out.frameLength))
+        updateLevel(converted)
         lock.lock()
         samples.append(contentsOf: converted)
         lock.unlock()
