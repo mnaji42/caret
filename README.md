@@ -162,7 +162,9 @@ Two things worth knowing, both verified against the released weights:
 - macOS 26+
 - ~1,6 GB disk for the `turbo` model, downloaded on first run
 
-## Running the engine
+## Getting started
+
+### 1. Start the engine
 
 ```bash
 cd engine
@@ -170,13 +172,47 @@ uv venv --python 3.12 && uv pip install -e .
 uv run python -m caret_engine.server
 ```
 
-Check it responds:
+The model loads once (~8 s) and stays warm. Leave this running. Verify it
+answers:
 
 ```bash
 uv run python client_test.py ../poc/samples/01-fr-dev.wav
 ```
 
-The model loads once (~8 s) and stays warm. Each dictation pays inference only.
+### 2. Build and launch the app
+
+```bash
+cd app
+./build_app.sh && open Caret.app
+```
+
+Caret appears in the menu bar — no Dock icon, no window.
+
+### 3. Grant two permissions
+
+| Permission | Why | When |
+|---|---|---|
+| **Microphone** | capture your voice | prompted on first dictation |
+| **Accessibility** | insert text into other apps | System Settings › Privacy & Security › Accessibility |
+
+Accessibility must be granted manually, then relaunch Caret.
+
+### 4. Dictate
+
+| Shortcut | Action |
+|---|---|
+| **⌃⌥D** | start / stop dictation |
+| **Escape** | cancel while recording (no text inserted) |
+
+Press `⌃⌥D`, talk, press again. Text lands at the cursor of whatever app is
+focused.
+
+**Why `⌃⌥D`?** macOS 15+ rejects global hotkeys whose only modifiers are
+Option and/or Shift — an anti-keylogger measure — so `⌥Space` cannot work. And
+on a French AZERTY keyboard Option types `@ # { } [ ] | \ ~`, which rules out
+Right Option as a push-to-talk key for developers. `⌃⌥D` is free, mnemonic, and
+needs no Input Monitoring permission since it goes through Carbon's
+`RegisterEventHotKey` rather than a `CGEventTap`.
 
 ---
 
@@ -185,7 +221,7 @@ The model loads once (~8 s) and stays warm. Each dictation pays inference only.
 - [x] **J0** — validate CrisperWhisper on real French/English developer speech
 - [x] **J1** — latency breakdown, adaptive encoder window
 - [x] **J2** — persistent engine service (4–5× faster than reference pipeline)
-- [ ] **J3** — Swift app: global hotkey, capture, inject at caret
+- [x] **J3** — Swift app: global hotkey, capture, inject at caret
 - [ ] **J4** — VAD (no inference on silence) and anti-hallucination guards
 - [ ] **J5** — Core ML / Neural Engine backend
 - [ ] **J6** — menu bar, settings, history, signing, notarization
