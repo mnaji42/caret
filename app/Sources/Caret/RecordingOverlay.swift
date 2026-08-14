@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 
 /// Panneau flottant affiché pendant la dictée.
 ///
@@ -27,6 +28,7 @@ final class RecordingOverlay {
     private let meter = LevelMeter()
     private let modeButton = NSButton()
     private let targetButton = NSButton()
+    private let micButton = NSButton()
     private var controls: NSStackView?
 
     var levelProvider: (() -> Float)?
@@ -71,6 +73,12 @@ final class RecordingOverlay {
         position(panel)
     }
 
+    /// La relecture prend quelques secondes de plus : le dire évite qu'on
+    /// croie l'application bloquée.
+    func showReviewing() {
+        statusLabel.stringValue = "Relecture…"
+    }
+
     func hide() {
         timer?.invalidate()
         timer = nil
@@ -79,15 +87,29 @@ final class RecordingOverlay {
     }
 
     func update(mode: TranscriptionMode, target: DictationTarget) {
-        modeButton.attributedTitle = Self.buttonTitle(
-            mode == .intended ? "Texte nettoyé" : "Mot à mot")
+        modeButton.attributedTitle = Self.buttonTitle(mode.label)
         targetButton.attributedTitle = Self.buttonTitle(
             target.isLocked ? "→ \(target.displayName)" : "Au curseur")
         targetButton.toolTip = target.isLocked
             ? "Cliquer pour revenir au curseur"
             : "Cliquer pour écrire dans un fichier"
+        micButton.attributedTitle = Self.buttonTitle(Self.microphoneModeLabel)
+        micButton.toolTip = "Mode micro du système — cliquer pour le changer"
         panel?.setContentSize(fittingSize())
         if let panel { position(panel) }
+    }
+
+    /// Mode micro courant, tel que macOS le rapporte.
+    ///
+    /// Lecture seule : Apple ne laisse aucune application imposer ce réglage,
+    /// c'est un choix de l'utilisateur. On peut en revanche ouvrir le panneau
+    /// système, ce qui évite d'aller le chercher dans le Centre de contrôle.
+    private static var microphoneModeLabel: String {
+        switch AVCaptureDevice.activeMicrophoneMode {
+        case .voiceIsolation: "🎙 Isolement"
+        case .wideSpectrum: "🎙 Large"
+        default: "🎙 Standard"
+        }
     }
 
     // MARK: - Construction
@@ -150,7 +172,8 @@ final class RecordingOverlay {
         statusLabel.textColor = .secondaryLabelColor
 
         for (button, action) in [(modeButton, #selector(toggleMode)),
-                                 (targetButton, #selector(toggleTarget))] {
+                                 (targetButton, #selector(toggleTarget)),
+                                 (micButton, #selector(openMicrophoneModes))] {
             button.isBordered = false
             button.bezelStyle = .inline
             button.target = self
@@ -163,6 +186,7 @@ final class RecordingOverlay {
             dot, timeLabel, meter,
             Self.separator(), modeButton,
             Self.separator(), targetButton,
+            Self.separator(), micButton,
         ])
         stack.orientation = .horizontal
         stack.spacing = 9
@@ -211,6 +235,10 @@ final class RecordingOverlay {
 
     @objc private func toggleMode() { onToggleMode?() }
     @objc private func toggleTarget() { onToggleTarget?() }
+
+    @objc private func openMicrophoneModes() {
+        AVCaptureDevice.showSystemUserInterface(.microphoneModes)
+    }
 }
 
 /// Barres de niveau sonore, défilant de droite à gauche.

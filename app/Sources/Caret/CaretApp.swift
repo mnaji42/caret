@@ -177,8 +177,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
 
         for mode in TranscriptionMode.allCases {
-            let title = mode == .intended ? "Texte nettoyé" : "Mot à mot"
-            let item = NSMenuItem(title: title, action: #selector(selectMode(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: mode.label,
+                                  action: #selector(selectMode(_:)), keyEquivalent: "")
+            if mode == .reviewed {
+                item.toolTip = "Repasse la transcription dans le modèle de langue "
+                    + "du système pour réparer les mots inventés. Plus lent, et "
+                    + "la correction est ignorée si elle s'écarte trop du texte."
+            }
             item.target = self
             item.representedObject = mode.rawValue
             item.state = controller.mode == mode ? .on : .off

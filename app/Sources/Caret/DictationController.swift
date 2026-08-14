@@ -54,7 +54,8 @@ final class DictationController {
         overlay.onCancel = { [weak self] in self?.cancel() }
         overlay.onToggleMode = { [weak self] in
             guard let self else { return }
-            mode = mode == .intended ? .verbatim : .intended
+            let all = TranscriptionMode.allCases
+            mode = all[(all.firstIndex(of: mode)! + 1) % all.count]
             overlay.update(mode: mode, target: target)
             onStateChange?(state)
         }
@@ -161,20 +162,26 @@ final class DictationController {
         state = .processing
         do {
             let result = try await engine.transcribe(
-                TranscriptionRequest(samples: samples, mode: mode,
+                TranscriptionRequest(samples: samples, mode: mode.engineMode,
                                      language: language, lexicon: lexicon))
 
+            var text = result.text
+            if mode.needsReview, #available(macOS 26, *), !text.isEmpty {
+                overlay.showReviewing()
+                text = await TranscriptReviewer().review(text)
+            }
+
             overlay.hide()
-            guard !result.text.isEmpty else {
+            guard !text.isEmpty else {
                 pendingAudio = nil
                 state = .idle
                 return
             }
-            try await deliver(result.text)
-            history.add(result.text, mode: mode)
+            try await deliver(text)
+            history.add(text, mode: mode)
             pendingAudio = nil
             NSLog("caret: %.0f ms, fenêtre %.0fs — %@",
-                  result.latency.wallMs, result.windowSeconds, result.text)
+                  result.latency.wallMs, result.windowSeconds, text)
             state = .idle
         } catch {
             overlay.hide()
