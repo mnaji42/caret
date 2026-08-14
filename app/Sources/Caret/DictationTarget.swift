@@ -82,11 +82,19 @@ enum TargetWriter {
         }
     }
 
-    /// Fichier ouvert dans l'application active, si elle en expose un.
+    /// Fichier ouvert dans l'application active, si on parvient à l'identifier.
     ///
-    /// Beaucoup d'applications publient le chemin de leur document courant via
-    /// l'accessibilité. Quand c'est le cas, verrouiller ne demande aucun
-    /// sélecteur : on pose le curseur dans le fichier et on verrouille.
+    /// Deux voies, dans cet ordre :
+    ///
+    /// 1. `AXDocument`, que publient les applications natives — Xcode, TextEdit,
+    ///    Notes. Direct et fiable quand il existe.
+    /// 2. Le **titre de la fenêtre**, pour les éditeurs Electron (VS Code,
+    ///    Cursor, Antigravity), qui n'exposent aucun document via
+    ///    l'accessibilité mais affichent « fichier.ext — dossier » dans leur
+    ///    barre de titre. On en extrait le nom et on le localise.
+    ///
+    /// La seconde voie est indispensable : ce sont précisément les éditeurs
+    /// dans lesquels on prend des notes de revue.
     static func frontmostDocument() -> URL? {
         guard AXIsProcessTrusted(),
               let app = NSWorkspace.shared.frontmostApplication else { return nil }
@@ -96,24 +104,104 @@ enum TargetWriter {
         guard AXUIElementCopyAttributeValue(
             element, kAXFocusedWindowAttribute as CFString, &window) == .success,
             let focused = window else { return nil }
+        let axWindow = focused as! AXUIElement
 
+        if let url = documentAttribute(of: axWindow) {
+            NSLog("caret: document via AXDocument — %@", url.path)
+            return url
+        }
+        if let url = documentFromTitle(of: axWindow) {
+            NSLog("caret: document via titre de fenêtre — %@", url.path)
+            return url
+        }
+        NSLog("caret: aucun document identifié pour %@",
+              app.localizedName ?? "l'app active")
+        return nil
+    }
+
+    private static func documentAttribute(of window: AXUIElement) -> URL? {
         var document: CFTypeRef?
         guard AXUIElementCopyAttributeValue(
-            focused as! AXUIElement, kAXDocumentAttribute as CFString,
-            &document) == .success,
+            window, kAXDocumentAttribute as CFString, &document) == .success,
             let path = document as? String, !path.isEmpty else { return nil }
 
-        // Le chemin arrive en file:// chez la plupart, en chemin brut chez
-        // d'autres.
         let url = path.hasPrefix("file://")
             ? URL(string: path)
             : URL(fileURLWithPath: path)
-        guard let url else { return nil }
+        return url.flatMap(validated)
+    }
 
-        // Validation stricte, sinon on écrit n'importe où. Certaines
-        // applications publient un attribut vide ou tronqué : une première
-        // version acceptait « / », qui existe bel et bien et passait le simple
-        // test d'existence, d'où une cible verrouillée sur la racine du disque.
+    /// Déduit le fichier du titre de la fenêtre.
+    ///
+    /// Les éditeurs dérivés de VS Code titrent « fichier.ext — projet », avec
+    /// un point ou une puce devant quand il reste des modifications non
+    /// enregistrées. On isole le nom, puis on le localise avec Spotlight en
+    /// privilégiant les chemins contenant le nom du projet — sans quoi un
+    /// `README.md` renverrait n'importe lequel des dizaines présents sur le
+    /// disque.
+    private static func documentFromTitle(of window: AXUIElement) -> URL? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            window, kAXTitleAttribute as CFString, &value) == .success,
+            let title = value as? String, !title.isEmpty else { return nil }
+
+        // Le séparateur est un tiret **entouré d'espaces**. Découper sur le
+        // tiret seul casserait tous les noms qui en contiennent —
+        // « test-caret.md » deviendrait « test ».
+        let parts = title
+            .replacingOccurrences(of: #"\s+[—–-]\s+"#, with: "\u{1}",
+                                  options: .regularExpression)
+            .components(separatedBy: "\u{1}")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        guard let first = parts.first else { return nil }
+
+        // Retire les marqueurs de modification non enregistrée.
+        let name = first
+            .trimmingCharacters(in: CharacterSet(charactersIn: "●•*◆ "))
+            .trimmingCharacters(in: .whitespaces)
+        guard name.contains("."), !name.isEmpty else { return nil }
+
+        let hints = parts.dropFirst().map { $0.lowercased() }
+        return locate(fileNamed: name, preferring: hints)
+    }
+
+    /// Localise un fichier par son nom via Spotlight.
+    private static func locate(fileNamed name: String,
+                               preferring hints: [String]) -> URL? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/mdfind")
+        task.arguments = ["-name", name]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+
+        guard (try? task.run()) != nil else { return nil }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+
+        let candidates = (String(data: data, encoding: .utf8) ?? "")
+            .split(separator: "\n")
+            .map { URL(fileURLWithPath: String($0)) }
+            .filter { $0.lastPathComponent == name }
+            .compactMap(validated)
+        guard !candidates.isEmpty else { return nil }
+
+        // Un chemin qui contient le nom du projet l'emporte : c'est ce qui
+        // distingue le bon README.md de tous les autres.
+        for hint in hints where hint.count > 2 {
+            if let match = candidates.first(where: { $0.path.lowercased().contains(hint) }) {
+                return match
+            }
+        }
+        return candidates.count == 1 ? candidates[0] : nil
+    }
+
+    /// Un chemin n'est retenu que s'il désigne un fichier réel et inscriptible.
+    ///
+    /// Une première version se contentait de tester l'existence : « / » passait,
+    /// d'où une cible verrouillée sur la racine du disque.
+    private static func validated(_ url: URL) -> URL? {
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path,
                                              isDirectory: &isDirectory),
@@ -122,7 +210,6 @@ enum TargetWriter {
               url.lastPathComponent != "/",
               FileManager.default.isWritableFile(atPath: url.path)
         else { return nil }
-
         return url
     }
 

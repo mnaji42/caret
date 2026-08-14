@@ -252,8 +252,14 @@ final class DictationController {
         if let document = TargetWriter.frontmostDocument() {
             target = .file(document)
             NSLog("caret: verrouillé sur %@", document.path)
-        } else if let chosen = TargetWriter.chooseFile() {
+            return
+        }
+        // Détection impossible : plutôt qu'un sélecteur surgissant sans
+        // raison apparente, on dit pourquoi avant de le proposer.
+        NSLog("caret: fichier non identifié — sélecteur")
+        if let chosen = TargetWriter.chooseFile() {
             target = .file(chosen)
+            NSLog("caret: verrouillé sur %@", chosen.path)
         }
     }
 
