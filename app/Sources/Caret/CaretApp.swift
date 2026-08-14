@@ -179,11 +179,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for mode in TranscriptionMode.allCases {
             let item = NSMenuItem(title: mode.label,
                                   action: #selector(selectMode(_:)), keyEquivalent: "")
-            if mode == .reviewed {
-                item.toolTip = "Repasse la transcription dans le modèle de langue "
-                    + "du système pour réparer les mots inventés. Plus lent, et "
-                    + "la correction est ignorée si elle s'écarte trop du texte."
-            }
+
             item.target = self
             item.representedObject = mode.rawValue
             item.state = controller.mode == mode ? .on : .off
@@ -215,26 +211,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                       action: #selector(reinsert(_:)), keyEquivalent: "")
                 item.target = self
                 item.representedObject = entry.text
-                if let original = entry.original {
-                    item.title = "  ⟲ \(entry.preview)"
-                    item.toolTip = """
-                        \(entry.relativeAge) — relu
-
-                        AVANT : \(original)
-
-                        APRÈS : \(entry.text)
-                        """
-                } else {
-                    item.toolTip = "\(entry.relativeAge)\n\n\(entry.text)"
-                }
+                item.toolTip = "\(entry.relativeAge)\n\n\(entry.text)"
                 menu.addItem(item)
             }
-
-            let journal = NSMenuItem(title: "  Ouvrir le journal des relectures",
-                                     action: #selector(openReviewLog), keyEquivalent: "")
-            journal.target = self
-            journal.toolTip = "Chaque correction du mode relu, avant et après."
-            menu.addItem(journal)
 
             let clear = NSMenuItem(title: "  Effacer l'historique",
                                    action: #selector(clearHistory), keyEquivalent: "")
@@ -387,15 +366,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func reinsert(_ sender: NSMenuItem) {
         guard let text = sender.representedObject as? String else { return }
         Task { await controller.insert(text) }
-    }
-
-    @objc private func openReviewLog() {
-        let url = ReviewLog.url
-        if !FileManager.default.fileExists(atPath: url.path) {
-            try? "# Relectures du mode expérimental\n\n_Aucune pour l'instant._\n"
-                .write(to: url, atomically: true, encoding: .utf8)
-        }
-        NSWorkspace.shared.open(url)
     }
 
     @objc private func clearHistory() {

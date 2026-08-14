@@ -276,6 +276,17 @@ as personal data, and skips without it.
 
 ### Measured non-results
 
+- **On-device LLM review does not work.** Apple's Foundation Models are
+  available and were wired behind a similarity guard, then removed. Asked to
+  fix one absurd word in an otherwise sound sentence, the model answered the
+  sentence conversationally, added bold instead of correcting, and turned
+  "chun-teint" into "chanter" where the word was "chunk". It is tuned for
+  assistance, not text transformation. Worth retrying when a stronger
+  on-device model ships.
+- **Low decoder confidence does not mark errors.** The least confident words
+  on real samples are correct ones — "useEffect" at 0.34 — because the
+  hesitation is about the following comma. Median confidence is 0.98
+  throughout, so hallucinations cannot be located automatically.
 - **A French-tuned Whisper is worse here.** `whisper-large-v3-distil-fr`
   scores 21/25 on technical terms against 25/25 for CrisperWhisper with
   lexicon, at 1.5-2× the latency. It has none of CrisperWhisper's tokens, so

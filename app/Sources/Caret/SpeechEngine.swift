@@ -9,27 +9,10 @@ enum TranscriptionMode: String, Sendable, CaseIterable {
     case intended
     /// Ce qui a été dit — hésitations, répétitions, faux départs conservés.
     case verbatim
-    /// Comme `intended`, puis relu par le modèle de langue du système pour
-    /// réparer les mots manifestement inventés.
-    ///
-    /// Expérimental et plus lent. Mesuré, le modèle dérape régulièrement —
-    /// il répond parfois à la phrase au lieu de la corriger — donc sa sortie
-    /// passe par `TranscriptGuard` et n'est retenue que si elle reste proche
-    /// de l'original. Au pire, ce mode ne change rien.
-    case reviewed
-
-    /// Mode compris par le moteur : la relecture est un post-traitement.
-    var engineMode: TranscriptionMode {
-        self == .reviewed ? .intended : self
-    }
-
-    var needsReview: Bool { self == .reviewed }
-
     var label: String {
         switch self {
         case .intended: "Texte nettoyé"
         case .verbatim: "Mot à mot"
-        case .reviewed: "Relu (expérimental)"
         }
     }
 }

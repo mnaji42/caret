@@ -15,22 +15,12 @@ final class TranscriptionHistory {
         let text: String
         let date: Date
         let mode: String
-        /// Transcription avant relecture, quand le mode relu l'a modifiée.
-        ///
-        /// Conservée pour pouvoir juger le mode sur pièces : sans les deux
-        /// versions côte à côte, impossible de savoir si la relecture répare
-        /// ou abîme.
-        let original: String?
-
-        init(text: String, mode: TranscriptionMode, original: String? = nil) {
+        init(text: String, mode: TranscriptionMode) {
             self.id = UUID()
             self.text = text
             self.date = Date()
             self.mode = mode.rawValue
-            self.original = (original == text) ? nil : original
         }
-
-        var wasRewritten: Bool { original != nil }
 
         /// « à l'instant », « il y a 3 min » — repère plus utile qu'une heure
         /// absolue pour retrouver ce qu'on vient de dicter.
@@ -75,12 +65,12 @@ final class TranscriptionHistory {
         }
     }
 
-    func add(_ text: String, mode: TranscriptionMode, original: String? = nil) {
+    func add(_ text: String, mode: TranscriptionMode) {
         guard isEnabled else { return }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        entries.insert(Entry(text: trimmed, mode: mode, original: original), at: 0)
+        entries.insert(Entry(text: trimmed, mode: mode), at: 0)
         if entries.count > Self.limit {
             entries.removeLast(entries.count - Self.limit)
         }

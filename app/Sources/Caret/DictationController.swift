@@ -162,19 +162,10 @@ final class DictationController {
         state = .processing
         do {
             let result = try await engine.transcribe(
-                TranscriptionRequest(samples: samples, mode: mode.engineMode,
+                TranscriptionRequest(samples: samples, mode: mode,
                                      language: language, lexicon: lexicon))
 
-            var text = result.text
-            let transcribed = text
-            if mode.needsReview, #available(macOS 26, *), !text.isEmpty {
-                overlay.showReviewing()
-                text = await TranscriptReviewer().review(text)
-                if text != transcribed {
-                    ReviewLog.record(before: transcribed, after: text)
-                }
-            }
-
+            let text = result.text
             overlay.hide()
             guard !text.isEmpty else {
                 pendingAudio = nil
@@ -182,8 +173,7 @@ final class DictationController {
                 return
             }
             try await deliver(text)
-            history.add(text, mode: mode,
-                        original: mode.needsReview ? transcribed : nil)
+            history.add(text, mode: mode)
             pendingAudio = nil
             NSLog("caret: %.0f ms, fenêtre %.0fs — %@",
                   result.latency.wallMs, result.windowSeconds, text)

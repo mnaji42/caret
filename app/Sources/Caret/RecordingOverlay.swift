@@ -73,12 +73,6 @@ final class RecordingOverlay {
         position(panel)
     }
 
-    /// La relecture prend quelques secondes de plus : le dire évite qu'on
-    /// croie l'application bloquée.
-    func showReviewing() {
-        statusLabel.stringValue = "Relecture…"
-    }
-
     func hide() {
         timer?.invalidate()
         timer = nil
