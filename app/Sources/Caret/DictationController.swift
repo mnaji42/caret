@@ -30,6 +30,8 @@ final class DictationController {
     /// `nil` laisse le moteur appliquer son lexique développeur par défaut.
     var lexicon: [String]?
 
+    var language: String = "fr"
+
     private let engine: any SpeechEngine
     private let recorder = AudioRecorder()
     private let injector = TextInjector()
@@ -146,7 +148,8 @@ final class DictationController {
         state = .processing
         do {
             let result = try await engine.transcribe(
-                TranscriptionRequest(samples: samples, mode: mode, lexicon: lexicon))
+                TranscriptionRequest(samples: samples, mode: mode,
+                                     language: language, lexicon: lexicon))
 
             overlay.hide()
             guard !result.text.isEmpty else {

@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var modifierKey: ModifierKeyMonitor!
     private var reArmTimer: Timer?
     private var controller: DictationController!
+    private let preferences = PreferencesWindowController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let engine = SocketSpeechEngine()
@@ -20,11 +21,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         render(.idle)
 
-        // Déclencheur principal : Option droite pressée seule.
-        modifierKey = ModifierKeyMonitor(side: .right) { [weak self] in
+        let prefs = Preferences.shared
+        controller.mode = prefs.defaultMode
+        controller.language = prefs.language
+        controller.lexicon = prefs.effectiveLexicon
+
+        // Déclencheur principal : Option pressée seule.
+        modifierKey = ModifierKeyMonitor(side: prefs.triggerSide) { [weak self] in
             self?.controller.toggle()
         }
-        if !modifierKey.start() {
+        if prefs.triggerEnabled, !modifierKey.start() {
             NSLog("caret: tap clavier indisponible — accessibilité accordée ?")
         }
 
@@ -226,6 +232,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menu.addItem(.separator())
 
+        let settings = NSMenuItem(title: "Réglages…", action: #selector(openPreferences),
+                                  keyEquivalent: ",")
+        settings.target = self
+        menu.addItem(settings)
+
         menu.addItem(NSMenuItem(title: "Quitter Caret", action: #selector(NSApplication.terminate(_:)),
                                 keyEquivalent: "q"))
         statusItem.menu = menu
@@ -243,6 +254,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             await refreshMenu()
             statusItem.button?.performClick(nil)
         }
+    }
+
+    @objc private func openPreferences() {
+        preferences.show()
+        // Les réglages s'appliquent à la volée : rien à redémarrer.
+        Task {
+            for await _ in NotificationCenter.default.notifications(
+                named: NSWindow.willCloseNotification) {
+                applyPreferences()
+                break
+            }
+        }
+    }
+
+    /// Reporte les réglages sur les composants déjà en place.
+    private func applyPreferences() {
+        let prefs = Preferences.shared
+        controller.mode = prefs.defaultMode
+        controller.language = prefs.language
+        controller.lexicon = prefs.effectiveLexicon
+
+        // Le côté du déclencheur est fixé à la création du tap : il faut le
+        // reconstruire pour en changer.
+        modifierKey.stop()
+        modifierKey = ModifierKeyMonitor(side: prefs.triggerSide) { [weak self] in
+            self?.controller.toggle()
+        }
+        if prefs.triggerEnabled { modifierKey.start() }
+        Task { await refreshMenu() }
     }
 
     @objc private func retry() {

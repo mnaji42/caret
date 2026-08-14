@@ -17,7 +17,7 @@ import Carbon.HIToolbox
 ///
 /// Le tap est en écoute seule : les événements continuent leur chemin intact.
 final class ModifierKeyMonitor {
-    enum Side: String, CaseIterable {
+    enum Side: String, CaseIterable, Hashable, Sendable {
         case right, left
 
         var keyCode: Int64 {
@@ -48,10 +48,11 @@ final class ModifierKeyMonitor {
 
     /// Instant du dernier déclenchement, pour absorber les rebonds.
     ///
-    /// Le système peut livrer deux `flagsChanged` pour un seul relâchement
-    /// (clavier externe, changement de disposition, tap réarmé au mauvais
-    /// moment). Deux déclenchements rapprochés enchaînent démarrage puis arrêt
-    /// immédiat, ou pire, insèrent le texte deux fois de suite.
+    /// Précaution, pas correctif : aucun double déclenchement n'a été observé
+    /// à l'usage. Mais un `CGEventTap` peut recevoir deux `flagsChanged` pour
+    /// un seul relâchement — clavier externe, changement de disposition, tap
+    /// réarmé au mauvais moment — et le coût est nul : deux appuis volontaires
+    /// séparés de moins de 400 ms ne correspondent à aucune dictée réelle.
     private var lastTrigger = Date.distantPast
     private let debounce: TimeInterval = 0.4
 
