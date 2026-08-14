@@ -17,12 +17,20 @@ final class HotkeyMonitor {
         var modifiers: UInt32
         var label: String
 
-        /// Défaut : ⌃⌥D — libre sur macOS, mnémonique « Dictate », et sans
-        /// conflit avec AZERTY où Option sert à saisir @ # { } [ ] | \ ~.
+        /// Défaut : ⌃⌥⌘D.
+        ///
+        /// Un raccourci global vole la combinaison à *toutes* les apps : ⌃⌥D
+        /// était déjà pris par Chrome et par plusieurs éditeurs. Trois
+        /// modificateurs rendent la collision très improbable, et macOS ne
+        /// réserve rien sur ⌃⌥⌘D.
+        ///
+        /// Deux modificateurs auraient suffi côté système — macOS 15+ n'exige
+        /// qu'un modificateur autre qu'Option ou Majuscule — mais c'est la
+        /// cohabitation avec les applications qui impose le troisième.
         static let dictate = Shortcut(
             keyCode: UInt32(kVK_ANSI_D),
-            modifiers: UInt32(controlKey | optionKey),
-            label: "⌃⌥D"
+            modifiers: UInt32(controlKey | optionKey | cmdKey),
+            label: "⌃⌥⌘D"
         )
     }
 

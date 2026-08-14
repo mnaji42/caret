@@ -23,7 +23,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("caret: impossible d'enregistrer \(shortcut.label) — raccourci déjà pris ?")
         }
 
-        Task { await refreshMenu() }
+        Task {
+            await requestMicrophoneIfNeeded()
+            await refreshMenu()
+        }
+    }
+
+    /// Demande le micro au lancement plutôt qu'à la première dictée.
+    ///
+    /// Au lancement l'utilisateur vient d'agir et regarde son écran ; à la
+    /// première dictée il est dans une autre app, et un dialogue surgissant
+    /// derrière sa fenêtre passe inaperçu. macOS n'affiche ce dialogue qu'une
+    /// fois : le manquer enregistre un refus définitif, et l'app n'apparaît
+    /// même pas dans la liste des Réglages tant qu'elle n'a rien demandé.
+    private func requestMicrophoneIfNeeded() async {
+        guard AudioRecorder.microphoneAccess == .undetermined else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        _ = await AudioRecorder.requestPermission()
+        await refreshMenu()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -85,6 +102,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let engineItem = NSMenuItem(title: engineName, action: nil, keyEquivalent: "")
         engineItem.isEnabled = false
         menu.addItem(engineItem)
+
+        // Les autorisations restent visibles en permanence : elles sont la
+        // première cause de « ça ne marche pas », et l'utilisateur ne peut pas
+        // deviner laquelle manque.
+        let permsItem = NSMenuItem(
+            title: Permissions.summary(accessibilityGranted: AXIsProcessTrusted()),
+            action: nil, keyEquivalent: "")
+        permsItem.isEnabled = false
+        menu.addItem(permsItem)
+
+        if !Permissions.allGranted {
+            let mic = NSMenuItem(title: "Ouvrir les réglages Micro…",
+                                 action: #selector(openMicSettings), keyEquivalent: "")
+            mic.target = self
+            menu.addItem(mic)
+
+            let ax = NSMenuItem(title: "Ouvrir les réglages Accessibilité…",
+                                action: #selector(openAXSettings), keyEquivalent: "")
+            ax.target = self
+            menu.addItem(ax)
+        }
         menu.addItem(.separator())
 
         menu.addItem(NSMenuItem(title: "Quitter Caret", action: #selector(NSApplication.terminate(_:)),
@@ -96,6 +134,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func triggerDictation() {
         controller.toggle()
+    }
+
+    @objc private func openMicSettings() {
+        Permissions.openMicrophoneSettings()
+    }
+
+    @objc private func openAXSettings() {
+        // Ouvre le dialogue système si l'app n'a jamais été inscrite, ce qui
+        // la fait apparaître dans la liste ; sinon le volet seul suffit.
+        if !AXIsProcessTrusted() {
+            let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue()
+            AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+        }
+        Permissions.openAccessibilitySettings()
     }
 
     @objc private func selectMode(_ sender: NSMenuItem) {

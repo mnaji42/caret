@@ -60,13 +60,26 @@ final class DictationController {
     // MARK: - Étapes
 
     private func startRecording() async {
-        guard await AudioRecorder.requestPermission() else {
-            state = .failed(AudioRecorder.RecorderError.permissionDenied.localizedDescription)
+        switch AudioRecorder.microphoneAccess {
+        case .granted:
+            break
+        case .undetermined:
+            // L'app vit en arrière-plan : sans activation, le dialogue système
+            // s'ouvre derrière les autres fenêtres et passe inaperçu.
+            NSApp.activate(ignoringOtherApps: true)
+            guard await AudioRecorder.requestPermission() else {
+                state = .failed("Accès au micro refusé.")
+                return
+            }
+        case .denied:
+            state = .failed("Micro refusé — ouvrir Réglages › Micro depuis le menu de Caret.")
+            Permissions.openMicrophoneSettings()
             return
         }
+
         guard injector.hasPermission else {
             injector.requestPermission()
-            state = .failed("Autoriser Caret dans Confidentialité › Accessibilité, puis relancer.")
+            state = .failed("Accessibilité requise — voir le menu de Caret.")
             return
         }
         do {

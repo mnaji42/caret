@@ -226,17 +226,22 @@ Developer ID, which distribution will require.
 
 | Shortcut | Action |
 |---|---|
-| **⌃⌥D** | start / stop dictation |
+| **⌃⌥⌘D** | start / stop dictation |
 | **Escape** | cancel while recording (no text inserted) |
 
-Press `⌃⌥D`, talk, press again. Text lands at the cursor of whatever app is
+Press `⌃⌥⌘D`, talk, press again. Text lands at the cursor of whatever app is
 focused.
 
-**Why `⌃⌥D`?** macOS 15+ rejects global hotkeys whose only modifiers are
-Option and/or Shift — an anti-keylogger measure — so `⌥Space` cannot work. And
-on a French AZERTY keyboard Option types `@ # { } [ ] | \ ~`, which rules out
-Right Option as a push-to-talk key for developers. `⌃⌥D` is free, mnemonic, and
-needs no Input Monitoring permission since it goes through Carbon's
+**Why `⌃⌥⌘D`?** Three constraints narrow this down fast:
+
+- macOS 15+ rejects global hotkeys whose only modifiers are Option and/or
+  Shift — an anti-keylogger measure. `⌥Space` cannot work.
+- On a French AZERTY keyboard Option types `@ # { } [ ] | \ ~`, ruling out
+  Right Option as a push-to-talk key for developers.
+- A global hotkey steals the combination from *every* app. `⌃⌥D` was already
+  taken by Chrome and several editors; three modifiers make collisions rare.
+
+It also needs no Input Monitoring permission, going through Carbon's
 `RegisterEventHotKey` rather than a `CGEventTap`.
 
 ---

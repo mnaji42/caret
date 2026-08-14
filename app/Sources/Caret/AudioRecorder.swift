@@ -39,12 +39,39 @@ final class AudioRecorder: @unchecked Sendable {
         return Double(samples.count) / Self.targetSampleRate
     }
 
-    static func requestPermission() async -> Bool {
+    enum MicrophoneAccess {
+        case granted
+        /// Jamais demandé : c'est le seul état où macOS acceptera d'afficher
+        /// le dialogue système.
+        case undetermined
+        /// Refusé ou restreint : plus aucun dialogue possible, il faut passer
+        /// par les Réglages Système.
+        case denied
+    }
+
+    static var microphoneAccess: MicrophoneAccess {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
-        case .authorized: return true
-        case .notDetermined: return await AVCaptureDevice.requestAccess(for: .audio)
-        default: return false
+        case .authorized: .granted
+        case .notDetermined: .undetermined
+        default: .denied
         }
+    }
+
+    /// Déclenche le dialogue système d'autorisation micro.
+    ///
+    /// À n'appeler que sur `.undetermined` : une fois l'utilisateur passé par
+    /// un refus, `requestAccess` retourne `false` sans rien afficher, et l'app
+    /// semble cassée sans explication.
+    ///
+    /// Le dialogue est présenté par le système mais s'affiche derrière les
+    /// autres fenêtres tant que l'app reste en arrière-plan — ce qui est le
+    /// cas permanent d'une app de barre de menus. L'appelant doit donc activer
+    /// l'app avant (cf. CaretApp.requestMicrophoneIfNeeded).
+    static func requestPermission() async -> Bool {
+        guard microphoneAccess == .undetermined else {
+            return microphoneAccess == .granted
+        }
+        return await AVCaptureDevice.requestAccess(for: .audio)
     }
 
     func start() throws {
