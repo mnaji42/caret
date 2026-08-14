@@ -256,6 +256,15 @@ It also needs no Input Monitoring permission, going through Carbon's
 
 ### Measured non-results
 
+- **A French-tuned Whisper is worse here.** `whisper-large-v3-distil-fr`
+  scores 21/25 on technical terms against 25/25 for CrisperWhisper with
+  lexicon, at 1.5-2× the latency. It has none of CrisperWhisper's tokens, so
+  it loses both vocabulary conditioning (`useEffect` → "use effect") and
+  intended mode — on the hesitation sample it returns raw unpunctuated
+  speech, "bah je pense que ouais non attend ouais le problème". French is
+  indeed a secondary language for CrisperWhisper, but the lexicon more than
+  compensates on French/English developer speech.
+
 Kept here because they cost time to establish and would otherwise be
 re-attempted:
 
