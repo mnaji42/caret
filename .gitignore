@@ -1,0 +1,33 @@
+# Enregistrements de voix — données personnelles, ne jamais publier.
+poc/samples/
+poc/samples_tts/
+*.wav
+*.m4a
+*.aiff
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.bak
+.python-version
+
+# Modèles (téléchargés à la demande, plusieurs Go)
+models/
+*.safetensors
+*.gguf
+*.mlpackage/
+*.mlmodelc/
+
+# Swift / Xcode
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# macOS
+.DS_Store
+
+# Outils
+.claude/
