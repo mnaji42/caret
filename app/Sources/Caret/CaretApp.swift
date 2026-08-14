@@ -165,6 +165,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let lock = NSMenuItem(title: "Verrouiller sur un fichier…",
                                   action: #selector(lockTarget), keyEquivalent: "")
             lock.target = self
+            let diag = NSMenuItem(title: "Pourquoi mon fichier n'est pas détecté ?",
+                                  action: #selector(showTargetDiagnostics),
+                                  keyEquivalent: "")
+            diag.target = self
+            defer { menu.addItem(diag) }
             lock.toolTip = "Tout ce qui est dicté sera ajouté à ce fichier, "
                 + "où que soit le curseur."
             menu.addItem(lock)
@@ -314,6 +319,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if prefs.triggerEnabled { modifierKey.start() }
         Task { await refreshMenu() }
+    }
+
+    /// Montre ce que Caret perçoit, sans passer par les journaux système.
+    @objc private func showTargetDiagnostics() {
+        // Capturer avant d'activer Caret : activer changerait l'application
+        // au premier plan, donc ce qu'on cherche à observer.
+        let report = TargetWriter.diagnostics()
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Détection du fichier"
+        alert.informativeText = report
+        alert.addButton(withTitle: "Copier")
+        alert.addButton(withTitle: "Fermer")
+        if alert.runModal() == .alertFirstButtonReturn {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(report, forType: .string)
+        }
     }
 
     @objc private func lockTarget() {

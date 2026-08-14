@@ -213,6 +213,50 @@ enum TargetWriter {
         return url
     }
 
+    /// Ce que Caret perçoit de l'application active.
+    ///
+    /// La détection dépend de ce que publie chaque application, et il n'y a
+    /// aucun moyen de le deviner de l'extérieur. Plutôt que de faire deviner
+    /// l'utilisateur, on lui montre la matière brute.
+    static func diagnostics() -> String {
+        guard AXIsProcessTrusted() else {
+            return "Accessibilité non accordée — la détection est impossible."
+        }
+        guard let app = NSWorkspace.shared.frontmostApplication else {
+            return "Aucune application au premier plan."
+        }
+        var lines = ["Application : \(app.localizedName ?? "?")"]
+
+        let element = AXUIElementCreateApplication(app.processIdentifier)
+        var window: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            element, kAXFocusedWindowAttribute as CFString, &window) == .success,
+            let focused = window else {
+            lines.append("Fenêtre focalisée : introuvable")
+            return lines.joined(separator: "\n")
+        }
+        let axWindow = focused as! AXUIElement
+
+        var doc: CFTypeRef?
+        let docStatus = AXUIElementCopyAttributeValue(
+            axWindow, kAXDocumentAttribute as CFString, &doc)
+        lines.append("AXDocument : " + (docStatus == .success
+            ? String(describing: doc!) : "non publié"))
+
+        var title: CFTypeRef?
+        let titleStatus = AXUIElementCopyAttributeValue(
+            axWindow, kAXTitleAttribute as CFString, &title)
+        let titleText = titleStatus == .success ? (title as? String ?? "?") : "non publié"
+        lines.append("Titre de fenêtre : \(titleText)")
+
+        if let url = frontmostDocument() {
+            lines.append("\nFichier identifié : \(url.path)")
+        } else {
+            lines.append("\nAucun fichier identifié — le sélecteur s'ouvrira.")
+        }
+        return lines.joined(separator: "\n")
+    }
+
     /// Sélecteur de fichier, pour les applications qui ne publient rien.
     static func chooseFile() -> URL? {
         let panel = NSOpenPanel()
