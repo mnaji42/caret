@@ -251,7 +251,7 @@ It also needs no Input Monitoring permission, going through Carbon's
 - [x] **J1** — latency breakdown, adaptive encoder window
 - [x] **J2** — persistent engine service (4–5× faster than reference pipeline)
 - [x] **J3** — Swift app: global hotkey, capture, inject at caret
-- [ ] **J4** — VAD (no inference on silence) and anti-hallucination guards
+- [x] **J4** — VAD (no inference on silence) and anti-hallucination guards
 - [ ] **J5** — Core ML / Neural Engine backend
 
 ### Measured non-results
@@ -272,13 +272,15 @@ re-attempted:
 
 ### Known gaps
 
-- **No VAD.** Pressing the hotkey and saying nothing runs inference on silence.
-  CrisperWhisper ships an `encoder_blank_head` in its weights, but no backend
-  references it — it is a training leftover. A separate VAD is needed.
-- **No anti-hallucination guard.** CrisperWhisper's loop-repair lives in
-  `hallucination.py`, which imports `ctranslate2` — and CTranslate2 has no
-  Apple Silicon wheel (Linux x86_64 only). These protections are inactive on
-  macOS and must be reimplemented.
+- **VAD is energy-based, not neural.** It rejects silence, low background
+  noise, constant hiss and isolated clicks, and accepts all real speech
+  tested. It does not distinguish *your* voice from a nearby conversation —
+  a neural VAD would, at the cost of another model to load.
+- **Lexicon conditioning can hallucinate.** Biasing toward a vocabulary makes
+  the decoder favour those terms on acoustically ambiguous passages, so a
+  lexicon word can appear where nothing was said. Observed in real use:
+  a stray "effect" from `useEffect` being in the list. The trade-off is
+  inherent to the mechanism that fixes *« russe-fake »* → `useEffect`.
 - **Long-form cost is linear.** A 10-minute dictation is transcribed in one
   pass, but takes roughly 25 s of processing. Acceptable, not instant.
 - **Speculative decoding is not possible** on macOS. It requires CTranslate2,

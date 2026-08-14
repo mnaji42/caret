@@ -56,6 +56,24 @@ TIMESTAMP_STEP_S = 0.02
 # Mots repris d'un segment à l'autre via <ctx>…<ectx>.
 CONTEXT_WORDS = 12
 
+# --- détection de parole ---------------------------------------------------
+# En dessous, on considère qu'aucun son exploitable n'a été capté.
+ABSOLUTE_SILENCE = 1e-4
+# Rapport minimal entre passages sonores et fond pour que le signal ait la
+# structure de la parole plutôt que celle d'un bruit constant.
+SPEECH_CONTRAST = 2.5
+# Part minimale de trames sonores : un claquement isolé ne suffit pas.
+MIN_VOICED_RATIO = 0.04
+
+# --- garde-fou anti-boucle -------------------------------------------------
+# Taille maximale de motif surveillée, en tokens.
+MAX_NGRAM_SIZE = 8
+# Au-delà, on refuse le token : trois répétitions consécutives peuvent être
+# légitimes ("non non non"), quatre relèvent de la boucle.
+MAX_NGRAM_REPEATS = 3
+# Nombre de tokens de repli examinés quand le meilleur enclenche une boucle.
+LOOP_ESCAPE_CANDIDATES = 5
+
 # Marqueurs de disfluence émis en mode verbatim.
 DISFLUENCY_RE = re.compile(
     r"\[(UM|UH|laughter|sniff|throatclearing|cough|sigh|breath|lipsmack|"
@@ -165,9 +183,12 @@ class CrisperWhisperEngine:
         Sans ça la première dictée réelle paie ~0,5 s de compilation. Trois
         passes suffisent à stabiliser les temps (mesuré pendant le POC).
         """
-        silence = np.zeros(int(MIN_WINDOW_S * SAMPLE_RATE), dtype=np.float32)
+        # Bruit léger plutôt que du silence : le VAD rejetterait un signal
+        # nul et le warmup ne compilerait alors aucun kernel.
+        rng = np.random.default_rng(0)
+        noise = (rng.standard_normal(int(MIN_WINDOW_S * SAMPLE_RATE)) * 0.02).astype(np.float32)
         for _ in range(3):
-            self.transcribe(silence)
+            self._transcribe_window(noise)
         log.info("warmup terminé")
 
     @property
@@ -300,6 +321,34 @@ class CrisperWhisperEngine:
             return max(finished, key=lambda item: item[0])[1]
         return sequences[0] if sequences else []
 
+    @staticmethod
+    def _repeats_ngram(tokens: list[int], candidate: int) -> bool:
+        """Ce token créerait-il une répétition en boucle ?
+
+        Whisper part parfois en boucle et répète un fragment jusqu'à épuiser
+        le budget de tokens. CrisperWhisper expose des protections contre ça,
+        mais uniquement dans son backend CTranslate2 — indisponible sur Apple
+        Silicon. Il faut donc les refaire ici.
+
+        On vérifie si accepter ``candidate`` produirait plus de
+        ``MAX_NGRAM_REPEATS`` copies consécutives d'un même motif. Les motifs
+        courts comme longs sont couverts : « le le le » comme la répétition
+        d'une phrase entière.
+        """
+        sequence = tokens + [candidate]
+        for size in range(1, MAX_NGRAM_SIZE + 1):
+            if len(sequence) < size * (MAX_NGRAM_REPEATS + 1):
+                continue
+            tail = sequence[-size:]
+            repeats = 1
+            position = len(sequence) - size
+            while position >= size and sequence[position - size:position] == tail:
+                repeats += 1
+                position -= size
+            if repeats > MAX_NGRAM_REPEATS:
+                return True
+        return False
+
     @torch.no_grad()
     def _decode(self, enc_out, prompt_ids: list[int], max_new: int) -> list[int]:
         """Décodage greedy avec cache KV.
@@ -319,7 +368,19 @@ class CrisperWhisperEngine:
                 use_cache=True,
             )
             past = res.past_key_values
-            nxt = int(res.logits[0, -1].argmax())
+
+            logits = res.logits[0, -1]
+            nxt = int(logits.argmax())
+            # Si le meilleur token enclenche une boucle, on prend le suivant.
+            # Quelques candidats suffisent : au-delà, c'est que le modèle n'a
+            # plus rien de sensé à produire et mieux vaut s'arrêter.
+            if self._repeats_ngram(out, nxt):
+                ranked = torch.topk(logits, LOOP_ESCAPE_CANDIDATES).indices.tolist()
+                nxt = next((t for t in ranked
+                            if not self._repeats_ngram(out, t)), self._eos)
+                if nxt != self._eos:
+                    log.debug("boucle évitée à %d tokens", len(out))
+
             if nxt == self._eos:
                 break
             out.append(nxt)
@@ -340,6 +401,16 @@ class CrisperWhisperEngine:
             raise RuntimeError("moteur non chargé : appeler load() d'abord")
 
         audio = np.asarray(audio, dtype=np.float32)
+
+        # Filtrer ici plutôt que de jeter le résultat après coup : sur du
+        # silence, Whisper invente une phrase plausible, et rien dans le texte
+        # produit ne permet ensuite de savoir qu'elle est inventée.
+        if not self.has_speech(audio):
+            log.info("aucune parole détectée (%.1fs) — transcription ignorée",
+                     len(audio) / SAMPLE_RATE)
+            return Transcription(text="", mode=mode, language=language,
+                                 window_s=0, tokens=0)
+
         if len(audio) / SAMPLE_RATE > MAX_WINDOW_S:
             return self._transcribe_longform(
                 audio, mode=mode, language=language, hotwords=hotwords,
@@ -400,6 +471,48 @@ class CrisperWhisperEngine:
             truncated=False,
             timings=timings,
         )
+
+    @staticmethod
+    def has_speech(audio: np.ndarray) -> bool:
+        """L'audio contient-il de la parole ?
+
+        Whisper ne rend jamais « rien » : sur du silence il invente, et
+        produit typiquement une formule vue à l'entraînement (« Sous-titrage
+        Société Radio-Canada », « Merci d'avoir regardé »). Presser le
+        raccourci sans parler insérerait donc du texte inventé au curseur.
+
+        On ne cherche pas à décider si c'est *une voix* — un vrai VAD
+        neuronal ferait ça — mais si le signal a la **structure** de la
+        parole : une alternance franche entre passages sonores et silences.
+        Un souffle de ventilateur ou un bourdonnement ont une énergie
+        constante ; la parole, non.
+        """
+        frame = int(0.02 * SAMPLE_RATE)
+        usable = (len(audio) // frame) * frame
+        if usable < frame * 10:                    # moins de 200 ms
+            return False
+
+        frames = audio[:usable].reshape(-1, frame)
+        energy = np.sqrt((frames.astype(np.float64) ** 2).mean(axis=1))
+
+        # Silence quasi absolu : micro coupé, ou personne n'a parlé.
+        if float(energy.max()) < ABSOLUTE_SILENCE:
+            return False
+
+        floor = float(np.percentile(energy, 10))
+        speech = float(np.percentile(energy, 90))
+
+        # Contraste : rapport entre passages forts et fond. Une pièce
+        # silencieuse avec de la parole donne un rapport élevé ; un bruit
+        # continu sans parole reste plat.
+        if speech < floor * SPEECH_CONTRAST + ABSOLUTE_SILENCE:
+            return False
+
+        # Il faut aussi une quantité minimale de son : un seul claquement
+        # produirait du contraste sans être de la parole.
+        threshold = floor + SILENCE_RATIO * (speech - floor)
+        voiced_ratio = float((energy > threshold).mean())
+        return voiced_ratio >= MIN_VOICED_RATIO
 
     @staticmethod
     def _silence_boundaries(audio: np.ndarray) -> list[int]:
