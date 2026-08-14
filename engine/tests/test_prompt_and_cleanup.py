@@ -156,3 +156,27 @@ def test_lexicon_echo_filter(text, should_strip):
     """Retire un terme du lexique recraché seul en tête, sans toucher au reste."""
     result = Engine._strip_lexicon_echo(text, DEFAULT_LEXICON).strip()
     assert (result != text) == should_strip
+
+
+# --- normalisation de casse -----------------------------------------------
+
+@pytest.mark.parametrize("given,expected", [
+    ("Je modifie le UseEffect", "Je modifie le useEffect"),
+    ("il utilise UseState et UseEffect", "il utilise useState et useEffect"),
+    ("le component react est cassé", "le component React est cassé"),
+    ("Typescript se plaint", "TypeScript se plaint"),
+    # Rien à corriger : la casse est déjà bonne.
+    ("le useEffect et React", "le useEffect et React"),
+    # Mots hors lexique : intouchés.
+    ("Le Chat mange", "Le Chat mange"),
+    ("Bonjour tout le monde", "Bonjour tout le monde"),
+])
+def test_case_normalisation(given, expected):
+    assert Engine._normalise_case(given, DEFAULT_LEXICON) == expected
+
+
+def test_case_normalisation_never_changes_letters():
+    """Seule la casse bouge : jamais une lettre, jamais un mot entier."""
+    text = "Le futur du framework est incertain"
+    result = Engine._normalise_case(text, DEFAULT_LEXICON)
+    assert result.lower() == text.lower()

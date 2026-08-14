@@ -671,6 +671,7 @@ class CrisperWhisperEngine:
         active_lexicon = hotwords if hotwords is not None else DEFAULT_LEXICON
         if active_lexicon:
             text = self._strip_lexicon_echo(text, active_lexicon).strip()
+            text = self._normalise_case(text, active_lexicon)
 
         return Transcription(
             text=text,
@@ -717,6 +718,32 @@ class CrisperWhisperEngine:
             log.info("écho du lexique retiré en tête : %r", match.group(1))
             return text[match.end():]
         return text
+
+    @staticmethod
+    def _normalise_case(text: str, lexicon: list[str]) -> str:
+        """Rétablit la casse canonique des termes du lexique.
+
+        Le modèle reconnaît le mot mais se trompe de casse : « UseEffect »,
+        « UseState », « React » en minuscules. C'est un cas où la correction
+        est **déterministe** — on ne devine rien, on impose une forme connue à
+        un mot déjà correctement entendu. À la différence d'une réécriture par
+        modèle de langue, ça ne peut pas inventer.
+
+        Les mots d'une seule lettre et les termes composés sont laissés de
+        côté : trop de risque de collision avec du français ordinaire.
+        """
+        canonical = {t.lower(): t for t in lexicon
+                     if " " not in t and len(t) > 2 and t != t.lower()}
+        if not canonical:
+            return text
+
+        def fix(match: re.Match) -> str:
+            word = match.group(0)
+            target = canonical.get(word.lower())
+            # On ne touche qu'à la casse, jamais aux lettres.
+            return target if target and target != word else word
+
+        return re.sub(r"\b[A-Za-z][A-Za-z.]*\b", fix, text)
 
     @staticmethod
     def _clean(text: str, *, keep_disfluencies: bool) -> str:
