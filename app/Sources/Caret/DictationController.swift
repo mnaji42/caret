@@ -95,9 +95,13 @@ final class DictationController {
         let samples = recorder.stop()
         releaseEscape()
 
+        let seconds = Double(samples.count) / AudioRecorder.targetSampleRate
+        NSLog("caret: fin d'enregistrement, %.1fs capturées", seconds)
+
         // Un appui-relâché trop bref ne contient rien d'exploitable ; inutile
         // de réveiller le moteur. Un vrai VAD reste à faire (cf. README).
         guard samples.count > Int(AudioRecorder.targetSampleRate * 0.3) else {
+            NSLog("caret: trop court, ignoré")
             state = .idle
             return
         }
@@ -126,7 +130,7 @@ final class DictationController {
     /// permanence casserait son usage normal dans toutes les autres apps.
     private func captureEscape() {
         let monitor = HotkeyMonitor { [weak self] in self?.cancel() }
-        _ = monitor.register(.init(keyCode: UInt32(kVK_Escape), modifiers: 0, label: "Échap"))
+        _ = monitor.register(.cancel)
         escapeMonitor = monitor
     }
 

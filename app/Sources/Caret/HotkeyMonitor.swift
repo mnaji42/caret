@@ -10,12 +10,20 @@ import Carbon.HIToolbox
 ///
 /// Contrainte macOS 15+ : un raccourci dont les seuls modificateurs sont
 /// Option et/ou Majuscule est refusé (mesure anti-enregistreur de frappe).
-/// `⌃⌥D` contient Contrôle, il passe.
+/// Les raccourcis par défaut contiennent Contrôle, ils passent.
 final class HotkeyMonitor {
     struct Shortcut: Equatable {
         var keyCode: UInt32
         var modifiers: UInt32
         var label: String
+        /// Identifiant distinct par raccourci.
+        ///
+        /// Tous les moniteurs installent leur gestionnaire sur le même
+        /// `GetApplicationEventTarget()` et reçoivent donc *tous* les
+        /// événements de raccourci. Sans identifiant propre vérifié à la
+        /// réception, chaque moniteur réagit à un raccourci qui ne le
+        /// concerne pas.
+        var id: UInt32
 
         /// Défaut : ⌃⌥⌘D.
         ///
@@ -30,11 +38,21 @@ final class HotkeyMonitor {
         static let dictate = Shortcut(
             keyCode: UInt32(kVK_ANSI_D),
             modifiers: UInt32(controlKey | optionKey | cmdKey),
-            label: "⌃⌥⌘D"
+            label: "⌃⌥⌘D",
+            id: 1
+        )
+
+        /// Échap, capté uniquement pendant l'enregistrement pour annuler.
+        static let cancel = Shortcut(
+            keyCode: UInt32(kVK_Escape),
+            modifiers: 0,
+            label: "Échap",
+            id: 2
         )
     }
 
     private var hotKeyRef: EventHotKeyRef?
+    private var registeredID: UInt32 = 0
     private var handlerRef: EventHandlerRef?
     private let onTrigger: () -> Void
     private static let signature = OSType(0x43524554)  // 'CRET'
@@ -49,6 +67,7 @@ final class HotkeyMonitor {
 
     func register(_ shortcut: Shortcut = .dictate) -> Bool {
         unregister()
+        registeredID = shortcut.id
 
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
                                       eventKind: UInt32(kEventHotKeyPressed))
@@ -61,7 +80,12 @@ final class HotkeyMonitor {
             let status = GetEventParameter(event, EventParamName(kEventParamDirectObject),
                                            EventParamType(typeEventHotKeyID), nil,
                                            MemoryLayout<EventHotKeyID>.size, nil, &hotKeyID)
-            guard status == noErr, hotKeyID.signature == HotkeyMonitor.signature else {
+            // Filtrer sur l'identifiant est indispensable, pas seulement sur la
+            // signature : les gestionnaires partagent la même cible et voient
+            // donc les raccourcis des autres moniteurs.
+            guard status == noErr,
+                  hotKeyID.signature == HotkeyMonitor.signature,
+                  hotKeyID.id == monitor.registeredID else {
                 return noErr
             }
             DispatchQueue.main.async { monitor.onTrigger() }
@@ -74,7 +98,7 @@ final class HotkeyMonitor {
         )
         guard installed == noErr else { return false }
 
-        let hotKeyID = EventHotKeyID(signature: Self.signature, id: 1)
+        let hotKeyID = EventHotKeyID(signature: Self.signature, id: shortcut.id)
         let registered = RegisterEventHotKey(
             shortcut.keyCode, shortcut.modifiers, hotKeyID,
             GetApplicationEventTarget(), 0, &hotKeyRef
