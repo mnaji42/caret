@@ -108,6 +108,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             action: #selector(triggerDictation), keyEquivalent: "")
         dictate.target = self
         menu.addItem(dictate)
+
+        // Une dictée ratée après plusieurs minutes de parole doit pouvoir être
+        // relancée sans tout redire : l'audio est encore là.
+        if controller.hasPendingAudio {
+            let minutes = controller.pendingDuration / 60
+            let label = minutes >= 1
+                ? String(format: "Réessayer (%.1f min conservées)", minutes)
+                : String(format: "Réessayer (%.0f s conservées)", controller.pendingDuration)
+            let retry = NSMenuItem(title: label, action: #selector(retry), keyEquivalent: "")
+            retry.target = self
+            menu.addItem(retry)
+
+            let discard = NSMenuItem(title: "Abandonner cet enregistrement",
+                                     action: #selector(discard), keyEquivalent: "")
+            discard.target = self
+            menu.addItem(discard)
+        }
         menu.addItem(.separator())
 
         for mode in TranscriptionMode.allCases {
@@ -118,6 +135,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item.state = controller.mode == mode ? .on : .off
             menu.addItem(item)
         }
+        menu.addItem(.separator())
+
+        let entries = controller.history.entries
+        if !entries.isEmpty {
+            let header = NSMenuItem(title: "Transcriptions récentes", action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            menu.addItem(header)
+
+            for entry in entries {
+                let item = NSMenuItem(title: "  \(entry.preview)",
+                                      action: #selector(reinsert(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = entry.text
+                item.toolTip = "\(entry.relativeAge)\n\n\(entry.text)"
+                menu.addItem(item)
+            }
+
+            let clear = NSMenuItem(title: "Effacer l'historique",
+                                   action: #selector(clearHistory), keyEquivalent: "")
+            clear.target = self
+            menu.addItem(clear)
+            menu.addItem(.separator())
+        }
+
+        let sounds = NSMenuItem(title: "Retour sonore", action: #selector(toggleSounds),
+                                keyEquivalent: "")
+        sounds.target = self
+        sounds.state = Feedback.soundsEnabled ? .on : .off
+        menu.addItem(sounds)
+
+        let keepHistory = NSMenuItem(title: "Conserver l'historique",
+                                     action: #selector(toggleHistory), keyEquivalent: "")
+        keepHistory.target = self
+        keepHistory.state = controller.history.isEnabled ? .on : .off
+        menu.addItem(keepHistory)
         menu.addItem(.separator())
 
         let engineItem = NSMenuItem(title: engineName, action: nil, keyEquivalent: "")
@@ -155,6 +207,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func triggerDictation() {
         controller.toggle()
+    }
+
+    @objc private func retry() {
+        controller.retryLast()
+    }
+
+    @objc private func discard() {
+        controller.discardPending()
+        Task { await refreshMenu() }
+    }
+
+    @objc private func reinsert(_ sender: NSMenuItem) {
+        guard let text = sender.representedObject as? String else { return }
+        Task { await controller.insert(text) }
+    }
+
+    @objc private func clearHistory() {
+        controller.history.clear()
+        Task { await refreshMenu() }
+    }
+
+    @objc private func toggleSounds() {
+        Feedback.soundsEnabled.toggle()
+        Task { await refreshMenu() }
+    }
+
+    @objc private func toggleHistory() {
+        controller.history.isEnabled.toggle()
+        Task { await refreshMenu() }
     }
 
     @objc private func openMicSettings() {

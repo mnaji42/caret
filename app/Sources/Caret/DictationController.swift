@@ -35,6 +35,13 @@ final class DictationController {
     private let overlay = RecordingOverlay()
     private var escapeMonitor: HotkeyMonitor?
 
+    let history = TranscriptionHistory()
+
+    /// Audio d'une dictée dont la transcription a échoué. Conservé en mémoire
+    /// vive uniquement, jamais écrit sur disque, et libéré dès qu'une
+    /// insertion réussit ou que l'utilisateur y renonce.
+    private var pendingAudio: [Float]?
+
     init(engine: any SpeechEngine) {
         self.engine = engine
         overlay.levelProvider = { [weak self] in self?.recorder.level ?? 0 }
@@ -63,6 +70,7 @@ final class DictationController {
         recorder.cancel()
         releaseEscape()
         overlay.hide()
+        Feedback.cancelled()
         state = .idle
     }
 
@@ -95,6 +103,7 @@ final class DictationController {
             try recorder.start()
             captureEscape()
             overlay.showRecording(mode: mode)
+            Feedback.recordingStarted()
             state = .recording
         } catch {
             state = .failed(error.localizedDescription)
@@ -104,6 +113,7 @@ final class DictationController {
     private func finishRecording() async {
         let samples = recorder.stop()
         releaseEscape()
+        Feedback.recordingStopped()
         overlay.showProcessing()
 
         let seconds = Double(samples.count) / AudioRecorder.targetSampleRate
@@ -118,6 +128,16 @@ final class DictationController {
             return
         }
 
+        await transcribeAndInject(samples)
+    }
+
+    /// Transcrit puis insère, en gardant l'audio tant que ce n'est pas réussi.
+    ///
+    /// Une dictée peut durer dix minutes. Perdre cet audio parce que le moteur
+    /// était arrêté ou a échoué obligerait à tout redire — c'est le pire échec
+    /// possible pour cette application. L'audio n'est donc libéré qu'après une
+    /// insertion réussie, et `retryLast()` permet de relancer sans reparler.
+    private func transcribeAndInject(_ samples: [Float]) async {
         state = .processing
         do {
             let result = try await engine.transcribe(
@@ -125,17 +145,50 @@ final class DictationController {
 
             overlay.hide()
             guard !result.text.isEmpty else {
+                pendingAudio = nil
                 state = .idle
                 return
             }
             try await injector.inject(result.text)
+            history.add(result.text, mode: mode)
+            pendingAudio = nil
             NSLog("caret: %.0f ms, fenêtre %.0fs — %@",
                   result.latency.wallMs, result.windowSeconds, result.text)
             state = .idle
         } catch {
             overlay.hide()
+            pendingAudio = samples
+            let minutes = Double(samples.count) / AudioRecorder.targetSampleRate / 60
+            NSLog("caret: échec, %.1f min d'audio conservées pour réessai", minutes)
+            state = .failed("\(error.localizedDescription) — audio conservé, « Réessayer » dans le menu.")
+        }
+    }
+
+    /// Insère un texte déjà transcrit — réinsertion depuis l'historique.
+    func insert(_ text: String) async {
+        do {
+            try await injector.inject(text)
+        } catch {
             state = .failed(error.localizedDescription)
         }
+    }
+
+    /// Relance la transcription de l'audio conservé après un échec.
+    func retryLast() {
+        guard let pendingAudio, state != .processing else { return }
+        Task { await transcribeAndInject(pendingAudio) }
+    }
+
+    /// Libère l'audio conservé. Appelé quand l'utilisateur renonce.
+    func discardPending() {
+        pendingAudio = nil
+        state = .idle
+    }
+
+    var hasPendingAudio: Bool { pendingAudio != nil }
+
+    var pendingDuration: TimeInterval {
+        Double(pendingAudio?.count ?? 0) / AudioRecorder.targetSampleRate
     }
 
     // MARK: - Échap pendant l'enregistrement
