@@ -67,8 +67,18 @@ cat > "$STAGE/Contents/Info.plist" <<PLIST
 PLIST
 
 echo "▸ signature (certificat $CERT_HASH)"
+# --options runtime sera exigé par la notarisation ; il impose en retour de
+# déclarer explicitement l'accès micro, faute de quoi le runtime le refuse
+# sans qu'aucun dialogue n'apparaisse.
 codesign --force --sign "$CERT_HASH" --identifier "$BUNDLE_ID" \
-         --options runtime --timestamp=none "$STAGE" 2>/dev/null
+         --options runtime --timestamp=none \
+         --entitlements "$APP_DIR/Caret.entitlements" "$STAGE" 2>/dev/null
+
+if ! codesign -d --entitlements - "$STAGE" 2>/dev/null | grep -q "audio-input"; then
+    echo "  ✗ entitlement micro absent — le micro serait muet" >&2
+    exit 1
+fi
+echo "  entitlement micro présent"
 
 # --- 4. installation -----------------------------------------------------
 # Remplacer le bundle sous une app qui tourne laisse un process orphelin
