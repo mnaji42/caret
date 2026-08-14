@@ -1,4 +1,10 @@
+# Brouillons de test dictés dans l'app — contenu personnel, pas du code.
+test-caret.md
+test-*.md
+scratch/
+
 # Enregistrements de voix — données personnelles, ne jamais publier.
+caret-diagnostic-*.wav
 poc/samples/
 poc/samples_tts/
 *.wav
