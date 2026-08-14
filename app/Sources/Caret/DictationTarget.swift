@@ -101,14 +101,28 @@ enum TargetWriter {
         guard AXUIElementCopyAttributeValue(
             focused as! AXUIElement, kAXDocumentAttribute as CFString,
             &document) == .success,
-            let path = document as? String else { return nil }
+            let path = document as? String, !path.isEmpty else { return nil }
 
         // Le chemin arrive en file:// chez la plupart, en chemin brut chez
         // d'autres.
         let url = path.hasPrefix("file://")
             ? URL(string: path)
             : URL(fileURLWithPath: path)
-        guard let url, FileManager.default.fileExists(atPath: url.path) else { return nil }
+        guard let url else { return nil }
+
+        // Validation stricte, sinon on écrit n'importe où. Certaines
+        // applications publient un attribut vide ou tronqué : une première
+        // version acceptait « / », qui existe bel et bien et passait le simple
+        // test d'existence, d'où une cible verrouillée sur la racine du disque.
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path,
+                                             isDirectory: &isDirectory),
+              !isDirectory.boolValue,
+              !url.lastPathComponent.isEmpty,
+              url.lastPathComponent != "/",
+              FileManager.default.isWritableFile(atPath: url.path)
+        else { return nil }
+
         return url
     }
 

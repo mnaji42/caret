@@ -55,7 +55,17 @@ final class DictationController {
         overlay.onToggleMode = { [weak self] in
             guard let self else { return }
             mode = mode == .intended ? .verbatim : .intended
-            overlay.updateMode(mode)
+            overlay.update(mode: mode, target: target)
+            onStateChange?(state)
+        }
+        // Changer de destination en pleine dictée : on se rend compte en
+        // parlant que le texte ne doit pas aller là, et l'arrêter pour
+        // corriger obligerait à tout redire.
+        overlay.onToggleTarget = { [weak self] in
+            guard let self else { return }
+            if target.isLocked { unlockTarget() } else { lockTarget() }
+            overlay.update(mode: mode, target: target)
+            onStateChange?(state)
         }
     }
 
@@ -108,7 +118,7 @@ final class DictationController {
         do {
             try recorder.start()
             captureEscape()
-            overlay.showRecording(mode: mode)
+            overlay.showRecording(mode: mode, target: target)
             Feedback.recordingStarted()
             state = .recording
         } catch {

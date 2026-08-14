@@ -1,15 +1,21 @@
 import AppKit
 
-/// Pastille flottante affichée pendant la dictée.
+/// Panneau flottant affiché pendant la dictée.
 ///
-/// Deux exigences non négociables :
+/// Il ne se contente pas d'indiquer que l'enregistrement tourne : il permet de
+/// corriger le tir **en parlant**. On se rend compte au milieu d'une phrase
+/// qu'on est en mot-à-mot au lieu de texte nettoyé, ou que la destination
+/// n'est pas la bonne — il faut pouvoir changer sans arrêter, sinon la dictée
+/// est à refaire.
+///
+/// Deux contraintes non négociables :
 ///
 /// * **ne jamais prendre le focus.** Le texte doit atterrir dans l'application
 ///   que l'utilisateur avait devant lui ; une fenêtre qui devient active
-///   déplacerait le curseur et casserait l'insertion. D'où un `NSPanel`
-///   `.nonactivatingPanel` qui refuse de devenir fenêtre clé.
-/// * **montrer qu'on entend.** Une pastille statique ne dit pas si le micro
-///   capte vraiment. Le niveau sonore en direct, si.
+///   déplacerait le curseur. D'où un `NSPanel` `.nonactivatingPanel`, dont les
+///   boutons restent cliquables sans activer Caret.
+/// * **montrer qu'on entend.** Un point fixe dit que l'enregistrement est
+///   lancé, pas que le micro capte. Le niveau en direct, si.
 @MainActor
 final class RecordingOverlay {
     private var panel: NSPanel?
@@ -20,11 +26,12 @@ final class RecordingOverlay {
     private let statusLabel = NSTextField(labelWithString: "")
     private let meter = LevelMeter()
     private let modeButton = NSButton()
+    private let targetButton = NSButton()
+    private var controls: NSStackView?
 
-    /// Source du niveau sonore, interrogée à l'affichage.
     var levelProvider: (() -> Float)?
-    var durationProvider: (() -> TimeInterval)?
     var onToggleMode: (() -> Void)?
+    var onToggleTarget: (() -> Void)?
     var onCancel: (() -> Void)?
 
     private var startedAt: Date?
@@ -32,18 +39,14 @@ final class RecordingOverlay {
 
     // MARK: - Cycle de vie
 
-    func showRecording(mode: TranscriptionMode) {
+    func showRecording(mode: TranscriptionMode, target: DictationTarget) {
         let panel = self.panel ?? makePanel()
         self.panel = panel
 
         startedAt = Date()
-        statusLabel.stringValue = ""
         statusLabel.isHidden = true
-        meter.isHidden = false
-        dot.isHidden = false
-        timeLabel.isHidden = false
-        modeButton.isHidden = false
-        modeButton.title = mode == .intended ? "Texte nettoyé" : "Mot à mot"
+        controls?.isHidden = false
+        update(mode: mode, target: target)
 
         position(panel)
         panel.orderFrontRegardless()
@@ -54,18 +57,17 @@ final class RecordingOverlay {
         }
     }
 
-    /// Bascule sur l'état « transcription en cours ».
+    /// Bascule sur « transcription en cours ».
     ///
-    /// Sur une longue dictée le traitement dure plusieurs secondes : sans ce
-    /// retour, l'utilisateur croit que rien ne se passe et relance la dictée.
+    /// Sur une longue dictée le traitement prend plusieurs secondes ; sans ce
+    /// retour, on croit à un échec et on relance.
     func showProcessing() {
         guard let panel else { return }
-        dot.isHidden = true
-        meter.isHidden = true
-        timeLabel.isHidden = true
-        modeButton.isHidden = true
+        timer?.invalidate()
+        controls?.isHidden = true
         statusLabel.isHidden = false
         statusLabel.stringValue = "Transcription…"
+        panel.setContentSize(NSSize(width: 190, height: 46))
         position(panel)
     }
 
@@ -76,11 +78,43 @@ final class RecordingOverlay {
         panel?.orderOut(nil)
     }
 
+    func update(mode: TranscriptionMode, target: DictationTarget) {
+        modeButton.attributedTitle = Self.buttonTitle(
+            mode == .intended ? "Texte nettoyé" : "Mot à mot")
+        targetButton.attributedTitle = Self.buttonTitle(
+            target.isLocked ? "→ \(target.displayName)" : "Au curseur")
+        targetButton.toolTip = target.isLocked
+            ? "Cliquer pour revenir au curseur"
+            : "Cliquer pour écrire dans un fichier"
+        panel?.setContentSize(fittingSize())
+        if let panel { position(panel) }
+    }
+
     // MARK: - Construction
+
+    private static func buttonTitle(_ text: String) -> NSAttributedString {
+        NSAttributedString(string: text, attributes: [
+            .font: NSFont.systemFont(ofSize: 11, weight: .medium),
+            .foregroundColor: NSColor.secondaryLabelColor,
+        ])
+    }
+
+    private static func separator() -> NSView {
+        let line = NSBox()
+        line.boxType = .separator
+        line.translatesAutoresizingMaskIntoConstraints = false
+        line.heightAnchor.constraint(equalToConstant: 18).isActive = true
+        return line
+    }
+
+    private func fittingSize() -> NSSize {
+        let width = (controls?.fittingSize.width ?? 260) + 28
+        return NSSize(width: max(260, width), height: 46)
+    }
 
     private func makePanel() -> NSPanel {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 260, height: 44),
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 46),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -90,9 +124,8 @@ final class RecordingOverlay {
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = true
-        panel.ignoresMouseEvents = false
-        // Visible au-dessus du plein écran et sur tous les bureaux : la dictée
-        // sert justement pendant qu'on travaille ailleurs.
+        // Visible au-dessus du plein écran et sur tous les bureaux : dicter en
+        // travaillant ailleurs est précisément l'usage.
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
 
         let blur = NSVisualEffectView()
@@ -100,57 +133,69 @@ final class RecordingOverlay {
         blur.blendingMode = .behindWindow
         blur.state = .active
         blur.wantsLayer = true
-        blur.layer?.cornerRadius = 22
+        blur.layer?.cornerRadius = 23
         blur.layer?.masksToBounds = true
+        blur.layer?.borderWidth = 0.5
+        blur.layer?.borderColor = NSColor.separatorColor.cgColor
         panel.contentView = blur
 
         dot.wantsLayer = true
         dot.layer?.backgroundColor = NSColor.systemRed.cgColor
-        dot.layer?.cornerRadius = 5
+        dot.layer?.cornerRadius = 4.5
         dot.translatesAutoresizingMaskIntoConstraints = false
 
         timeLabel.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
-        timeLabel.textColor = .secondaryLabelColor
+        timeLabel.textColor = .labelColor
         statusLabel.font = .systemFont(ofSize: 12, weight: .medium)
         statusLabel.textColor = .secondaryLabelColor
 
-        modeButton.bezelStyle = .inline
-        modeButton.isBordered = false
-        modeButton.font = .systemFont(ofSize: 11)
-        modeButton.contentTintColor = .tertiaryLabelColor
-        modeButton.target = self
-        modeButton.action = #selector(toggleMode)
+        for (button, action) in [(modeButton, #selector(toggleMode)),
+                                 (targetButton, #selector(toggleTarget))] {
+            button.isBordered = false
+            button.bezelStyle = .inline
+            button.target = self
+            button.action = action
+            // Réagit sans que Caret passe au premier plan.
+            button.setButtonType(.momentaryChange)
+        }
 
-        let stack = NSStackView(views: [dot, timeLabel, meter, modeButton, statusLabel])
+        let stack = NSStackView(views: [
+            dot, timeLabel, meter,
+            Self.separator(), modeButton,
+            Self.separator(), targetButton,
+        ])
         stack.orientation = .horizontal
-        stack.spacing = 8
+        stack.spacing = 9
         stack.alignment = .centerY
         stack.edgeInsets = NSEdgeInsets(top: 0, left: 14, bottom: 0, right: 14)
         stack.translatesAutoresizingMaskIntoConstraints = false
+        controls = stack
+
         blur.addSubview(stack)
+        blur.addSubview(statusLabel)
+        statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: blur.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: blur.trailingAnchor),
             stack.centerYAnchor.constraint(equalTo: blur.centerYAnchor),
-            dot.widthAnchor.constraint(equalToConstant: 10),
-            dot.heightAnchor.constraint(equalToConstant: 10),
-            meter.widthAnchor.constraint(equalToConstant: 76),
+            statusLabel.centerXAnchor.constraint(equalTo: blur.centerXAnchor),
+            statusLabel.centerYAnchor.constraint(equalTo: blur.centerYAnchor),
+            dot.widthAnchor.constraint(equalToConstant: 9),
+            dot.heightAnchor.constraint(equalToConstant: 9),
+            meter.widthAnchor.constraint(equalToConstant: 54),
             meter.heightAnchor.constraint(equalToConstant: 16),
         ])
         return panel
     }
 
-    /// Bas de l'écran, centré — hors du chemin du regard et du texte en cours
-    /// de saisie, tout en restant visible du coin de l'œil.
+    /// Bas de l'écran, centré — hors du regard et du texte en cours de saisie,
+    /// mais visible du coin de l'œil.
     private func position(_ panel: NSPanel) {
         guard let screen = NSScreen.main else { return }
         let size = panel.frame.size
         let frame = screen.visibleFrame
-        panel.setFrameOrigin(NSPoint(
-            x: frame.midX - size.width / 2,
-            y: frame.minY + 90
-        ))
+        panel.setFrameOrigin(NSPoint(x: frame.midX - size.width / 2,
+                                     y: frame.minY + 90))
     }
 
     private func tick() {
@@ -160,29 +205,21 @@ final class RecordingOverlay {
         }
         meter.level = levelProvider?() ?? 0
 
-        // Pulsation du point : signale que l'enregistrement est actif même
-        // quand l'utilisateur se tait un instant.
         pulsePhase += 0.09
-        let alpha = 0.55 + 0.45 * (sin(pulsePhase) + 1) / 2
-        dot.layer?.opacity = Float(alpha)
+        dot.layer?.opacity = Float(0.55 + 0.45 * (sin(pulsePhase) + 1) / 2)
     }
 
-    @objc private func toggleMode() {
-        onToggleMode?()
-    }
-
-    func updateMode(_ mode: TranscriptionMode) {
-        modeButton.title = mode == .intended ? "Texte nettoyé" : "Mot à mot"
-    }
+    @objc private func toggleMode() { onToggleMode?() }
+    @objc private func toggleTarget() { onToggleTarget?() }
 }
 
-/// Barres de niveau sonore.
+/// Barres de niveau sonore, défilant de droite à gauche.
 private final class LevelMeter: NSView {
     var level: Float = 0 {
         didSet { needsDisplay = true }
     }
 
-    private let barCount = 13
+    private let barCount = 9
     private var history: [Float] = []
 
     override func draw(_ dirtyRect: NSRect) {
@@ -193,11 +230,9 @@ private final class LevelMeter: NSView {
 
         let barWidth: CGFloat = 3
         let gap = (bounds.width - CGFloat(barCount) * barWidth) / CGFloat(barCount - 1)
-        context.setFillColor(NSColor.labelColor.withAlphaComponent(0.65).cgColor)
+        context.setFillColor(NSColor.labelColor.withAlphaComponent(0.7).cgColor)
 
         for index in 0..<barCount {
-            // Les barres défilent de droite à gauche : le plus récent à droite,
-            // comme un tracé qui avance.
             let value = index < history.count ? history[history.count - 1 - index] : 0
             let height = max(3, CGFloat(value) * bounds.height)
             let x = bounds.width - CGFloat(index + 1) * barWidth - CGFloat(index) * gap
