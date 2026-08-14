@@ -134,7 +134,11 @@ caret/
 │       ├── prompt.py     CrisperWhisper decoder prompt construction
 │       ├── protocol.py   the app ↔ engine contract
 │       └── server.py     persistent unix-socket service
-├── app/             Swift menu-bar app
+├── app/             Swift menu-bar app (builds to app/build/, gitignored)
+├── scripts/
+│   ├── dev-cert.sh      local signing certificate, so TCC grants persist
+│   ├── install.sh       build → sign → /Applications/Caret.app
+│   └── package-dmg.sh   .dmg with the Applications shortcut
 └── poc/             benchmarks and experiments behind the numbers above
 ```
 
@@ -179,14 +183,15 @@ answers:
 uv run python client_test.py ../poc/samples/01-fr-dev.wav
 ```
 
-### 2. Build and launch the app
+### 2. Build and install the app
 
 ```bash
-cd app
-./build_app.sh && open Caret.app
+./scripts/install.sh
 ```
 
-Caret appears in the menu bar — no Dock icon, no window.
+This builds, signs, installs to `/Applications/Caret.app`, and launches it.
+Caret appears in the menu bar — no Dock icon, no window. Build artifacts stay
+in `app/build/`, never in the repo.
 
 ### 3. Grant two permissions
 
@@ -195,7 +200,27 @@ Caret appears in the menu bar — no Dock icon, no window.
 | **Microphone** | capture your voice | prompted on first dictation |
 | **Accessibility** | insert text into other apps | System Settings › Privacy & Security › Accessibility |
 
-Accessibility must be granted manually, then relaunch Caret.
+Accessibility must be granted manually. **You only do this once** — see below.
+
+#### Why permissions survive rebuilds
+
+macOS binds TCC permissions to a *designated requirement* derived from the code
+signature. Ad-hoc signing puts the binary's `cdhash` in that requirement, so
+every rebuild produces a new identity and silently revokes Accessibility —
+you would re-tick the checkbox after every single build.
+
+`scripts/dev-cert.sh` creates a local self-signed certificate once, and the
+requirement becomes:
+
+```
+identifier "dev.mnaji.caret" and certificate leaf = H"d25baa4b…"
+```
+
+It depends on the certificate, not the binary. Verified: two builds with
+different `cdhash` values produce an identical requirement, so the grant holds.
+
+The certificate is local and self-signed — it is not a substitute for an Apple
+Developer ID, which distribution will require.
 
 ### 4. Dictate
 

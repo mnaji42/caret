@@ -19,8 +19,12 @@ models/
 *.mlpackage/
 *.mlmodelc/
 
-# Swift / Xcode
+# Swift / Xcode — artefacts de build, jamais versionnés
 .build/
+app/build/
+*.app
+dist/
+*.dmg
 .swiftpm/
 DerivedData/
 *.xcuserstate
