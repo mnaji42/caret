@@ -652,6 +652,9 @@ class CrisperWhisperEngine:
 
         raw = self._processor.tokenizer.decode(tokens, skip_special_tokens=True)
         text = self._clean(raw, keep_disfluencies=keep_disfluencies)
+        active_lexicon = hotwords if hotwords is not None else DEFAULT_LEXICON
+        if active_lexicon:
+            text = self._strip_lexicon_echo(text, active_lexicon).strip()
 
         return Transcription(
             text=text,
@@ -663,6 +666,41 @@ class CrisperWhisperEngine:
             timings=Timings(t_mel * 1000, t_enc * 1000, t_dec * 1000),
             last_timestamp=last_ts,
         )
+
+    @staticmethod
+    def _strip_lexicon_echo(text: str, lexicon: list[str]) -> str:
+        """Retire un terme du lexique recraché seul en tête de transcription.
+
+        Le lexique est injecté juste avant le début de transcription. Le modèle
+        enchaîne parfois dessus et sort un fragment isolé avant le vrai texte :
+        « Effects.Ok, donc là un texte… », alors que « Effects » n'a jamais été
+        prononcé.
+
+        On ne retire que ce cas précis — un fragment d'au plus deux mots,
+        terminé par une ponctuation forte, dont la forme se retrouve dans un
+        terme du lexique. Un « Ok. » ou un « Bon. » légitime ne correspond à
+        aucune entrée et survit.
+        """
+        # Le point doit ouvrir une nouvelle phrase — majuscule derrière, avec
+        # ou sans espace. Sans cette condition, « Next.js est bien » verrait
+        # « Next. » traité comme un écho, alors que le « js » minuscule montre
+        # qu'il s'agit d'un seul mot.
+        match = re.match(
+            r"^\s*([A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+)?)[.!?](?=\s*[A-ZÀ-Ÿ])\s*", text)
+        if not match:
+            return text
+        head = match.group(1).strip().lower()
+        if len(head) < 3:
+            return text
+        # Le modèle décline ce qu'il recrache : « useEffect » ressort en
+        # « Effects ». On compare donc aussi la forme sans pluriel, sinon le
+        # cas le plus courant passe à travers.
+        stem = head[:-1] if head.endswith("s") and len(head) > 3 else head
+        flat = [t.lower().replace(" ", "").replace(".", "") for t in lexicon]
+        if any(stem in term or term in stem for term in flat):
+            log.info("écho du lexique retiré en tête : %r", match.group(1))
+            return text[match.end():]
+        return text
 
     @staticmethod
     def _clean(text: str, *, keep_disfluencies: bool) -> str:

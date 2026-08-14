@@ -46,6 +46,15 @@ final class ModifierKeyMonitor {
     /// maintenue : le relâchement ne doit alors rien déclencher.
     private var usedAsModifier = false
 
+    /// Instant du dernier déclenchement, pour absorber les rebonds.
+    ///
+    /// Le système peut livrer deux `flagsChanged` pour un seul relâchement
+    /// (clavier externe, changement de disposition, tap réarmé au mauvais
+    /// moment). Deux déclenchements rapprochés enchaînent démarrage puis arrêt
+    /// immédiat, ou pire, insèrent le texte deux fois de suite.
+    private var lastTrigger = Date.distantPast
+    private let debounce: TimeInterval = 0.4
+
     init(side: Side = .right, onTrigger: @escaping () -> Void) {
         self.side = side
         self.onTrigger = onTrigger
@@ -120,9 +129,14 @@ final class ModifierKeyMonitor {
                 usedAsModifier = false
             } else if isDown {
                 isDown = false
-                if !usedAsModifier {
-                    DispatchQueue.main.async { [weak self] in self?.onTrigger() }
+                guard !usedAsModifier else { return }
+                let now = Date()
+                guard now.timeIntervalSince(lastTrigger) > debounce else {
+                    NSLog("caret: rebond ignoré")
+                    return
                 }
+                lastTrigger = now
+                DispatchQueue.main.async { [weak self] in self?.onTrigger() }
             }
 
         case .keyDown, .leftMouseDown:
