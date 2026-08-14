@@ -5,6 +5,8 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var hotkey: HotkeyMonitor!
+    private var modifierKey: ModifierKeyMonitor!
+    private var reArmTimer: Timer?
     private var controller: DictationController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -17,10 +19,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         render(.idle)
 
+        // Déclencheur principal : Option droite pressée seule.
+        modifierKey = ModifierKeyMonitor(side: .right) { [weak self] in
+            self?.controller.toggle()
+        }
+        if !modifierKey.start() {
+            NSLog("caret: tap clavier indisponible — accessibilité accordée ?")
+        }
+
+        // Repli clavier, utile si l'accessibilité n'est pas encore accordée
+        // (le tap l'exige, pas Carbon) ou si Option droite sert à autre chose.
         hotkey = HotkeyMonitor { [weak self] in self?.controller.toggle() }
         let shortcut = HotkeyMonitor.Shortcut.dictate
         if !hotkey.register(shortcut) {
             NSLog("caret: impossible d'enregistrer \(shortcut.label) — raccourci déjà pris ?")
+        }
+
+        // Le système désactive un tap dont le processus a trop tardé ; sans ce
+        // réarmement la dictée cesserait de répondre sans prévenir.
+        reArmTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.modifierKey.reArmIfNeeded() }
         }
 
         Task {
@@ -44,6 +62,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        reArmTimer?.invalidate()
+        modifierKey?.stop()
         hotkey?.unregister()
     }
 
@@ -83,8 +103,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: status, action: nil, keyEquivalent: "")
         menu.addItem(.separator())
 
-        let dictate = NSMenuItem(title: "Dicter  \(HotkeyMonitor.Shortcut.dictate.label)",
-                                 action: #selector(triggerDictation), keyEquivalent: "")
+        let dictate = NSMenuItem(
+            title: "Dicter  ⌥ droite  ·  \(HotkeyMonitor.Shortcut.dictate.label)",
+            action: #selector(triggerDictation), keyEquivalent: "")
         dictate.target = self
         menu.addItem(dictate)
         menu.addItem(.separator())

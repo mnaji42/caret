@@ -34,11 +34,19 @@ def build(
     language: str = "fr",
     hotwords: list[str] | None = None,
     context: str | None = None,
+    timestamps: bool = False,
 ) -> list[int]:
     """Retourne la séquence de tokens à imposer au décodeur.
 
     L'ordre context-puis-hotwords reproduit celui de l'entraînement ; l'inverser
     place le modèle hors distribution.
+
+    ``timestamps`` retire ``<|notimestamps|>`` du préfixe. Attention : mesuré,
+    CrisperWhisper 2.0 n'émet **aucun** token temporel même ainsi sollicité —
+    il produit ses horodatages par alignement DTW des cross-attentions, d'où
+    ``alignment_heads`` dans sa configuration. L'algorithme long-format
+    classique de Whisper, qui repart du dernier instant transcrit, est donc
+    inapplicable ici ; le découpage se fait aux pauses (cf. crisper.py).
     """
     if mode not in MODES:
         raise ValueError(f"mode inconnu : {mode!r}, attendu {MODES}")
@@ -50,9 +58,11 @@ def build(
         text += f" {HOTWORD_START} {' '.join(hotwords)} {HOTWORD_END}"
 
     ids = tokenizer.encode(text, add_special_tokens=False)
-    return ids + [
+    prefix = [
         tokenizer.convert_tokens_to_ids("<|startoftranscript|>"),
         tokenizer.convert_tokens_to_ids(f"<|{language}|>"),
         tokenizer.convert_tokens_to_ids("<|transcribe|>"),
-        tokenizer.convert_tokens_to_ids("<|notimestamps|>"),
     ]
+    if not timestamps:
+        prefix.append(tokenizer.convert_tokens_to_ids("<|notimestamps|>"))
+    return ids + prefix

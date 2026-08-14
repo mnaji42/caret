@@ -38,6 +38,24 @@ MAX_WINDOW_S = 30.0             # limite architecturale de Whisper
 # plancher où la sortie est restée strictement identique à la fenêtre pleine.
 MIN_WINDOW_S = 15.0
 
+# Découpage long-format. Calibré contre des frontières connues : à 0,35 s on
+# ne retrouvait que 2 coupes sur 7, à 0,20 s les 7. Les pauses de la parole
+# spontanée sont bien plus brèves qu'on ne l'imagine.
+MIN_PAUSE_S = 0.20
+# Part de l'écart fond/voix au-dessus de laquelle on considère qu'il y a
+# parole. Trop bas, les pauses passent inaperçues ; trop haut, chaque syllabe
+# devient une frontière.
+SILENCE_RATIO = 0.15
+# Longueur minimale d'un segment : couper trop court multiplie les appels au
+# modèle sans rien gagner.
+MIN_SEGMENT_S = 5.0
+# Progression minimale par fenêtre en long-format, pour ne jamais piétiner.
+MIN_ADVANCE_S = 1.0
+# Pas des tokens temporels de Whisper.
+TIMESTAMP_STEP_S = 0.02
+# Mots repris d'un segment à l'autre via <ctx>…<ectx>.
+CONTEXT_WORDS = 12
+
 # Marqueurs de disfluence émis en mode verbatim.
 DISFLUENCY_RE = re.compile(
     r"\[(UM|UH|laughter|sniff|throatclearing|cough|sigh|breath|lipsmack|"
@@ -75,6 +93,10 @@ class Transcription:
     tokens: int
     timings: Timings = field(default_factory=Timings)
     truncated: bool = False
+    #: Dernier instant horodaté par le modèle, en secondes depuis le début de
+    #: la fenêtre. Renseigné seulement quand les horodatages sont demandés ;
+    #: c'est lui qui pilote l'avance en long-format.
+    last_timestamp: float | None = None
 
 
 class CrisperWhisperEngine:
@@ -96,6 +118,7 @@ class CrisperWhisperEngine:
         self._model = None
         self._processor = None
         self._eos = -1
+        self._timestamp_begin = -1
 
     # -- cycle de vie -------------------------------------------------
 
@@ -110,7 +133,10 @@ class CrisperWhisperEngine:
             .eval()
         )
         self._processor = WhisperProcessor.from_pretrained(self.model_id)
-        self._eos = self._processor.tokenizer.convert_tokens_to_ids("<|endoftext|>")
+        tok = self._processor.tokenizer
+        self._eos = tok.convert_tokens_to_ids("<|endoftext|>")
+        # Premier token temporel : tout id au-dessus encode un instant.
+        self._timestamp_begin = tok.convert_tokens_to_ids("<|0.00|>")
         elapsed = time.perf_counter() - t0
         log.info("modèle %s chargé en %.1fs sur %s", self.model_id, elapsed, self.device)
         self._warmup()
@@ -216,6 +242,156 @@ class CrisperWhisperEngine:
             raise RuntimeError("moteur non chargé : appeler load() d'abord")
 
         audio = np.asarray(audio, dtype=np.float32)
+        if len(audio) / SAMPLE_RATE > MAX_WINDOW_S:
+            return self._transcribe_longform(
+                audio, mode=mode, language=language, hotwords=hotwords,
+                keep_disfluencies=keep_disfluencies, max_new_tokens=max_new_tokens)
+        return self._transcribe_window(
+            audio, mode=mode, language=language, hotwords=hotwords,
+            keep_disfluencies=keep_disfluencies, max_new_tokens=max_new_tokens)
+
+    def _transcribe_longform(
+        self,
+        audio: np.ndarray,
+        **kwargs,
+    ) -> Transcription:
+        """Transcrit un audio plus long que la fenêtre de 30 s du modèle.
+
+        Découper à l'aveugle ne marche pas : Whisper émet volontiers une fin de
+        séquence sur un silence interne et abandonne le reste de sa fenêtre.
+        Une fenêtre de 25 s contenant deux phrases séparées par une pause perd
+        la seconde — mesuré, la moitié des échantillons disparaissait.
+
+        On procède donc comme Whisper en long-format : décoder **avec**
+        horodatages, lire le dernier instant réellement transcrit, et faire
+        repartir la fenêtre suivante exactement de là. Un arrêt prématuré
+        cesse d'être une perte : il devient simplement une fenêtre plus courte,
+        et la suite est reprise au tour d'après.
+        """
+        segments = self._split_at_silence(audio)
+        texts: list[str] = []
+        timings = Timings()
+        tokens = 0
+        context: str | None = None
+
+        for index, segment in enumerate(segments):
+            part = self._transcribe_window(segment, context=context, **kwargs)
+            if part.text:
+                texts.append(part.text)
+                # Contexte court : trop long, le modèle paraphrase ce qui
+                # précède au lieu de poursuivre.
+                context = " ".join(" ".join(texts).split()[-CONTEXT_WORDS:])
+            timings.mel_ms += part.timings.mel_ms
+            timings.encoder_ms += part.timings.encoder_ms
+            timings.decoder_ms += part.timings.decoder_ms
+            tokens += part.tokens
+            log.debug("  segment %d/%d (%.1fs) : %d mots", index + 1,
+                      len(segments), len(segment) / SAMPLE_RATE,
+                      len(part.text.split()))
+
+        log.info("longform : %.0fs en %d segments, %d mots",
+                 len(audio) / SAMPLE_RATE, len(segments),
+                 len(" ".join(texts).split()))
+
+        return Transcription(
+            text=" ".join(texts).strip(),
+            mode=kwargs.get("mode", "intended"),
+            language=kwargs.get("language", "fr"),
+            window_s=MAX_WINDOW_S,
+            tokens=tokens,
+            truncated=False,
+            timings=timings,
+        )
+
+    @staticmethod
+    def _silence_boundaries(audio: np.ndarray) -> list[int]:
+        """Indices d'échantillon au milieu de chaque pause détectée.
+
+        Le seuil est relatif au niveau de la voix — un seuil absolu ne marche
+        ni sur un micro de casque ni dans une pièce bruyante. On prend un
+        centile bas de l'énergie comme référence de fond et on marque comme
+        pause tout ce qui reste proche de ce fond assez longtemps.
+        """
+        frame = int(0.02 * SAMPLE_RATE)
+        usable = (len(audio) // frame) * frame
+        if usable < frame:
+            return []
+
+        frames = audio[:usable].reshape(-1, frame)
+        energy = np.sqrt((frames.astype(np.float64) ** 2).mean(axis=1))
+
+        floor = np.percentile(energy, 10)
+        speech = np.percentile(energy, 90)
+        if speech <= floor:
+            return []                     # pas de parole distinguable du fond
+        threshold = floor + SILENCE_RATIO * (speech - floor)
+
+        quiet = energy < threshold
+        min_frames = int(MIN_PAUSE_S / 0.02)
+
+        boundaries: list[int] = []
+        start = None
+        for index, is_quiet in enumerate(quiet):
+            if is_quiet and start is None:
+                start = index
+            elif not is_quiet and start is not None:
+                if index - start >= min_frames:
+                    boundaries.append(((start + index) // 2) * frame)
+                start = None
+        if start is not None and len(quiet) - start >= min_frames:
+            boundaries.append(((start + len(quiet)) // 2) * frame)
+        return boundaries
+
+    @classmethod
+    def _split_at_silence(cls, audio: np.ndarray) -> list[np.ndarray]:
+        """Découpe l'audio en segments d'au plus 30 s, aux pauses réelles.
+
+        Couper à intervalle fixe ne suffit pas : Whisper émet volontiers une
+        fin de séquence sur un silence interne et abandonne le reste de la
+        fenêtre. Un segment de 30 s contenant deux phrases séparées par une
+        pause perd donc la seconde — constaté en test, un échantillon entier
+        disparaissait de la transcription.
+
+        On aligne donc les coupes sur les pauses de la parole : chaque segment
+        correspond à un souffle continu, ce que le modèle sait transcrire d'un
+        bout à l'autre. Sans pause exploitable (débit ininterrompu), on coupe
+        à la limite de la fenêtre.
+        """
+        window = int(MAX_WINDOW_S * SAMPLE_RATE)
+        if len(audio) <= window:
+            return [audio]
+
+        # Couper à *chaque* pause, pas seulement quand la fenêtre déborde :
+        # c'est la pause à l'intérieur d'un segment qui déclenche l'arrêt
+        # prématuré, donc en laisser une passer suffit à perdre la suite.
+        cuts = [0, *cls._silence_boundaries(audio), len(audio)]
+
+        segments: list[np.ndarray] = []
+        start = cuts[0]
+        for end in cuts[1:]:
+            if end - start < MIN_SEGMENT_S * SAMPLE_RATE and end != len(audio):
+                continue        # trop court : on prolonge jusqu'à la pause suivante
+            while end - start > window:
+                segments.append(audio[start:start + window])
+                start += window
+            if end > start:
+                segments.append(audio[start:end])
+            start = end
+
+        return [s for s in segments if len(s) > 0]
+
+    def _transcribe_window(
+        self,
+        audio: np.ndarray,
+        *,
+        mode: str = "intended",
+        language: str = "fr",
+        hotwords: list[str] | None = None,
+        keep_disfluencies: bool = False,
+        max_new_tokens: int = 256,
+        context: str | None = None,
+        timestamps: bool = False,
+    ) -> Transcription:
         duration_s = len(audio) / SAMPLE_RATE
         window_s, truncated = self._window_for(duration_s)
 
@@ -223,7 +399,14 @@ class CrisperWhisperEngine:
         feats = self._processor.feature_extractor(
             audio, sampling_rate=SAMPLE_RATE, return_tensors="pt"
         )
-        mel = feats.input_features[:, :, : int(window_s * MEL_FRAMES_PER_S)]
+        # La seconde convolution de l'encodeur a un pas de 2 : un nombre impair
+        # de trames donne une longueur attendue qui ne retombe pas sur la
+        # longueur fournie, et le contrôle interne de Whisper échoue. Les
+        # fenêtres fixes de 15 s et 30 s tombaient juste par chance ; les
+        # segments long-format, de durée variable, non.
+        n_frames = int(window_s * MEL_FRAMES_PER_S)
+        n_frames -= n_frames % 2
+        mel = feats.input_features[:, :, :n_frames]
         mel = mel.to(self.device, self.dtype)
         self._sync()
         t_mel = time.perf_counter() - t0
@@ -238,12 +421,21 @@ class CrisperWhisperEngine:
             mode=mode,
             language=language,
             hotwords=hotwords if hotwords is not None else DEFAULT_LEXICON,
+            context=context,
+            timestamps=timestamps,
         )
 
         t0 = time.perf_counter()
         tokens = self._decode(enc_out, prompt_ids, max_new_tokens)
         self._sync()
         t_dec = time.perf_counter() - t0
+
+        last_ts = None
+        if timestamps:
+            stamps = [t for t in tokens if t >= self._timestamp_begin]
+            if stamps:
+                last_ts = (stamps[-1] - self._timestamp_begin) * TIMESTAMP_STEP_S
+            tokens = [t for t in tokens if t < self._timestamp_begin]
 
         raw = self._processor.tokenizer.decode(tokens, skip_special_tokens=True)
         text = self._clean(raw, keep_disfluencies=keep_disfluencies)
@@ -256,6 +448,7 @@ class CrisperWhisperEngine:
             tokens=len(tokens),
             truncated=truncated,
             timings=Timings(t_mel * 1000, t_enc * 1000, t_dec * 1000),
+            last_timestamp=last_ts,
         )
 
     @staticmethod

@@ -226,10 +226,11 @@ Developer ID, which distribution will require.
 
 | Shortcut | Action |
 |---|---|
-| **⌃⌥⌘D** | start / stop dictation |
+| **Right ⌥** | start / stop dictation (press alone) |
+| **⌃⌥⌘D** | same, keyboard fallback |
 | **Escape** | cancel while recording (no text inserted) |
 
-Press `⌃⌥⌘D`, talk, press again. Text lands at the cursor of whatever app is
+Tap **Right Option**, talk, tap again. Text lands at the cursor of whatever app is
 focused.
 
 **Why `⌃⌥⌘D`?** Three constraints narrow this down fast:
@@ -265,8 +266,8 @@ It also needs no Input Monitoring permission, going through Carbon's
   `hallucination.py`, which imports `ctranslate2` — and CTranslate2 has no
   Apple Silicon wheel (Linux x86_64 only). These protections are inactive on
   macOS and must be reimplemented.
-- **30 s ceiling.** Whisper's architectural limit. Longer dictations are
-  truncated; long-form chunking is not implemented.
+- **Long-form cost is linear.** A 10-minute dictation is transcribed in one
+  pass, but takes roughly 25 s of processing. Acceptable, not instant.
 - **Speculative decoding is not possible** on macOS. It requires CTranslate2,
   and the documented `large` + `turbo` pairing is structurally mismatched
   anyway: 80 vs 128 mel bins, 51896 vs 51897 vocab. `small` → `large` share
