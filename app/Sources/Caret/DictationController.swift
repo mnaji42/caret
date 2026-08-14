@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import Carbon.HIToolbox
 
 /// Enchaînement raccourci → capture → transcription → insertion.
@@ -128,6 +129,10 @@ final class DictationController {
             return
         }
 
+        if captureNextForDiagnostics {
+            captureNextForDiagnostics = false
+            writeDiagnosticFile(samples)
+        }
         await transcribeAndInject(samples)
     }
 
@@ -162,6 +167,41 @@ final class DictationController {
             NSLog("caret: échec, %.1f min d'audio conservées pour réessai", minutes)
             state = .failed("\(error.localizedDescription) — audio conservé, « Réessayer » dans le menu.")
         }
+    }
+
+    /// Écrit la prochaine dictée sur le Bureau, en plus de la transcrire.
+    ///
+    /// Sans l'audio d'origine, analyser une erreur de transcription revient à
+    /// spéculer : impossible de distinguer une mauvaise reconnaissance d'un
+    /// artefact de découpage ou d'une hallucination du lexique. Explicite et
+    /// ponctuel — l'audio n'est jamais écrit autrement.
+    var captureNextForDiagnostics = false
+
+    private func writeDiagnosticFile(_ samples: [Float]) {
+        let name = "caret-diagnostic-\(Int(Date().timeIntervalSince1970)).wav"
+        let url = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Desktop").appendingPathComponent(name)
+        guard let format = AVAudioFormat(
+                commonFormat: .pcmFormatFloat32,
+                sampleRate: AudioRecorder.targetSampleRate,
+                channels: 1, interleaved: false),
+              let file = try? AVAudioFile(forWriting: url,
+                                          settings: format.settings,
+                                          commonFormat: .pcmFormatFloat32,
+                                          interleaved: false),
+              let buffer = AVAudioPCMBuffer(pcmFormat: format,
+                                            frameCapacity: AVAudioFrameCount(samples.count))
+        else {
+            NSLog("caret: écriture du fichier de diagnostic impossible")
+            return
+        }
+        buffer.frameLength = AVAudioFrameCount(samples.count)
+        samples.withUnsafeBufferPointer { source in
+            buffer.floatChannelData![0].update(from: source.baseAddress!,
+                                               count: samples.count)
+        }
+        try? file.write(from: buffer)
+        NSLog("caret: diagnostic écrit — %@", url.path)
     }
 
     /// Insère un texte déjà transcrit — réinsertion depuis l'historique.

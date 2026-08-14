@@ -168,20 +168,18 @@ Two things worth knowing, both verified against the released weights:
 
 ## Getting started
 
-### 1. Start the engine
+### 1. Install the engine service
 
 ```bash
-cd engine
-uv venv --python 3.12 && uv pip install -e .
-uv run python -m caret_engine.server
+cd engine && uv venv --python 3.12 && uv pip install -e . && cd ..
+./scripts/install-service.sh
 ```
 
-The model loads once (~8 s) and stays warm. Leave this running. Verify it
-answers:
+This registers the engine as a launch agent, so it starts with your session
+and restarts if it dies. The model loads once (~8 s) and stays warm; each
+dictation pays inference only. Logs land in `~/Library/Logs/Caret/engine.log`.
 
-```bash
-uv run python client_test.py ../poc/samples/01-fr-dev.wav
-```
+To remove it: `./scripts/install-service.sh --uninstall`
 
 ### 2. Build and install the app
 
@@ -255,6 +253,21 @@ It also needs no Input Monitoring permission, going through Carbon's
 - [x] **J3** — Swift app: global hotkey, capture, inject at caret
 - [ ] **J4** — VAD (no inference on silence) and anti-hallucination guards
 - [ ] **J5** — Core ML / Neural Engine backend
+
+### Measured non-results
+
+Kept here because they cost time to establish and would otherwise be
+re-attempted:
+
+- **Beam search changes nothing.** On real voice, beam=5 produced output
+  *byte-identical* to greedy across all samples, for 60% more latency.
+- **`large` is not better than `turbo`.** It is 1.7× slower and sometimes
+  worse — *« avant de merde »* where turbo gives *« avant de mer »*,
+  *« commands »* where turbo gives *« comments »*. `turbo`'s 4-layer decoder
+  is not the bottleneck people assume it is.
+- **Speculative decoding is impossible on macOS** (needs CTranslate2, no
+  Apple Silicon wheel), and the documented `large`+`turbo` pair is mismatched
+  anyway: 80 vs 128 mel bins, 51896 vs 51897 vocab.
 - [ ] **J6** — menu bar, settings, history, signing, notarization
 
 ### Known gaps

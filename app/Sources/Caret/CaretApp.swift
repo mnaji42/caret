@@ -185,6 +185,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sounds.state = Feedback.soundsEnabled ? .on : .off
         menu.addItem(sounds)
 
+        let diag = NSMenuItem(title: controller.captureNextForDiagnostics
+                                ? "Diagnostic : prochaine dictée sera enregistrée"
+                                : "Enregistrer la prochaine dictée (diagnostic)…",
+                              action: #selector(toggleDiagnostics), keyEquivalent: "")
+        diag.target = self
+        diag.state = controller.captureNextForDiagnostics ? .on : .off
+        menu.addItem(diag)
+
         let keepHistory = NSMenuItem(title: "Conserver l'historique",
                                      action: #selector(toggleHistory), keyEquivalent: "")
         keepHistory.target = self
@@ -253,6 +261,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func clearHistory() {
         controller.history.clear()
+        Task { await refreshMenu() }
+    }
+
+    @objc private func toggleDiagnostics() {
+        controller.captureNextForDiagnostics.toggle()
         Task { await refreshMenu() }
     }
 
