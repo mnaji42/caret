@@ -73,6 +73,8 @@ final class RecordingOverlay {
     private var cardBelowTabs: NSLayoutConstraint?
     private var cardAlone: NSLayoutConstraint?
     private var previewLineCount = 1
+    /// Composition courante de la rangée d'onglets.
+    private var tabsShowMode: Bool?
 
     var levelProvider: (() -> Float)?
     var onSelectMode: ((TranscriptionMode) -> Void)?
@@ -247,10 +249,10 @@ final class RecordingOverlay {
         self.status = status
 
         modeControl.select(TranscriptionMode.allCases.firstIndex(of: status.mode) ?? 0)
-        // Masquée sous un moteur à rendu unique : les entretoises de la
-        // rangée se répartissent alors autour du seul contrôle restant, qui se
-        // retrouve centré sans calcul particulier.
-        modeControl.isHidden = !status.modesAvailable
+        // Masquer ne suffit pas à recentrer : les entretoises restent en
+        // place et le contrôle survivant se retrouve décalé d'une demi-
+        // entretoise. On refait la rangée avec les seuls contrôles visibles.
+        layoutTabs(showMode: status.modesAvailable)
 
         targetControl.setLabel(Self.noteLabel(for: status), at: 1)
         targetControl.select(status.target.isLocked ? 1 : 0)
@@ -538,21 +540,42 @@ final class RecordingOverlay {
     /// faire ni l'un ni l'autre — ses distributions ne répartissent l'espace
     /// qu'*entre* les vues, jamais aux extrémités — d'où des entretoises dont
     /// on contraint toutes les largeurs à être identiques.
-    private func makeSpacedRow(_ views: [NSView]) -> NSStackView {
-        let spacers = (0...views.count).map { _ in NSView() }
-        var arranged: [NSView] = []
-        for (index, view) in views.enumerated() {
-            arranged.append(spacers[index])
-            arranged.append(view)
+    /// Recompose la rangée d'onglets pour les contrôles réellement affichés.
+    ///
+    /// Appelée à chaque mise à jour, mais ne fait rien tant que la composition
+    /// ne change pas : reconstruire des contraintes vingt fois par seconde
+    /// pendant une dictée serait absurde.
+    private func layoutTabs(showMode: Bool) {
+        guard showMode != tabsShowMode || textRow == nil else { return }
+        tabsShowMode = showMode
+        guard let row = textRow else { return }
+        for view in row.arrangedSubviews {
+            row.removeArrangedSubview(view)
+            view.removeFromSuperview()
         }
-        arranged.append(spacers[views.count])
+        fill(row, with: showMode ? [modeControl, targetControl] : [targetControl])
+    }
 
-        let row = makeRow(arranged)
+    private func makeSpacedRow(_ views: [NSView]) -> NSStackView {
+        let row = makeRow([])
         row.spacing = 0
+        fill(row, with: views)
+        return row
+    }
+
+    /// Pose les contrôles et les entretoises qui les séparent.
+    private func fill(_ row: NSStackView, with views: [NSView]) {
+        let spacers = (0...views.count).map { _ in NSView() }
+        for (index, view) in views.enumerated() {
+            row.addArrangedSubview(spacers[index])
+            row.addArrangedSubview(view)
+            spacers[index].setContentHuggingPriority(.defaultLow - 1, for: .horizontal)
+        }
+        row.addArrangedSubview(spacers[views.count])
+        spacers[views.count].setContentHuggingPriority(.defaultLow - 1, for: .horizontal)
         for spacer in spacers.dropFirst() {
             spacer.widthAnchor.constraint(equalTo: spacers[0].widthAnchor).isActive = true
         }
-        return row
     }
 
     private func makeRow(_ views: [NSView]) -> NSStackView {
@@ -648,6 +671,7 @@ final class RecordingOverlay {
         textRow = nil
         card = nil
         cardSheen = nil
+        tabsShowMode = nil
         NSLog("sofler: écrans modifiés — panneau reconstruit")
 
         guard wasRecording else { return }

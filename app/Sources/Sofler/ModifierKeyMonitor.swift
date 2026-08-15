@@ -44,18 +44,26 @@ final class ModifierKeyMonitor {
 
     /// Vrai entre l'appui et le relâchement d'Option.
     private var isDown = false
-    /// Instant de l'appui, pour distinguer une pression d'un maintien.
-    private var pressedAt = Date.distantPast
-
-    /// Au-delà, le relâchement n'est plus lu comme « dicter » mais comme
-    /// « ouvre les réglages ».
+    /// Durée d'appui au-delà de laquelle on ouvre les réglages.
     ///
-    /// Deux secondes, parce que le déclenchement a lieu au **relâchement** :
-    /// quelqu'un qui presse Option puis hésite avant de parler tiendrait la
-    /// touche sans le vouloir, et un seuil court lui ouvrirait les réglages à
-    /// la place de sa dictée. Maintenir un modificateur deux secondes sans
-    /// appuyer sur rien d'autre, en revanche, n'arrive pas par accident.
+    /// L'ouverture a lieu **pendant** l'appui, pas au relâchement. C'est une
+    /// différence d'usage, pas de mise en œuvre : sur un seuil détecté au
+    /// relâchement, l'utilisateur doit deviner quand lâcher, et un geste dont
+    /// on ne sait pas s'il a été compris n'en est pas un. Là, l'action se
+    /// produit sous les doigts et le relâchement ne fait plus rien.
+    ///
+    /// Deux secondes parce que la dictée se déclenche, elle, au relâchement :
+    /// quelqu'un qui presse Option puis hésite avant de parler tient la touche
+    /// sans le vouloir, et un seuil court lui ouvrirait les réglages à la
+    /// place de sa dictée.
     private let holdDuration: TimeInterval = 2.0
+
+    /// Décompte armé à l'appui, désarmé au relâchement ou dès qu'une autre
+    /// touche intervient.
+    private var holdTimer: DispatchWorkItem?
+    /// Vrai quand le décompte est allé au bout : le relâchement qui suit ne
+    /// doit plus rien déclencher.
+    private var didHold = false
     /// Passe à vrai si une autre touche est pressée pendant qu'Option est
     /// maintenue : le relâchement ne doit alors rien déclencher.
     private var usedAsModifier = false
@@ -69,6 +77,23 @@ final class ModifierKeyMonitor {
     /// séparés de moins de 400 ms ne correspondent à aucune dictée réelle.
     private var lastTrigger = Date.distantPast
     private let debounce: TimeInterval = 0.4
+
+    /// Arme le décompte : au bout du délai, les réglages s'ouvrent d'eux-mêmes.
+    private func armHoldTimer() {
+        cancelHoldTimer()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, isDown, !usedAsModifier else { return }
+            didHold = true
+            onHold()
+        }
+        holdTimer = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + holdDuration, execute: work)
+    }
+
+    private func cancelHoldTimer() {
+        holdTimer?.cancel()
+        holdTimer = nil
+    }
 
     init(side: Side = .right,
          onTrigger: @escaping () -> Void,
@@ -118,6 +143,7 @@ final class ModifierKeyMonitor {
     }
 
     func stop() {
+        cancelHoldTimer()
         if let tap {
             CGEvent.tapEnable(tap: tap, enable: false)
             self.tap = nil
@@ -137,7 +163,10 @@ final class ModifierKeyMonitor {
             guard code == side.keyCode else {
                 // Un autre modificateur entre en jeu pendant qu'Option est
                 // tenue (⌥⇧, ⌥⌘…) : c'est une combinaison, pas une dictée.
-                if isDown { usedAsModifier = true }
+                if isDown {
+                    usedAsModifier = true
+                    cancelHoldTimer()
+                }
                 return
             }
 
@@ -145,9 +174,14 @@ final class ModifierKeyMonitor {
             if pressed {
                 isDown = true
                 usedAsModifier = false
-                pressedAt = Date()
+                didHold = false
+                armHoldTimer()
             } else if isDown {
                 isDown = false
+                cancelHoldTimer()
+                // Le décompte est allé au bout : les réglages sont déjà
+                // ouverts, ce relâchement ne doit pas lancer une dictée.
+                guard !didHold else { return }
                 guard !usedAsModifier else { return }
                 let now = Date()
                 guard now.timeIntervalSince(lastTrigger) > debounce else {
@@ -155,14 +189,7 @@ final class ModifierKeyMonitor {
                     return
                 }
                 lastTrigger = now
-                // Maintenue seule : c'est une demande d'ouvrir les réglages,
-                // pas de dicter. Rien n'a démarré entre-temps, puisque le
-                // déclenchement n'a lieu qu'ici, au relâchement.
-                let held = now.timeIntervalSince(pressedAt) >= holdDuration
-                DispatchQueue.main.async { [weak self] in
-                    guard let self else { return }
-                    held ? onHold() : onTrigger()
-                }
+                DispatchQueue.main.async { [weak self] in self?.onTrigger() }
             }
 
         case .keyDown, .leftMouseDown:
