@@ -674,6 +674,11 @@ class CrisperWhisperEngine:
         # On le rattache au précédent plutôt que de le jeter : l'audio est
         # conservé, et il est de toute façon trop court pour porter autre
         # chose que la fin d'un mot.
+        # Piste d'amélioration, cf. « Known gaps » du README : l'aperçu en
+        # direct peut fournir les plages temporelles mot par mot, ce qui
+        # donnerait une détection de parole autrement plus fiable que
+        # `has_speech` sur ces durées. La fusion resterait le repli quand
+        # l'aperçu est coupé.
         if len(segments) > 1 and len(segments[-1]) < MIN_SEGMENT_S * SAMPLE_RATE:
             merged = np.concatenate([segments[-2], segments[-1]])
             if len(merged) <= window:

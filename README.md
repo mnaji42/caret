@@ -391,9 +391,13 @@ it offline on the retained audio.
 - [x] **J2** — persistent engine service (4–5× faster than reference pipeline)
 - [x] **J3** — Swift app: global hotkey, capture, inject at caret
 - [x] **J4** — VAD (no inference on silence) and anti-hallucination guards
-- [x] **J5** — control bar, note memory, live preview, corpus collection
-- [ ] **J6** — Core ML / Neural Engine backend
-- [ ] **J7** — offline Apple pass on retained audio, for a fair engine comparison
+- [x] **J5** — menu bar, settings, history, file target
+- [x] **J6** — test suite (64 fast, 12 regression)
+- [x] **J7** — control bar, note memory, live preview, corpus collection
+- [ ] **J8** — signing, notarization, DMG
+- [ ] **J9** — Core ML / Neural Engine backend
+- [ ] **J10** — word-level speech detection from the live preview (below)
+- [ ] **J11** — offline Apple pass on retained audio, for a fair comparison
 
 ### Engine comparison
 
@@ -450,10 +454,6 @@ re-attempted:
 - **Speculative decoding is impossible on macOS** (needs CTranslate2, no
   Apple Silicon wheel), and the documented `large`+`turbo` pair is mismatched
   anyway: 80 vs 128 mel bins, 51896 vs 51897 vocab.
-- [x] **J6** — menu bar, settings, history, locked file target
-- [x] **J7** — test suite (67 fast, 11 regression)
-- [ ] **J8** — signing, notarization, DMG
-
 ### Known gaps
 
 - **VAD is energy-based, not neural.** It rejects silence, low background
@@ -465,6 +465,25 @@ re-attempted:
   lexicon word can appear where nothing was said. Observed in real use:
   a stray "effect" from `useEffect` being in the list. The trade-off is
   inherent to the mechanism that fixes *« russe-fake »* → `useEffect`.
+- **Speech detection is unreliable under a second.** The energy VAD measures
+  how much the loudness fluctuates, over 20 ms frames. On a 300 ms fragment
+  that is fifteen frames, and a breath or a click can score like speech.
+  Measured on nineteen real end-of-dictation remnants: it correctly rejected
+  fifteen, and passed four — each of which the model then filled with an
+  invented sentence. Trailing remnants are now merged into the previous
+  segment, which removes the isolated window without dropping anything, but
+  the detector itself is still wrong on those cases.
+
+  **The fix worth building** (J10): `SpeechTranscriber` can return word-level
+  time ranges via `attributeOptions: [.audioTimeRange]`. Since it already runs
+  during the dictation to drive the live preview, it would give a word-accurate
+  speech detector for free — *"no word was heard between 71.2 s and 73.0 s"* is
+  a far better signal than a hand-rolled energy threshold. Two conditions: it
+  only works while the preview is on, so it must stay an opportunistic
+  improvement layered on top of the merge rather than a replacement; and since
+  that engine drops audio it fails to understand, its silence should only
+  justify skipping short regions, never several seconds.
+
 - **Long-form cost is linear.** A 10-minute dictation is transcribed in one
   pass, but takes roughly 25 s of processing. Acceptable, not instant.
 - **Speculative decoding is not possible** on macOS. It requires CTranslate2,
