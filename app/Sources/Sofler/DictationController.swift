@@ -22,15 +22,24 @@ final class DictationController {
 
     var onStateChange: ((State) -> Void)?
 
-    /// Mode par défaut : `intended`. Les nombres tranchent — verbatim rend
-    /// « deux cents » là où intended rend « 200 », et personne ne veut
-    /// « erreur cinq cents » dans un rapport de bug.
-    var mode: TranscriptionMode = .intended
+    /// Mode, langue et lexique sont **lus** dans les préférences, jamais
+    /// recopiés.
+    ///
+    /// Ils l'ont été, et c'était un bug : le contrôleur gardait des copies
+    /// rafraîchies à la fermeture de la fenêtre de réglages. Choisir l'anglais
+    /// puis dicter sans fermer la fenêtre transcrivait de l'anglais avec le
+    /// modèle français — panne parfaitement muette, puisque le moteur rend
+    /// simplement un texte vide ou absurde. Toute copie d'un réglage est une
+    /// occasion de divergence ; il n'y en a plus.
+    var mode: TranscriptionMode {
+        get { Preferences.shared.defaultMode }
+        set { Preferences.shared.defaultMode = newValue }
+    }
 
     /// `nil` laisse le moteur appliquer son lexique développeur par défaut.
-    var lexicon: [String]?
+    var lexicon: [String]? { Preferences.shared.effectiveLexicon }
 
-    var language: String = "fr"
+    var language: String { Preferences.shared.language }
 
     /// Destination du texte : curseur actif, ou fichier de notes.
     ///

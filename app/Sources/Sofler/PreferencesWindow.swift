@@ -43,15 +43,21 @@ final class PreferencesWindowController {
 
 private struct PreferencesView: View {
     let history: TranscriptionHistory
-    @State private var tab: Tab = .engine
+    @State private var tab: Tab = .general
 
+    /// Trois questions, dans l'ordre où on se les pose : *comment je
+    /// déclenche et où ça va*, *avec quoi ça transcrit*, *ce que je garde*.
+    ///
+    /// La version précédente séparait « Moteur » et « Dictée », ce qui
+    /// obligeait à choisir la langue sur une page et le moteur sur une autre
+    /// alors que l'une ne sert qu'à l'autre.
     enum Tab: String, CaseIterable {
-        case engine, dictation, collection, history
+        case general, transcription, collection, history
 
         var label: String {
             switch self {
-            case .engine: "Moteur"
-            case .dictation: "Dictée"
+            case .general: "Général"
+            case .transcription: "Transcription"
             case .collection: "Collecte"
             case .history: "Historique"
             }
@@ -59,8 +65,8 @@ private struct PreferencesView: View {
 
         var symbol: String {
             switch self {
-            case .engine: "waveform"
-            case .dictation: "mic"
+            case .general: "slider.horizontal.3"
+            case .transcription: "waveform"
             case .collection: "tray.full"
             case .history: "clock"
             }
@@ -73,8 +79,8 @@ private struct PreferencesView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     switch tab {
-                    case .engine: EngineTab()
-                    case .dictation: DictationTab()
+                    case .general: GeneralTab()
+                    case .transcription: TranscriptionTab()
                     case .collection: CollectionTab()
                     case .history: HistoryTab(history: history)
                     }
@@ -111,75 +117,9 @@ private struct PreferencesView: View {
     }
 }
 
-// MARK: - Moteur
+// MARK: - Général
 
-private struct EngineTab: View {
-    @State private var prefs = Preferences.shared
-    @State private var localReady = false
-    @State private var localName = "—"
-    @State private var lexiconText = ""
-
-    var body: some View {
-        Card(title: "Moteur de transcription") {
-            PillPicker(options: EngineChoice.allCases.map { ($0, $0.label) },
-                       selection: $prefs.engine)
-            Note(prefs.engine.explanation)
-
-            if prefs.engine == .crisperWhisper {
-                Divider().opacity(0.3)
-                Row(label: "Service") {
-                    Text(localReady ? localName : "hors ligne")
-                        .font(.system(size: 12))
-                        .foregroundStyle(localReady ? Color.secondary : Color.red)
-                }
-                if !localReady {
-                    Note("Le modèle n'est pas installé, ou le service met "
-                         + "quelques secondes à charger. Lancez `scripts/setup.sh` "
-                         + "une fois : Sofler démarre et arrête ensuite le service "
-                         + "tout seul.", warning: true)
-                }
-            }
-        }
-
-        Card(title: "Vocabulaire technique") {
-            if !prefs.engine.honoursLexicon {
-                Note("Le moteur de macOS n'en tient pas compte : mesuré sur de "
-                     + "vrais enregistrements, lui fournir la liste ne change "
-                     + "pas sa sortie d'un caractère. Ces réglages ne "
-                     + "s'appliquent qu'à CrisperWhisper.", warning: true)
-            }
-            Toggle("Utiliser la liste intégrée", isOn: $prefs.useDefaultLexicon)
-                .font(.system(size: 13))
-            if !prefs.useDefaultLexicon {
-                TextEditor(text: $lexiconText)
-                    .font(.system(size: 12, design: .monospaced))
-                    .scrollContentBackground(.hidden)
-                    .frame(minHeight: 130)
-                    .padding(8)
-                    .background(RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.black.opacity(0.2)))
-                    .onChange(of: lexiconText) { _, new in
-                        prefs.lexicon = new.split(separator: "\n")
-                            .map { $0.trimmingCharacters(in: .whitespaces) }
-                            .filter { !$0.isEmpty }
-                    }
-                Note("Un terme par ligne. Gardez la liste courte : plus elle est "
-                     + "longue, plus le modèle risque d'y piocher un mot sur un "
-                     + "passage où vous n'avez rien dit.")
-            }
-        }
-        .task {
-            lexiconText = prefs.lexicon.joined(separator: "\n")
-            let engine = SocketSpeechEngine()
-            localReady = await engine.isReady()
-            if localReady { localName = await engine.displayName }
-        }
-    }
-}
-
-// MARK: - Dictée
-
-private struct DictationTab: View {
+private struct GeneralTab: View {
     @State private var prefs = Preferences.shared
     @State private var soundsEnabled = Feedback.soundsEnabled
     @State private var noteFile: URL? = Preferences.shared.noteFile
@@ -200,30 +140,17 @@ private struct DictationTab: View {
                  + "et ne demande pas l'Accessibilité.")
         }
 
-        Card(title: "Transcription") {
-            Row(label: "Mode par défaut") {
-                PillPicker(options: [(TranscriptionMode.intended, "Texte nettoyé"),
-                                     (TranscriptionMode.verbatim, "Mot à mot")],
-                           selection: $prefs.defaultMode,
-                           disabled: !prefs.engine.hasModes)
-            }
-            Row(label: "Langue") {
-                PillPicker(options: Preferences.languages.map { ($0.0, $0.1) },
-                           selection: $prefs.language)
-            }
-            if !prefs.engine.hasModes {
-                Note("Le moteur de macOS n'a qu'un rendu : le choix du mode ne "
-                     + "s'applique qu'à CrisperWhisper.")
-            }
-        }
-
-        Card(title: "Notes") {
-            Row(label: "Fichier") {
+        Card(title: "Où va le texte") {
+            Note("Par défaut au curseur de l'application active. Le bouton "
+                 + "« Notes » de la barre écrit dans ce fichier à la place, et "
+                 + "il reste mémorisé quand vous revenez au curseur — y "
+                 + "retourner ne coûte qu'un clic, même en pleine dictée.")
+            Row(label: "Fichier de notes") {
                 Text(noteFile?.lastPathComponent ?? "aucun")
                     .font(.system(size: 12))
                     .foregroundStyle(noteFile == nil ? .tertiary : .secondary)
             }
-            HStack(spacing: 8) {
+            ButtonRow {
                 Button(noteFile == nil ? "Choisir…" : "Changer…") {
                     if let chosen = TargetWriter.chooseFile() {
                         prefs.noteFile = chosen
@@ -237,13 +164,9 @@ private struct DictationTab: View {
                     Button("Oublier") { prefs.noteFile = nil; noteFile = nil }
                 }
             }
-            .controlSize(.small)
-            Note("Le bouton « Notes » de la barre écrit dans ce fichier, et il "
-                 + "reste mémorisé quand vous revenez au curseur — y retourner "
-                 + "ne coûte qu'un clic, même en pleine dictée.")
         }
 
-        Card(title: "Retour") {
+        Card(title: "Retours pendant la dictée") {
             Toggle("Aperçu en direct dans la barre", isOn: $prefs.livePreviewEnabled)
                 .font(.system(size: 13))
             Toggle("Sons de début et de fin", isOn: $soundsEnabled)
@@ -251,6 +174,90 @@ private struct DictationTab: View {
                 .onChange(of: soundsEnabled) { _, new in Feedback.soundsEnabled = new }
         }
         .onAppear { noteFile = prefs.noteFile }
+    }
+}
+
+// MARK: - Transcription
+
+private struct TranscriptionTab: View {
+    @State private var prefs = Preferences.shared
+    @State private var localReady = false
+    @State private var localName = "—"
+    @State private var lexiconText = ""
+
+    var body: some View {
+        Card(title: "Langue") {
+            PillPicker(options: Preferences.languages.map { ($0.0, $0.1) },
+                       selection: $prefs.language)
+            Note("Vaut pour tous les moteurs. Un seul choix à la fois : les "
+                 + "modèles imposent une langue par passage, et « automatique » "
+                 + "se trompe précisément sur les phrases qui en mêlent deux.")
+        }
+
+        Card(title: "Moteur") {
+            ChoiceRow(title: EngineChoice.apple.label,
+                      subtitle: EngineChoice.apple.explanation,
+                      selected: prefs.engine == .apple,
+                      hasDetail: false,
+                      action: { prefs.engine = .apple }) { EmptyView() }
+
+            ChoiceRow(title: EngineChoice.crisperWhisper.label,
+                      subtitle: EngineChoice.crisperWhisper.explanation,
+                      selected: prefs.engine == .crisperWhisper,
+                      action: { prefs.engine = .crisperWhisper }) {
+                Row(label: "Mode par défaut") {
+                    PillPicker(options: [(TranscriptionMode.intended, "Texte nettoyé"),
+                                         (TranscriptionMode.verbatim, "Mot à mot")],
+                               selection: $prefs.defaultMode)
+                }
+                Row(label: "Service") {
+                    Text(localReady ? localName : "hors ligne")
+                        .font(.system(size: 12))
+                        .foregroundStyle(localReady ? Color.secondary : Color.red)
+                }
+                if !localReady {
+                    Note("Le modèle n'est pas installé, ou le service met "
+                         + "quelques secondes à charger. Lancez `scripts/setup.sh` "
+                         + "une fois : Sofler démarre et arrête ensuite le "
+                         + "service tout seul.", warning: true)
+                }
+
+                Divider().opacity(0.25)
+                Text("Vocabulaire technique")
+                    .font(.system(size: 12, weight: .medium))
+                Toggle("Utiliser la liste intégrée", isOn: $prefs.useDefaultLexicon)
+                    .font(.system(size: 13))
+                if !prefs.useDefaultLexicon {
+                    TextEditor(text: $lexiconText)
+                        .font(.system(size: 12, design: .monospaced))
+                        .scrollContentBackground(.hidden)
+                        .frame(minHeight: 120)
+                        .padding(8)
+                        .background(RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.black.opacity(0.2)))
+                        .onChange(of: lexiconText) { _, new in
+                            prefs.lexicon = new.split(separator: "\n")
+                                .map { $0.trimmingCharacters(in: .whitespaces) }
+                                .filter { !$0.isEmpty }
+                        }
+                    Note("Un terme par ligne. Gardez la liste courte : plus elle "
+                         + "est longue, plus le modèle risque d'y piocher un mot "
+                         + "sur un passage où vous n'avez rien dit.")
+                }
+            }
+
+            Note("Le mode et le vocabulaire n'apparaissent que sous "
+                 + "CrisperWhisper parce qu'ils n'existent que là : le moteur de "
+                 + "macOS n'a qu'un rendu, et mesuré sur de vrais "
+                 + "enregistrements, lui fournir un vocabulaire ne change pas "
+                 + "sa sortie d'un caractère.")
+        }
+        .task {
+            lexiconText = prefs.lexicon.joined(separator: "\n")
+            let engine = SocketSpeechEngine()
+            localReady = await engine.isReady()
+            if localReady { localName = await engine.displayName }
+        }
     }
 }
 
@@ -300,7 +307,7 @@ private struct CollectionTab: View {
             Row(label: "État") {
                 Text(stats.summary).font(.system(size: 12)).foregroundStyle(.secondary)
             }
-            HStack(spacing: 8) {
+            ButtonRow {
                 Button("Afficher dans le Finder") { Corpus.shared.reveal() }
                 Button("Tout effacer") {
                     Corpus.shared.clear()
@@ -308,7 +315,6 @@ private struct CollectionTab: View {
                 }
                 .disabled(stats.count == 0)
             }
-            .controlSize(.small)
         }
         .onAppear { stats = Corpus.shared.statistics() }
     }
@@ -362,11 +368,12 @@ private struct HistoryTab: View {
                     }
                 }
                 Divider().opacity(0.25)
-                Button("Effacer l'historique") {
-                    history.clear()
-                    entries = []
+                ButtonRow {
+                    Button("Effacer l'historique") {
+                        history.clear()
+                        entries = []
+                    }
                 }
-                .controlSize(.small)
             }
             Note("Le texte complet est copié, pas la version tronquée. "
                  + "L'historique reste aussi dans le menu de la barre.")

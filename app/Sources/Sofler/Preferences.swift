@@ -1,6 +1,11 @@
 import AppKit
 import Observation
 
+extension Notification.Name {
+    /// Le déclencheur a changé : le tap clavier doit être reconstruit.
+    static let soflerTriggerChanged = Notification.Name("sofler.trigger.changed")
+}
+
 /// Réglages persistants.
 ///
 /// Tout passe par `UserDefaults` : ce sont quelques scalaires et une liste de
@@ -55,12 +60,21 @@ final class Preferences {
 
     // MARK: - Déclencheur
 
+    /// Le déclencheur est le seul réglage qui ne peut pas être simplement lu
+    /// au moment de s'en servir : le tap clavier est construit une fois, avec
+    /// son côté. Il faut donc prévenir pour qu'il soit reconstruit.
     var triggerEnabled: Bool {
-        didSet { defaults.set(triggerEnabled, forKey: Key.triggerEnabled) }
+        didSet {
+            defaults.set(triggerEnabled, forKey: Key.triggerEnabled)
+            NotificationCenter.default.post(name: .soflerTriggerChanged, object: nil)
+        }
     }
 
     var triggerSide: ModifierKeyMonitor.Side {
-        didSet { defaults.set(triggerSide.rawValue, forKey: Key.triggerSide) }
+        didSet {
+            defaults.set(triggerSide.rawValue, forKey: Key.triggerSide)
+            NotificationCenter.default.post(name: .soflerTriggerChanged, object: nil)
+        }
     }
 
     // MARK: - Transcription

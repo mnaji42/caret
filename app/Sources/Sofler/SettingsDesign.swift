@@ -123,3 +123,71 @@ struct Row<Trailing: View>: View {
         }
     }
 }
+
+
+/// Ligne sélectionnable, pour un choix qui mérite une explication.
+///
+/// Un `PillPicker` suffit quand les options tiennent en un mot. Choisir un
+/// moteur de transcription n'est pas de cet ordre : il faut voir, au moment de
+/// choisir, ce que l'option coûte et ce qu'elle empêche. D'où une ligne haute
+/// qui porte son texte, plutôt qu'une pastille et une note en dessous qui ne
+/// parle que de l'option déjà retenue.
+struct ChoiceRow<Detail: View>: View {
+    let title: String
+    let subtitle: String
+    let selected: Bool
+    /// Ce moteur a-t-il des options propres ? Explicite plutôt que déduit du
+    /// contenu : tester `detail is EmptyView` marche mal dans un ViewBuilder.
+    var hasDetail = true
+    let action: () -> Void
+    @ViewBuilder var detail: Detail
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 11) {
+                Image(systemName: selected ? "largecircle.fill.circle" : "circle")
+                    .foregroundStyle(selected ? Style.accent : Color.secondary)
+                    .font(.system(size: 14))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.system(size: 13, weight: selected ? .semibold : .regular))
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: action)
+
+            // Les options du moteur retenu sont attachées sous lui, pas
+            // ailleurs : elles n'existent que parce qu'il a été choisi.
+            if selected && hasDetail {
+                Divider().opacity(0.25).padding(.horizontal, 12)
+                VStack(alignment: .leading, spacing: 12) { detail }
+                    .padding(12)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .fill(selected ? Style.accent.opacity(0.08) : Color.white.opacity(0.03))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        .strokeBorder(selected ? Style.accent.opacity(0.35)
+                                               : Color.white.opacity(0.07),
+                                      lineWidth: 1)))
+    }
+}
+
+/// Boutons secondaires alignés, taille et style uniformes.
+struct ButtonRow<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        HStack(spacing: 8) { content }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+    }
+}

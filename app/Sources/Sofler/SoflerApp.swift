@@ -26,9 +26,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // local ne tourne que s'il écrit ou s'il est coché dans une collecte
         // active. Réconcilié au lancement, puis à chaque changement.
         EngineService.reconcile(needed: prefs.needsLocalEngine)
-        controller.mode = prefs.defaultMode
-        controller.language = prefs.language
-        controller.lexicon = prefs.effectiveLexicon
 
         // Déclencheur principal : Option pressée seule.
         modifierKey = ModifierKeyMonitor(side: prefs.triggerSide) { [weak self] in
@@ -55,6 +52,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // réarmement la dictée cesserait de répondre sans prévenir.
         reArmTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.modifierKey.reArmIfNeeded() }
+        }
+
+        // Le tap clavier ne se reconfigure pas tout seul : on le reconstruit
+        // dès que le réglage change, pas à la fermeture d'une fenêtre.
+        NotificationCenter.default.addObserver(
+            forName: .soflerTriggerChanged, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.applyPreferences() }
         }
 
         Task {
@@ -294,14 +299,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openPreferences() {
         preferences.show(history: controller.history)
-        // Les réglages s'appliquent à la volée : rien à redémarrer.
-        Task {
-            for await _ in NotificationCenter.default.notifications(
-                named: NSWindow.willCloseNotification) {
-                applyPreferences()
-                break
-            }
-        }
     }
 
     /// Reporte les réglages sur les composants déjà en place.
@@ -311,12 +308,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // local ne tourne que s'il écrit ou s'il est coché dans une collecte
         // active. Réconcilié au lancement, puis à chaque changement.
         EngineService.reconcile(needed: prefs.needsLocalEngine)
-        controller.mode = prefs.defaultMode
-        controller.language = prefs.language
-        controller.lexicon = prefs.effectiveLexicon
 
-        // Le côté du déclencheur est fixé à la création du tap : il faut le
-        // reconstruire pour en changer.
+        // Mode, langue et lexique ne sont plus recopiés : le contrôleur les lit
+        // dans les préférences au moment de s'en servir. Reste le déclencheur,
+        // dont le côté est fixé à la création du tap : il faut le reconstruire.
         modifierKey.stop()
         modifierKey = ModifierKeyMonitor(side: prefs.triggerSide) { [weak self] in
             self?.controller.toggle()
