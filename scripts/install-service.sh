@@ -29,6 +29,22 @@ fi
 
 mkdir -p "$(dirname "$PLIST")" "$LOG_DIR"
 
+# Descripteur lu par l'application : sans lui, elle ne peut pas savoir où vit
+# le moteur, et chaque geste — démarrer, arrêter, changer de modèle —
+# retomberait dans le Terminal. Écrit ici aussi, et pas seulement par
+# setup-engine.sh, pour que les installations faites depuis les sources soient
+# reconnues sans rien réinstaller.
+SUPPORT="$HOME/Library/Application Support/Sofler"
+mkdir -p "$SUPPORT"
+cat > "$SUPPORT/engine.json" <<JSON
+{
+  "model" : "turbo",
+  "project" : "$ROOT/engine",
+  "uv" : "$UV"
+}
+JSON
+echo "▸ descripteur : $SUPPORT/engine.json"
+
 cat > "$PLIST" <<PLIST_EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

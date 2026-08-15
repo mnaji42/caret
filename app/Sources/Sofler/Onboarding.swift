@@ -278,47 +278,7 @@ private struct OnboardingView: View {
     }
 
     private var crisperWhisperTerms: some View {
-        let readiness = EngineService.readiness
-        return Card(title: "état de CrisperWhisper") {
-            StatusRow(ok: readiness == .ready, label: "Sur cette machine",
-                      detail: readiness.summary, warningOnly: true)
-
-            if readiness != .ready {
-                // Dire lequel des deux morceaux manque. Annoncer « il faut
-                // tout installer » à quelqu'un dont les 1,6 Go sont déjà là
-                // lui ferait refaire une heure de téléchargement pour rien.
-                Note(readiness == .serviceMissing
-                     ? "Les poids n'ont pas à être retéléchargés. Ce qu'il "
-                        + "manque, c'est le service local qui les charge en "
-                        + "mémoire et répond à l'application."
-                     : "CrisperWhisper demande Python et environ 1,2 Go de "
-                        + "bibliothèques, en plus des 1,6 Go de poids. Rien de "
-                        + "tout cela n'est inclus dans l'application "
-                        + "téléchargée.", warning: true)
-                Note("**L'installation passe aujourd'hui par le Terminal**, "
-                     + "depuis le dépôt du projet. Un Mac Apple Silicon est "
-                     + "nécessaire.")
-                Button("Ouvrir les instructions") {
-                    NSWorkspace.shared.open(URL(string:
-                        "https://github.com/mnaji42/sofler#build-from-source")!)
-                }
-                Divider().opacity(0.25)
-                Note("En attendant, le moteur de macOS écrit sans rien "
-                     + "installer. Vous pourrez changer d'avis dans les "
-                     + "réglages à tout moment.")
-            }
-
-            Divider().opacity(0.25)
-            Note("**Licence non commerciale.** Les poids sont distribués par "
-                 + "Nyra Health sous une licence de recherche non "
-                 + "commerciale — sous une lecture stricte, dicter un "
-                 + "courriel professionnel peut déjà en relever. Le code de "
-                 + "Sofler, lui, est libre.")
-            Button("Lire la licence") {
-                NSWorkspace.shared.open(URL(string:
-                    "https://huggingface.co/nyralabs/CrisperWhisper2.0_turbo/blob/main/LICENSE.md")!)
-            }
-        }
+        CrisperWhisperSetup()
     }
 
     // MARK: Pied

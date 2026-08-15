@@ -290,6 +290,22 @@ DMG and drag it over the old app.
 
 Only needed for CrisperWhisper. With the built-in macOS engine, skip to step 2.
 
+If you installed Sofler from the DMG and only want to add CrisperWhisper, this
+is the one command — and the only time the Terminal is involved:
+
+```bash
+git clone --depth 1 https://github.com/mnaji42/sofler.git ~/.sofler && ~/.sofler/scripts/setup-engine.sh
+```
+
+It checks for Apple Silicon and `uv`, installs the Python dependencies, shows
+the model licence before downloading anything, and writes a descriptor at
+`~/Library/Application Support/Sofler/engine.json`. **That descriptor is what
+frees you from the Terminal afterwards**: the app reads it and can then write
+the launch agent, start and stop the service, and switch models on its own.
+Pass `--model small|medium|turbo|large` to pick different weights.
+
+Working from a clone of the repository instead:
+
 ```bash
 cd engine && uv venv --python 3.12 && uv pip install -e . && cd ..
 ./scripts/install-service.sh
