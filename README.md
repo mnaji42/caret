@@ -430,6 +430,20 @@ commercial-licence only; the open weights score 89.9.
   "chun-teint" into "chanter" where the word was "chunk". It is tuned for
   assistance, not text transformation. Worth retrying when a stronger
   on-device model ships.
+- **Apple's contextual strings do nothing measurable.** `AnalysisContext`
+  exposes `contextualStrings`, which reads like the equivalent of
+  CrisperWhisper's `<htx>` vocabulary conditioning. Tested on real recordings
+  where the engine had already failed on exactly those terms — passing
+  `["useEffect", "UI", "div", "React", …]` produced output identical byte for
+  byte. *"divves"* stayed *"divves"*, *"l'UI"* stayed *"lui"*. Two avenues
+  remain untested: `CustomPronunciation`, which maps a grapheme to explicit
+  phonemes, and `SFCustomLanguageModelData`, a heavier custom-LM path. As used
+  the obvious way, it has no effect.
+
+  This decides the product: a build using only the system engine cannot spell
+  `useEffect`, which is the whole reason this project exists. The technical
+  vocabulary needs CrisperWhisper's weights, or Whisper's `<|startofprev|>`.
+
 - **Low decoder confidence does not mark errors.** The least confident words
   on real samples are correct ones — "useEffect" at 0.34 — because the
   hesitation is about the following comma. Median confidence is 0.98
