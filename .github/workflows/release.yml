@@ -1,0 +1,130 @@
+# Publie une release : tag poussé → DMG construit, signé, attaché.
+#
+# Le déclencheur est un tag, pas un push sur main. C'est la même décision que
+# côté application, qui compare des releases et non des commits : un tag est
+# une déclaration explicite que cette version-ci est bonne à installer.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  # Pour éprouver la chaîne sans rien publier.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  dmg:
+    # Le moteur intégré utilise SpeechTranscriber, une API de macOS 26 : il
+    # faut un runner dont le SDK la connaisse. Sur un SDK plus ancien la
+    # compilation échoue sur un symbole introuvable, ce que l'étape « SDK »
+    # ci-dessous transforme en message lisible.
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # version.sh dérive la version du dernier tag : sans l'historique
+          # complet, git describe ne voit rien et tout s'appellerait 0.0.0.
+          fetch-depth: 0
+
+      - name: Xcode le plus récent disponible
+        run: |
+          latest="$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)"
+          if [ -n "$latest" ]; then sudo xcode-select -s "$latest"; fi
+          swift --version
+
+      - name: Vérifier que le SDK connaît macOS 26
+        run: |
+          sdk="$(xcrun --show-sdk-version)"
+          echo "SDK macOS $sdk"
+          major="${sdk%%.*}"
+          if [ "$major" -lt 26 ]; then
+            echo "::error::SDK macOS $sdk — le moteur intégré exige le SDK 26." \
+                 "Changez l'image du runner, ou construisez la release localement" \
+                 "avec ./scripts/package-dmg.sh."
+            exit 1
+          fi
+
+      # Sans certificat, codesign signe « ad hoc » et l'exigence désignée
+      # contient le hash du binaire : elle change à chaque version, donc macOS
+      # révoque l'autorisation d'accessibilité de tous les utilisateurs à
+      # chaque mise à jour. Avec un certificat stable — même auto-signé —
+      # l'exigence ne dépend plus du binaire et l'autorisation tient.
+      #
+      # Secrets attendus :
+      #   SIGNING_CERTIFICATE_P12       le .p12 encodé en base64
+      #   SIGNING_CERTIFICATE_PASSWORD  son mot de passe
+      # Le jour du compte Apple Developer, on y met le Developer ID
+      # Application à la place : rien d'autre ne change ici.
+      - name: Importer le certificat de signature
+        id: signing
+        env:
+          CERT_P12: ${{ secrets.SIGNING_CERTIFICATE_P12 }}
+          CERT_PASSWORD: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$CERT_P12" ]; then
+            echo "::warning::Aucun certificat : signature ad hoc." \
+                 "Les utilisateurs devront ré-accorder l'accessibilité après" \
+                 "cette mise à jour."
+            exit 0
+          fi
+          keychain="$RUNNER_TEMP/sofler.keychain-db"
+          password="$(uuidgen)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 900 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
+              -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/cert.p12"
+          # Sans cette ligne, codesign réclame une validation interactive du
+          # trousseau, que personne ne peut donner sur un runner.
+          security set-key-partition-list -S apple-tool:,apple: \
+              -s -k "$password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          hash="$(security find-identity -v -p codesigning "$keychain" \
+                  | awk 'NR==1 {print $2}')"
+          [ -n "$hash" ] || { echo "::error::Certificat importé mais introuvable."; exit 1; }
+          echo "identity=$hash" >> "$GITHUB_OUTPUT"
+
+      - name: Construire le DMG
+        env:
+          SOFLER_SIGN_IDENTITY: ${{ steps.signing.outputs.identity }}
+        run: ./scripts/package-dmg.sh
+
+      - name: Vérifier le paquet
+        run: |
+          hdiutil attach dist/Sofler.dmg -mountpoint /tmp/sofler -nobrowse -quiet
+          codesign --verify --deep --strict /tmp/sofler/Sofler.app
+          codesign -d -r- /tmp/sofler/Sofler.app 2>&1 | grep -F "designated =>"
+          # L'entitlement micro est la panne la plus sournoise du projet :
+          # absent, le runtime durci refuse le micro sans aucun dialogue, et
+          # l'application paraît simplement muette.
+          codesign -d --entitlements - /tmp/sofler/Sofler.app 2>/dev/null \
+              | grep -q "audio-input" \
+              || { echo "::error::entitlement micro absent"; exit 1; }
+          hdiutil detach /tmp/sofler -quiet
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Sofler.dmg
+          path: dist/Sofler.dmg
+
+      - name: Publier la release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # `gh` est préinstallé sur les runners : une action tierce de plus
+          # serait une dépendance de plus dans la chaîne qui signe le binaire
+          # que des gens vont installer.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/Sofler.dmg --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "Sofler $GITHUB_REF_NAME" \
+              --generate-notes \
+              dist/Sofler.dmg
+          fi

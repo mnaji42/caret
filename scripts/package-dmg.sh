@@ -2,17 +2,22 @@
 # Fabrique le .dmg de distribution : Sofler.app à côté d'un raccourci vers
 # /Applications, la disposition attendue sous macOS.
 #
-# Attention avant toute diffusion : ce paquet est signé avec le certificat de
-# développement local, pas avec un certificat Apple Developer. Gatekeeper le
-# refusera sur une autre machine tant qu'il n'est pas signé puis notarisé avec
-# un compte Apple. Le script sert à valider le format, pas encore à publier.
+# Le fichier s'appelle toujours Sofler.dmg, sans numéro de version. C'est ce
+# qui rend l'URL de téléchargement stable — la landing page pointe une fois
+# sur .../releases/latest/download/Sofler.dmg et n'est plus jamais à modifier.
+# La version reste lisible : elle nomme le volume monté, et elle est dans le
+# bundle.
+#
+# Ce paquet est signé ad hoc, pas avec un certificat Apple Developer. Sur une
+# autre machine, macOS refusera de l'ouvrir au premier essai ; l'utilisateur
+# devra passer par Réglages Système › Confidentialité et sécurité. C'est
+# assumé pour l'instant et documenté dans le README — pas un oubli.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="Sofler"
-VERSION="$(awk -F'[<>]' '/CFBundleShortVersionString/{getline; print $3}' \
-    "$ROOT/app/build/$APP_NAME.app/Contents/Info.plist" 2>/dev/null || echo "0.1.0")"
-DMG="$ROOT/dist/$APP_NAME-$VERSION.dmg"
+. "$ROOT/scripts/version.sh"
+DMG="$ROOT/dist/$APP_NAME.dmg"
 
 "$ROOT/scripts/install.sh" release --no-launch
 
@@ -27,12 +32,29 @@ mkdir -p "$ROOT/dist"
 rm -f "$DMG"
 
 echo "▸ création du .dmg"
-hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" \
+# Le nom du volume porte la version : c'est ce que l'utilisateur voit dans le
+# Finder quand l'image est montée, et le seul endroit où il peut vérifier ce
+# qu'il installe avant de le glisser dans /Applications.
+hdiutil create -volname "$APP_NAME $VERSION" -srcfolder "$STAGE" \
     -ov -format UDZO "$DMG" >/dev/null
 
-echo "▸ prêt : $DMG"
-echo
-echo "  Pour une vraie distribution il faudra encore :"
-echo "    - un certificat Developer ID Application"
-echo "    - codesign --options runtime avec ce certificat"
-echo "    - xcrun notarytool submit && xcrun stapler staple"
+echo "▸ prêt : $DMG  ($VERSION, build $BUILD)"
+
+if [ "$IS_RELEASE" != 1 ]; then
+    cat <<'EOF'
+
+  ⚠ Ce build ne correspond pas exactement à un tag, ou l'arbre a des
+    modifications non commitées. Il est bon pour un essai, pas pour une
+    release : l'app se signalera comme build de développement et ne
+    proposera aucune mise à jour.
+EOF
+fi
+
+cat <<'EOF'
+
+  Le jour où le compte Apple Developer sera pris, il restera à :
+    - codesign --options runtime avec le certificat Developer ID Application
+    - xcrun notarytool submit --wait && xcrun stapler staple
+  Les deux se branchent dans .github/workflows/release.yml, qui prévoit déjà
+  l'emplacement des secrets.
+EOF

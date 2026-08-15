@@ -17,6 +17,10 @@ BUNDLE_ID="fr.lyriastudio.sofler"
 APP_NAME="Sofler"
 INSTALL_PATH="/Applications/$APP_NAME.app"
 
+# VERSION, BUILD, DESCRIBE, IS_RELEASE — dérivés du tag git, jamais recopiés
+# à la main : l'app compare sa propre version à celle de la dernière release.
+. "$ROOT/scripts/version.sh"
+
 CONFIG="debug"
 LAUNCH=1
 for arg in "$@"; do
@@ -28,7 +32,14 @@ for arg in "$@"; do
 done
 
 # --- 1. certificat stable ------------------------------------------------
-CERT_HASH="$("$ROOT/scripts/dev-cert.sh" | tail -1)"
+# SOFLER_SIGN_IDENTITY laisse un appelant imposer une identité déjà présente
+# dans un trousseau — c'est ce que fait la CI, qui importe le certificat de
+# distribution dans un trousseau temporaire. Sans cette porte, install.sh
+# créerait un certificat dans le trousseau de session, qui n'existe pas sur un
+# runner, et la release serait signée par une identité différente à chaque
+# exécution : les autorisations d'accessibilité sauteraient à chaque mise à
+# jour chez tous les utilisateurs.
+CERT_HASH="${SOFLER_SIGN_IDENTITY:-$("$ROOT/scripts/dev-cert.sh" | tail -1)}"
 
 # --- 2. compilation ------------------------------------------------------
 echo "▸ compilation ($CONFIG)"
@@ -43,6 +54,13 @@ rm -rf "$STAGE"
 mkdir -p "$STAGE/Contents/MacOS" "$STAGE/Contents/Resources"
 cp "$BINARY" "$STAGE/Contents/MacOS/$APP_NAME"
 
+# L'icône. Sans elle macOS affiche le rectangle blanc générique — y compris
+# dans Réglages Système › Accessibilité, là où l'utilisateur doit reconnaître
+# ce à quoi il accorde le droit de piloter son clavier. Le .icns vit hors de
+# $STAGE, que l'on vient d'effacer, pour survivre d'un build à l'autre.
+"$ROOT/scripts/make-icon.sh"
+cp "$APP_DIR/build/$APP_NAME.icns" "$STAGE/Contents/Resources/$APP_NAME.icns"
+
 cat > "$STAGE/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -53,9 +71,23 @@ cat > "$STAGE/Contents/Info.plist" <<PLIST
     <key>CFBundleIdentifier</key>         <string>$BUNDLE_ID</string>
     <key>CFBundleExecutable</key>         <string>$APP_NAME</string>
     <key>CFBundlePackageType</key>        <string>APPL</string>
-    <key>CFBundleShortVersionString</key> <string>0.1.0</string>
-    <key>CFBundleVersion</key>            <string>1</string>
+    <key>CFBundleShortVersionString</key> <string>$VERSION</string>
+    <key>CFBundleVersion</key>            <string>$BUILD</string>
+    <key>CFBundleIconFile</key>           <string>$APP_NAME</string>
+    <!-- 14.0 et non 26.0, alors que le moteur Apple exige macOS 26. C'est
+         délibéré : avec 26.0 ici, macOS refuse le lancement lui-même, avec un
+         dialogue générique qui ne dit ni pourquoi ni quoi faire. En laissant
+         l'app démarrer, l'accueil peut expliquer la situation et proposer une
+         issue. Les usages de l'API 26 sont gardés par des tests
+         de disponibilité à l'exécution.
+         (Pas de backtick dans ce heredoc : il est non quoté, pour que les
+         variables s'y développent, donc bash y verrait une substitution.) -->
     <key>LSMinimumSystemVersion</key>     <string>14.0</string>
+    <!-- Diagnostic : distingue le bundle d'une release d'un build local, que
+         CFBundleShortVersionString seul confond. Lu par les Réglages, et par
+         la vérification de mise à jour qui se tait sur un build de dev. -->
+    <key>SoflerGitDescribe</key>          <string>$DESCRIBE</string>
+    <key>SoflerIsRelease</key>            <$([ "$IS_RELEASE" = 1 ] && echo true || echo false)/>
     <!-- Barre de menus seule : pas d'icône au Dock, jamais de vol de focus,
          ce qui est indispensable puisque le texte doit atterrir dans l'app
          que l'utilisateur a devant lui. -->
