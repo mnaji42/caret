@@ -60,12 +60,17 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
 
     /// Réserve la locale auprès du système, une fois pour toutes.
     ///
-    /// Sans réservation la reconnaissance décroche en cours de route : le
-    /// framework le tolère en apparence mais journalise « Cannot use modules
-    /// with unallocated locales […] This will be an error in a future
-    /// release ». Constaté dans le corpus — sur une dictée de 200 s, le texte
-    /// s'arrêtait à 155 caractères, et deux autres longues ressortaient vides,
-    /// pendant que les courtes passaient. Panne invisible à l'usage.
+    /// Le framework l'exige, et le dit dans son journal quand on l'omet :
+    /// « Cannot use modules with unallocated locales […] This will be an error
+    /// in a future release ».
+    ///
+    /// Correction d'une attribution erronée : plusieurs entrées du corpus au
+    /// texte système très court avaient été mises sur le compte de cette
+    /// omission. Vérification faite, ces textes n'étaient pas tronqués mais
+    /// **étrangers** — des fragments d'autres dictées, dus à une course sur
+    /// `applePreviewText`, corrigée ailleurs. La réservation reste nécessaire
+    /// parce que le framework la réclame, pas parce qu'on lui a mesuré cet
+    /// effet-là.
     ///
     /// Le nombre de réservations est plafonné par le système
     /// (`maximumReservedLocales`) : on libère les autres avant de prendre
