@@ -152,18 +152,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             locked.toolTip = url.path
             menu.addItem(locked)
 
-            let unlock = NSMenuItem(title: "Déverrouiller (revenir au curseur)",
+            let unlock = NSMenuItem(title: "Revenir au curseur",
                                     action: #selector(unlockTarget), keyEquivalent: "")
             unlock.target = self
+            unlock.toolTip = "Le fichier reste mémorisé : un clic sur « Notes » "
+                + "dans la barre y revient."
             menu.addItem(unlock)
+
+            let change = NSMenuItem(title: "Changer le fichier de notes…",
+                                    action: #selector(chooseNoteFile), keyEquivalent: "")
+            change.target = self
+            menu.addItem(change)
 
             let reveal = NSMenuItem(title: "Afficher dans le Finder",
                                     action: #selector(revealTarget), keyEquivalent: "")
             reveal.target = self
             menu.addItem(reveal)
+        } else if let note = controller.noteFile {
+            // Le fichier survit au retour au curseur : le proposer ici évite
+            // de le rechoisir, et dit lequel c'est.
+            let resume = NSMenuItem(title: "Écrire dans les notes (\(note.lastPathComponent))",
+                                    action: #selector(useNotes), keyEquivalent: "")
+            resume.target = self
+            resume.toolTip = note.path
+            menu.addItem(resume)
+
+            let change = NSMenuItem(title: "Changer le fichier de notes…",
+                                    action: #selector(chooseNoteFile), keyEquivalent: "")
+            change.target = self
+            menu.addItem(change)
         } else {
-            let lock = NSMenuItem(title: "Verrouiller sur un fichier…",
-                                  action: #selector(lockTarget), keyEquivalent: "")
+            let lock = NSMenuItem(title: "Choisir le fichier de notes…",
+                                  action: #selector(chooseNoteFile), keyEquivalent: "")
             lock.target = self
             let diag = NSMenuItem(title: "Pourquoi mon fichier n'est pas détecté ?",
                                   action: #selector(showTargetDiagnostics),
@@ -228,19 +248,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sounds.state = Feedback.soundsEnabled ? .on : .off
         menu.addItem(sounds)
 
-        let diag = NSMenuItem(title: controller.captureNextForDiagnostics
-                                ? "Diagnostic : prochaine dictée sera enregistrée"
-                                : "Enregistrer la prochaine dictée (diagnostic)…",
-                              action: #selector(toggleDiagnostics), keyEquivalent: "")
-        diag.target = self
-        diag.state = controller.captureNextForDiagnostics ? .on : .off
-        menu.addItem(diag)
+        let livePreview = NSMenuItem(title: "Aperçu en direct dans la barre",
+                                     action: #selector(togglePreview), keyEquivalent: "")
+        livePreview.target = self
+        livePreview.state = Preferences.shared.livePreviewEnabled ? .on : .off
+        livePreview.toolTip = "Affiche pendant la dictée ce que le moteur de "
+            + "macOS reconnaît. Indicatif : il n'a pas le lexique de Caret, "
+            + "donc le texte inséré ne sera pas exactement celui-là."
+        menu.addItem(livePreview)
 
         let keepHistory = NSMenuItem(title: "Conserver l'historique",
                                      action: #selector(toggleHistory), keyEquivalent: "")
         keepHistory.target = self
         keepHistory.state = controller.history.isEnabled ? .on : .off
         menu.addItem(keepHistory)
+        menu.addItem(.separator())
+
+        addCorpusSection(to: menu)
         menu.addItem(.separator())
 
         let engineItem = NSMenuItem(title: engineName, action: nil, keyEquivalent: "")
@@ -277,6 +301,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: "Quitter Caret", action: #selector(NSApplication.terminate(_:)),
                                 keyEquivalent: "q"))
         statusItem.menu = menu
+    }
+
+    /// Section « collecte » : ce qu'on enregistre, combien c'est, et comment
+    /// s'en débarrasser.
+    ///
+    /// Les compteurs sont là parce qu'une archive qui grossit sans qu'on voie
+    /// sa taille finit par surprendre — surtout avec l'audio activé.
+    private func addCorpusSection(to menu: NSMenu) {
+        let prefs = Preferences.shared
+
+        let collect = NSMenuItem(title: "Collecter les dictées (comparer les moteurs)",
+                                 action: #selector(toggleCorpus), keyEquivalent: "")
+        collect.target = self
+        collect.state = prefs.corpusEnabled ? .on : .off
+        collect.toolTip = "Archive chaque dictée avec les trois transcriptions\n"
+            + "Une seconde passe du moteur, après insertion"
+        menu.addItem(collect)
+
+        guard prefs.corpusEnabled else { return }
+
+        let audio = NSMenuItem(title: "  Conserver aussi l'audio",
+                               action: #selector(toggleCorpusAudio), keyEquivalent: "")
+        audio.target = self
+        audio.state = prefs.corpusKeepsAudio ? .on : .off
+        audio.toolTip = "Environ 2 Mo par minute de parole"
+        menu.addItem(audio)
+
+        let stats = Corpus.shared.statistics()
+        let summary = NSMenuItem(title: "  \(stats.summary)", action: nil, keyEquivalent: "")
+        summary.isEnabled = false
+        summary.toolTip = "\(stats.withBothEngines) dictées avec les deux modes, "
+            + "\(stats.withApple) avec le texte d'Apple, \(stats.audioFiles) avec l'audio"
+        menu.addItem(summary)
+
+        let reveal = NSMenuItem(title: "  Afficher le corpus dans le Finder",
+                                action: #selector(revealCorpus), keyEquivalent: "")
+        reveal.target = self
+        menu.addItem(reveal)
+
+        if stats.count > 0 {
+            let clear = NSMenuItem(title: "  Effacer le corpus…",
+                                   action: #selector(clearCorpus), keyEquivalent: "")
+            clear.target = self
+            menu.addItem(clear)
+        }
     }
 
     // MARK: - Actions
@@ -339,8 +408,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc private func lockTarget() {
-        controller.lockTarget()
+    @objc private func chooseNoteFile() {
+        controller.chooseNoteFile()
+        Task { await refreshMenu() }
+    }
+
+    @objc private func useNotes() {
+        controller.setNotesTarget(true)
         Task { await refreshMenu() }
     }
 
@@ -373,13 +447,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { await refreshMenu() }
     }
 
-    @objc private func toggleDiagnostics() {
-        controller.captureNextForDiagnostics.toggle()
+    @objc private func toggleSounds() {
+        Feedback.soundsEnabled.toggle()
         Task { await refreshMenu() }
     }
 
-    @objc private func toggleSounds() {
-        Feedback.soundsEnabled.toggle()
+    @objc private func togglePreview() {
+        Preferences.shared.livePreviewEnabled.toggle()
+        Task { await refreshMenu() }
+    }
+
+    @objc private func toggleCorpus() {
+        Preferences.shared.corpusEnabled.toggle()
+        Task { await refreshMenu() }
+    }
+
+    @objc private func toggleCorpusAudio() {
+        Preferences.shared.corpusKeepsAudio.toggle()
+        Task { await refreshMenu() }
+    }
+
+    @objc private func revealCorpus() {
+        Corpus.shared.reveal()
+    }
+
+    /// Effacement confirmé : le corpus est la seule donnée de l'application
+    /// qu'on ne peut pas reconstituer, puisqu'elle vient de la parole.
+    @objc private func clearCorpus() {
+        let stats = Corpus.shared.statistics()
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Effacer le corpus ?"
+        alert.informativeText = "\(stats.count) dictées et "
+            + "\(stats.audioFiles) fichiers audio seront supprimés. "
+            + "Cette donnée vient de votre voix : elle ne peut pas être refaite."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Effacer")
+        alert.addButton(withTitle: "Annuler")
+        if alert.runModal() == .alertFirstButtonReturn {
+            Corpus.shared.clear()
+        }
         Task { await refreshMenu() }
     }
 

@@ -18,6 +18,10 @@ final class Preferences {
         static let triggerEnabled = "caret.trigger.enabled"
         static let defaultMode = "caret.mode"
         static let language = "caret.language"
+        static let noteFile = "caret.notes.file"
+        static let livePreview = "caret.preview.live"
+        static let corpus = "caret.corpus.enabled"
+        static let corpusAudio = "caret.corpus.audio"
     }
 
     private let defaults = UserDefaults.standard
@@ -72,6 +76,46 @@ final class Preferences {
 
     static let languages = [("fr", "Français"), ("en", "English")]
 
+    // MARK: - Notes
+
+    /// Fichier des notes, retenu **indépendamment** de la destination courante.
+    ///
+    /// Revenir au curseur ne doit pas l'oublier : on alterne entre les deux en
+    /// pleine dictée, et redemander le fichier à chaque retour ouvrirait un
+    /// sélecteur — qui activerait Caret et déplacerait le curseur, exactement
+    /// ce que l'overlay `nonactivatingPanel` s'applique à éviter.
+    ///
+    /// Un chemin suffit : l'application n'est pas en bac à sable, donc pas de
+    /// signet à conserver pour retrouver le droit d'écrire.
+    var noteFile: URL? {
+        didSet { defaults.set(noteFile?.path, forKey: Key.noteFile) }
+    }
+
+    /// Aperçu en direct pendant la dictée, par le moteur système.
+    ///
+    /// Réglable depuis la barre elle-même : c'est là qu'on s'aperçoit qu'il
+    /// gêne, pas dans une fenêtre de réglages.
+    var livePreviewEnabled: Bool {
+        didSet { defaults.set(livePreviewEnabled, forKey: Key.livePreview) }
+    }
+
+    // MARK: - Collecte
+
+    /// Archive chaque dictée avec les textes des trois moteurs.
+    ///
+    /// Coûte une seconde passe du moteur par dictée, lancée après insertion et
+    /// abandonnée si on réenchaîne — la latence de dictée ne se négocie pas.
+    var corpusEnabled: Bool {
+        didSet { defaults.set(corpusEnabled, forKey: Key.corpus) }
+    }
+
+    /// Conserve aussi l'audio. Séparé de la collecte parce que le coût en
+    /// place n'a rien à voir : ~2 Mo par minute contre quelques kilo-octets
+    /// de texte. Faux par défaut.
+    var corpusKeepsAudio: Bool {
+        didSet { defaults.set(corpusKeepsAudio, forKey: Key.corpusAudio) }
+    }
+
     private init() {
         lexicon = defaults.stringArray(forKey: Key.lexicon) ?? Self.starterLexicon
         useDefaultLexicon = defaults.object(forKey: Key.useDefaultLexicon) as? Bool ?? true
@@ -81,6 +125,14 @@ final class Preferences {
         defaultMode = TranscriptionMode(
             rawValue: defaults.string(forKey: Key.defaultMode) ?? "intended") ?? .intended
         language = defaults.string(forKey: Key.language) ?? "fr"
+        // Un fichier supprimé ou renommé depuis la dernière session ne doit
+        // pas rester proposé comme destination : la dictée y serait perdue.
+        noteFile = defaults.string(forKey: Key.noteFile)
+            .map { URL(fileURLWithPath: $0) }
+            .flatMap { FileManager.default.isWritableFile(atPath: $0.path) ? $0 : nil }
+        livePreviewEnabled = defaults.object(forKey: Key.livePreview) as? Bool ?? true
+        corpusEnabled = defaults.bool(forKey: Key.corpus)
+        corpusKeepsAudio = defaults.bool(forKey: Key.corpusAudio)
     }
 
     /// Point de départ quand l'utilisateur passe à sa propre liste : le même

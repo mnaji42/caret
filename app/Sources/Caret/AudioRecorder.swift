@@ -39,6 +39,16 @@ final class AudioRecorder: @unchecked Sendable {
         return Double(samples.count) / Self.targetSampleRate
     }
 
+    /// Second consommateur des tampons micro, pour l'aperçu en direct.
+    ///
+    /// Les tampons sont passés **bruts**, au format du matériel : l'aperçu
+    /// utilise un autre moteur, qui réclame son propre format. Le convertir
+    /// deux fois coûterait moins cher que de le convertir mal.
+    ///
+    /// Appelé depuis le thread audio : ce qui est fait ici doit être court et
+    /// ne jamais bloquer, sous peine de trous dans l'enregistrement.
+    var onBuffer: (@Sendable (AVAudioPCMBuffer) -> Void)?
+
     /// Niveau sonore courant, entre 0 et 1, pour l'indicateur d'enregistrement.
     ///
     /// Lissé par une moyenne mobile : la valeur brute par tampon saute trop
@@ -120,7 +130,9 @@ final class AudioRecorder: @unchecked Sendable {
         level = 0
 
         input.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] buffer, _ in
-            self?.append(buffer, using: converter, outputFormat: outputFormat)
+            guard let self else { return }
+            append(buffer, using: converter, outputFormat: outputFormat)
+            onBuffer?(buffer)
         }
 
         engine.prepare()

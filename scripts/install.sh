@@ -62,6 +62,11 @@ cat > "$STAGE/Contents/Info.plist" <<PLIST
     <key>LSUIElement</key>                <true/>
     <key>NSMicrophoneUsageDescription</key>
     <string>Caret transcrit votre voix en texte. L'audio est traité sur votre Mac et n'est jamais envoyé ailleurs.</string>
+    <!-- Uniquement pour l'aperçu en direct affiché dans la barre pendant la
+         dictée, qui passe par le moteur de reconnaissance de macOS. La
+         transcription réelle, elle, ne l'utilise pas. -->
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Caret affiche pendant la dictée un aperçu de ce qu'il entend, reconnu sur votre Mac. Rien n'est envoyé ailleurs.</string>
 </dict>
 </plist>
 PLIST
