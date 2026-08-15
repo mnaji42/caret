@@ -9,7 +9,8 @@ fonctionnalités, ce qui est le pire mode d'échec.
 import pytest
 
 from caret_engine import prompt as prompt_mod
-from caret_engine.crisper import (DEFAULT_LEXICON, MAX_NGRAM_REPEATS,
+from caret_engine.crisper import (DEFAULT_LEXICON, LOOP_WINDOW_TOKENS,
+                                  MAX_NGRAM_REPEATS,
                                   CrisperWhisperEngine as Engine)
 
 
@@ -123,6 +124,41 @@ def test_allows_three_copies_plus_a_start():
 
 def test_ignores_unrelated_history():
     assert not Engine._repeats_ngram([1, 2, 3, 4, 5, 6], 7)
+
+
+# --- garde-fou anti-effondrement -----------------------------------------
+#
+# Cas venu d'une dictée réelle : le modèle a produit « And. You. You. You.
+# And. You. You. And. You. You. You. … » sur une quarantaine de répétitions.
+# Le contrôle de n-grammes n'a refusé aucun token, parce que la période du
+# motif variait. C'est ce trou que ces tests ferment.
+
+def test_detects_varying_period_loop():
+    """Le décrochage réel : quatre tokens, périodicité irrégulière."""
+    et, you, point = 1, 2, 3
+    loop = ([et, point] + [you, point] * 3) * 3 + ([et, point] + [you, point] * 2) * 3
+    assert Engine._collapsed(loop)
+
+
+def test_ignores_short_sequences():
+    """Sous la fenêtre, aucune mesure n'est fiable — on ne coupe pas."""
+    assert not Engine._collapsed([1, 2] * ((LOOP_WINDOW_TOKENS - 2) // 2))
+
+
+def test_allows_repetitive_speech():
+    """« Non non non, attends attends attends » : pauvre, mais pas effondré.
+
+    Mesuré sur du texte réel, la parole la plus répétitive reste à 0,41 de
+    diversité quand la boucle tombe à 0,09 ; le seuil est à 0,25.
+    """
+    speech = [10, 10, 10, 11, 12, 13, 13, 13, 14, 15, 16, 16, 17, 18, 19, 20]
+    assert not Engine._collapsed(speech * 2)
+
+
+def test_measures_only_the_recent_window():
+    """Un texte sain n'est pas sauvé par son passé : c'est la fin qui compte."""
+    healthy = list(range(100))
+    assert Engine._collapsed(healthy + [42, 43] * LOOP_WINDOW_TOKENS)
 
 
 # --- nettoyage ------------------------------------------------------------

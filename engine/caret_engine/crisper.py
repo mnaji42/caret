@@ -79,6 +79,25 @@ MAX_NGRAM_REPEATS = 3
 # Nombre de tokens de repli examinés quand le meilleur enclenche une boucle.
 LOOP_ESCAPE_CANDIDATES = 5
 
+# --- garde-fou anti-effondrement ------------------------------------------
+# Le contrôle de n-grammes ci-dessus exige des répétitions *exactement*
+# consécutives et identiques. Constaté sur une dictée réelle de 80 s, le modèle
+# passe juste en dessous à chaque échelle : « And. You. You. You. » puis
+# « And. You. You. », etc. Rejoué à travers le garde-fou, ce décrochage de
+# 82 tokens n'en a fait refuser aucun, et le texte inséré contenait une
+# quarantaine de répétitions.
+#
+# On ajoute donc un critère qui ne dépend d'aucune périodicité : la diversité
+# du vocabulaire sur une fenêtre glissante. Une boucle appauvrit le vocabulaire
+# quelle que soit sa forme.
+#
+# Calibré sur du texte réel — dictées du corpus, README du dépôt, et de la
+# parole volontairement répétitive (« non non non non », « attends attends
+# attends », énumérations, bégaiements). Aucun de ces textes ne descend sous
+# 0,41 ; le décrochage observé tombe à 0,09. Le seuil est placé au milieu.
+LOOP_WINDOW_TOKENS = 32
+MIN_TOKEN_DIVERSITY = 0.25
+
 # Marqueurs de disfluence émis en mode verbatim.
 DISFLUENCY_RE = re.compile(
     r"\[(UM|UH|laughter|sniff|throatclearing|cough|sigh|breath|lipsmack|"
@@ -359,6 +378,25 @@ class CrisperWhisperEngine:
                 return True
         return False
 
+    @staticmethod
+    def _collapsed(tokens: list[int]) -> bool:
+        """Le vocabulaire s'est-il effondré sur les derniers tokens ?
+
+        Complément indispensable à ``_repeats_ngram``, qui ne voit que les
+        répétitions exactes : un décrochage dont la période varie légèrement
+        lui échappe entièrement, alors qu'il produit exactement le même texte
+        inutilisable.
+
+        On ne regarde pas *quel* motif se répète, seulement combien de tokens
+        distincts occupent la fenêtre. Une boucle, régulière ou non, y tombe ;
+        de la parole répétitive légitime reste largement au-dessus (mesures
+        en tête de fichier).
+        """
+        if len(tokens) < LOOP_WINDOW_TOKENS:
+            return False
+        window = tokens[-LOOP_WINDOW_TOKENS:]
+        return len(set(window)) / LOOP_WINDOW_TOKENS < MIN_TOKEN_DIVERSITY
+
     @torch.no_grad()
     def _decode(self, enc_out, prompt_ids: list[int], max_new: int) -> list[int]:
         """Décodage greedy avec cache KV.
@@ -394,6 +432,20 @@ class CrisperWhisperEngine:
             if nxt == self._eos:
                 break
             out.append(nxt)
+
+            # Une fois le vocabulaire effondré, le modèle ne s'en sort pas
+            # seul : sur le cas observé il a répété jusqu'à épuiser son budget
+            # de tokens. On coupe, et on retire la fenêtre fautive — la garder
+            # reviendrait à insérer le début de la boucle dans le texte de
+            # l'utilisateur. En long-format le segment suivant reprend la
+            # suite ; ici on perd un fragment, ce qui vaut mieux qu'un
+            # paragraphe de répétitions.
+            if self._collapsed(out):
+                log.warning("vocabulaire effondré à %d tokens — décodage coupé",
+                            len(out))
+                del out[-LOOP_WINDOW_TOKENS:]
+                break
+
             cur = torch.tensor([[nxt]], device=self.device)
         return out
 
