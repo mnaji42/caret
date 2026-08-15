@@ -207,8 +207,30 @@ final class ModifierKeyMonitor {
 
     /// Un tap peut être désactivé par le système si le processus tarde trop à
     /// répondre. Le réarmer évite que la dictée cesse silencieusement.
+    /// Remet le déclencheur en état de marche, quelle que soit la raison pour
+    /// laquelle il ne l'était plus.
+    ///
+    /// Il y a deux pannes possibles, et longtemps une seule était traitée.
+    ///
+    /// **Le tap existe mais le système l'a désactivé** — il le fait quand un
+    /// processus a trop tardé à traiter un événement. C'est le cas historique.
+    ///
+    /// **Le tap n'a jamais pu être créé**, faute d'accessibilité au moment du
+    /// lancement. `guard let tap` sortait alors immédiatement, donc rien ne le
+    /// retentait jamais. Or c'est exactement la situation du premier
+    /// lancement : l'application démarre sans le droit, l'accueil le fait
+    /// accorder une minute plus tard, et la touche Option restait morte
+    /// jusqu'au prochain démarrage — au moment précis où quelqu'un essaie le
+    /// produit pour la première fois et conclut qu'il ne marche pas.
     func reArmIfNeeded() {
-        guard let tap, !CGEvent.tapIsEnabled(tap: tap) else { return }
+        guard let tap else {
+            // Sans le droit, `start()` échouerait à nouveau : on n'insiste pas
+            // toutes les dix secondes pour rien.
+            guard hasPermission else { return }
+            if start() { NSLog("sofler: tap clavier créé après coup") }
+            return
+        }
+        guard !CGEvent.tapIsEnabled(tap: tap) else { return }
         CGEvent.tapEnable(tap: tap, enable: true)
         NSLog("sofler: tap clavier réarmé")
     }

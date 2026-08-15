@@ -4,6 +4,12 @@ import Observation
 extension Notification.Name {
     /// Le déclencheur a changé : le tap clavier doit être reconstruit.
     static let soflerTriggerChanged = Notification.Name("sofler.trigger.changed")
+
+    /// L'accessibilité vient d'être accordée, alors que l'application tourne
+    /// déjà. Le tap clavier n'a pas pu être créé au lancement et rien ne le
+    /// recrée de lui-même : sans ce signal, la touche Option reste morte
+    /// jusqu'au prochain démarrage.
+    static let soflerAccessibilityGranted = Notification.Name("sofler.accessibility.granted")
 }
 
 /// Réglages persistants.
@@ -30,9 +36,41 @@ final class Preferences {
         static let engine = "sofler.engine"
         static let shortcut = "sofler.shortcut"
         static let corpusEngines = "sofler.corpus.engines"
+        static let onboarded = "sofler.onboarded"
+        static let updateCheck = "sofler.update.check"
     }
 
     private let defaults = UserDefaults.standard
+
+    // MARK: - Accueil
+
+    /// L'accueil a-t-il été mené jusqu'au bout ?
+    ///
+    /// Un drapeau explicite, et non l'état des autorisations : quelqu'un peut
+    /// refuser le micro en connaissance de cause, ou rester sur le moteur
+    /// d'Apple sans jamais rien installer. Déduire l'accueil de ces états
+    /// reviendrait à le rouvrir à chaque lancement chez ces gens-là.
+    var onboarded: Bool {
+        didSet { defaults.set(onboarded, forKey: Key.onboarded) }
+    }
+
+    /// Sofler doit-il regarder tout seul s'il existe une version plus récente ?
+    ///
+    /// **Désactivé par défaut**, et c'est un choix. C'est la seule requête
+    /// réseau que l'application sache faire ; tant qu'on ne l'a pas activée,
+    /// Sofler ne contacte rien ni personne, et la promesse « rien ne sort de
+    /// votre Mac » n'a aucune exception à énoncer. Une exception, même
+    /// bénigne, oblige à la mentionner partout et fait douter du reste.
+    ///
+    /// Ce que la requête envoie une fois activée : un GET sur l'API publique
+    /// de GitHub, donc une adresse IP et rien d'autre — aucun identifiant,
+    /// aucun compteur, rien de ce qui est dicté.
+    ///
+    /// Le bouton « Vérifier maintenant » des Réglages, lui, marche toujours :
+    /// il est déclenché par l'utilisateur, qui sait donc ce qu'il demande.
+    var checksForUpdates: Bool {
+        didSet { defaults.set(checksForUpdates, forKey: Key.updateCheck) }
+    }
 
     // MARK: - Lexique
 
@@ -210,6 +248,8 @@ final class Preferences {
         // Mais une fois ouverte, complète : conserver l'audio et transcrire
         // avec tous les moteurs, parce qu'une collecte amputée ne répond pas
         // à la question qu'on se pose en l'activant.
+        onboarded = defaults.bool(forKey: Key.onboarded)
+        checksForUpdates = defaults.bool(forKey: Key.updateCheck)
         corpusEnabled = defaults.bool(forKey: Key.corpus)
         corpusKeepsAudio = defaults.object(forKey: Key.corpusAudio) as? Bool ?? true
         // Apple par défaut : inclus dans le système, aucun téléchargement,

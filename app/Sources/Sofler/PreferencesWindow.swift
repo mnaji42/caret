@@ -196,7 +196,120 @@ private struct GeneralTab: View {
             FeatureSwitch(title: "Sons de début et de fin", isOn: $soundsEnabled)
                 .onChange(of: soundsEnabled) { _, new in Feedback.soundsEnabled = new }
         }
-        .onAppear { noteFile = prefs.noteFile }
+
+        LoginItemCard()
+
+        // Avant la version : c'est ce qu'on vient vérifier quand quelque chose
+        // ne marche pas. Une autorisation peut être révoquée par une mise à
+        // jour de macOS, par un déplacement de l'application, ou parce qu'on a
+        // cliqué trop vite le premier jour — et l'accueil, lui, est fermé.
+        Card(title: "Autorisations") {
+            PermissionsChecklist()
+        }
+
+        VersionCard()
+            .onAppear { noteFile = prefs.noteFile }
+    }
+}
+
+/// Démarrage à l'ouverture de session.
+///
+/// L'état est relu à chaque affichage plutôt que mémorisé : ce réglage existe
+/// aussi dans Réglages Système › Général › Ouverture, et l'utilisateur peut
+/// l'y couper sans nous prévenir. Un interrupteur qui afficherait l'inverse de
+/// la réalité serait pire que pas d'interrupteur du tout.
+private struct LoginItemCard: View {
+    @State private var enabled = LoginItem.isEnabled
+    @State private var refused = false
+
+    var body: some View {
+        Card(title: "Démarrage") {
+            FeatureSwitch(title: "Lancer Sofler à l'ouverture de session",
+                          isOn: $enabled)
+                .onChange(of: enabled) { _, wanted in
+                    let actual = LoginItem.set(wanted)
+                    refused = actual != wanted
+                    // Recaler l'interrupteur sur ce que le système a vraiment
+                    // fait, pas sur ce qu'on lui a demandé.
+                    if actual != enabled { enabled = actual }
+                }
+
+            if refused, LoginItem.requiresApproval {
+                Note("macOS a gardé le refus enregistré dans Réglages Système "
+                     + "› Général › Ouverture : c'est là qu'il faut "
+                     + "réautoriser Sofler.", warning: true)
+                Button("Ouvrir Réglages Système › Ouverture") {
+                    NSWorkspace.shared.open(URL(string:
+                        "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")!)
+                }
+            } else {
+                Note("Sofler vit dans la barre de menus : s'il ne tourne pas, "
+                     + "la touche de dictée ne fait rien, et rien n'indique "
+                     + "que c'est la raison.")
+            }
+        }
+        .onAppear { enabled = LoginItem.isEnabled }
+    }
+}
+
+/// Version installée, et mise à jour.
+///
+/// Sofler s'installe en glissant un bundle depuis une image disque : rien ne
+/// le met à jour, et rien n'indique la version qu'on utilise. C'est le premier
+/// renseignement que demande quiconque reçoit un rapport de bug.
+private struct VersionCard: View {
+    @State private var prefs = Preferences.shared
+    @State private var checker = UpdateChecker.shared
+
+    var body: some View {
+        Card(title: "Version") {
+            HStack(spacing: 8) {
+                Text(UpdateChecker.buildLabel)
+                    .font(.system(size: 13, weight: .medium))
+                Spacer()
+                if checker.checking { ProgressView().controlSize(.small) }
+            }
+
+            if !UpdateChecker.isReleaseBuild {
+                Note("Compilé depuis les sources : `\(UpdateChecker.gitDescribe)`. "
+                     + "Les vérifications automatiques sont suspendues sur un "
+                     + "build de développement, qui est presque toujours en "
+                     + "avance sur la dernière release.")
+            }
+
+            if let update = checker.newer {
+                Note("**La version \(update.version) est disponible.**")
+                Button("Ouvrir la page de téléchargement") {
+                    NSWorkspace.shared.open(update.page)
+                }
+            }
+
+            FeatureSwitch(title: "Vérifier automatiquement, une fois par jour",
+                          isOn: $prefs.checksForUpdates)
+            Note("Désactivé par défaut : tant que vous ne l'activez pas, "
+                 + "Sofler ne contacte rien ni personne. Une fois activé, il "
+                 + "demande à GitHub le numéro de la dernière version publiée "
+                 + "— une adresse IP et rien d'autre, jamais ce que vous avez "
+                 + "dicté. C'est la seule requête réseau que l'application "
+                 + "sache faire.")
+
+            HStack(spacing: 8) {
+                Button("Vérifier maintenant") {
+                    Task { await checker.check() }
+                }
+                .disabled(checker.checking)
+
+                if let error = checker.lastError {
+                    Text(error).font(.system(size: 11))
+                        .foregroundStyle(Style.collecting)
+                } else if checker.newer == nil, !checker.checking,
+                          let date = checker.lastCheckedAt {
+                    Text("À jour — vérifié \(date.formatted(.relative(presentation: .named))).")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 }
 

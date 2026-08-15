@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var reArmTimer: Timer?
     private var controller: DictationController!
     private let preferences = PreferencesWindowController()
+    private let onboarding = OnboardingWindowController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let engine = SocketSpeechEngine()
@@ -50,9 +51,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = historyHotkey.register(.history)
 
         // Le système désactive un tap dont le processus a trop tardé ; sans ce
-        // réarmement la dictée cesserait de répondre sans prévenir.
+        // réarmement la dictée cesserait de répondre sans prévenir. Le même
+        // appel crée le tap s'il n'a pas pu l'être au lancement, faute
+        // d'accessibilité — c'est le filet de sécurité, à dix secondes près.
         reArmTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.modifierKey.reArmIfNeeded() }
+            Task { @MainActor in
+                guard Preferences.shared.triggerEnabled else { return }
+                self?.modifierKey.reArmIfNeeded()
+            }
+        }
+
+        // Et voici le chemin rapide : pendant l'accueil, quelqu'un vient
+        // d'accorder l'accessibilité et va essayer la touche Option dans la
+        // seconde. Attendre le prochain tour de l'horloge lui ferait conclure
+        // que ça ne marche pas.
+        NotificationCenter.default.addObserver(
+            forName: .soflerAccessibilityGranted, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard Preferences.shared.triggerEnabled else { return }
+                self?.modifierKey.reArmIfNeeded()
+            }
         }
 
         // Le tap clavier ne se reconfigure pas tout seul : on le reconstruit
@@ -64,8 +83,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         Task {
-            await requestMicrophoneIfNeeded()
+            // Au premier lancement, l'accueil prend la main sur le micro : il
+            // l'explique avant de le demander. Les deux en même temps feraient
+            // surgir le dialogue système derrière la fenêtre d'accueil, et
+            // macOS ne le présente qu'une fois — le manquer vaut refus.
+            if Preferences.shared.onboarded {
+                await requestMicrophoneIfNeeded()
+            } else {
+                onboarding.show()
+            }
             await refreshMenu()
+        }
+
+        // Après le reste : rien ici ne conditionne l'usage de l'application,
+        // et le résultat n'arrive qu'une fois le réseau revenu.
+        Task {
+            await UpdateChecker.shared.checkIfDue()
+            if UpdateChecker.shared.newer != nil { await refreshMenu() }
         }
     }
 
@@ -95,18 +129,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func render(_ state: DictationController.State) {
         guard let button = statusItem.button else { return }
 
-        let (symbol, description): (String, String) = switch state {
+        let (image, description): (NSImage?, String) = switch state {
         case .idle:
             controller.target.isLocked
-                ? ("mic.badge.plus", "Sofler — écrit dans \(controller.target.displayName)")
-                : ("mic", "Sofler — prêt")
-        case .recording:  ("mic.fill", "Sofler — enregistrement")
-        case .processing: ("waveform", "Sofler — transcription")
-        case .failed:     ("exclamationmark.triangle", "Sofler — erreur")
+                ? (MenuBarIcon.image(listening: false, locked: true),
+                   "Sofler — écrit dans \(controller.target.displayName)")
+                : (MenuBarIcon.image(listening: false), "Sofler — prêt")
+        case .recording:
+            (MenuBarIcon.image(listening: true), "Sofler — enregistrement")
+        case .processing:
+            (MenuBarIcon.image(listening: true, dimmed: true), "Sofler — transcription")
+        // Le seul état qui garde un symbole système. Le triangle d'alerte se
+        // lit sans rien avoir appris, là où un caret en détresse ne voudrait
+        // rien dire — et l'erreur est le moment où l'on a le moins envie de
+        // déchiffrer une icône.
+        case .failed:
+            (NSImage(systemSymbolName: "exclamationmark.triangle",
+                     accessibilityDescription: nil), "Sofler — erreur")
         }
 
-        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: description)
-        button.image?.isTemplate = true
+        image?.isTemplate = true
+        image?.accessibilityDescription = description
+        button.image = image
         button.toolTip = description
 
         if case .failed(let message) = state {
@@ -126,6 +170,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .failed(let message): message
         }
         menu.addItem(withTitle: status, action: nil, keyEquivalent: "")
+
+        // En haut, avant tout le reste. L'icône de la barre ne porte pas de
+        // pastille : un point permanent pour un évènement non urgent finit par
+        // se faire ignorer, puis détester. Le menu s'ouvre de toute façon
+        // souvent — c'est par lui qu'on atteint l'historique et les réglages.
+        if let update = UpdateChecker.shared.newer {
+            let item = NSMenuItem(title: "↑  Version \(update.version) disponible",
+                                  action: #selector(openUpdatePage), keyEquivalent: "")
+            item.target = self
+            item.toolTip = "Vous utilisez la \(UpdateChecker.currentVersion). "
+                + "Ouvre la page de téléchargement."
+            menu.addItem(item)
+        }
         menu.addItem(.separator())
 
         let dictate = NSMenuItem(
@@ -279,6 +336,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.target = self
         menu.addItem(settings)
 
+        // L'accueil contient la seule explication de ce que fait
+        // l'accessibilité et de ce qu'implique la licence du modèle. Ne
+        // l'afficher qu'une fois reviendrait à cacher ces deux réponses à
+        // quiconque n'a pas tout lu le premier jour.
+        let welcome = NSMenuItem(title: "Revoir l'accueil…", action: #selector(openOnboarding),
+                                 keyEquivalent: "")
+        welcome.target = self
+        menu.addItem(welcome)
+
         menu.addItem(NSMenuItem(title: "Quitter Sofler", action: #selector(NSApplication.terminate(_:)),
                                 keyEquivalent: "q"))
         statusItem.menu = menu
@@ -288,6 +354,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func triggerDictation() {
         controller.toggle()
+    }
+
+    @objc private func openUpdatePage() {
+        guard let update = UpdateChecker.shared.newer else { return }
+        NSWorkspace.shared.open(update.page)
+    }
+
+    @objc private func openOnboarding() {
+        onboarding.show()
     }
 
     /// Déroule le menu de la barre de menus par programme.

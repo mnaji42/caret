@@ -29,16 +29,27 @@ enum EngineChoice: String, CaseIterable, Sendable, Codable {
     /// API mais ne modifie pas la sortie sur nos enregistrements.
     var honoursLexicon: Bool { self == .crisperWhisper }
 
+    /// Ce que change le choix, dit sans jargon.
+    ///
+    /// La formulation précédente opposait « use effect » à `useEffect`, ce qui
+    /// ne parle qu'aux gens qui écrivent du React. La différence mesurée est
+    /// pourtant générale : un moteur sans conditionnement remplace les mots
+    /// qu'il ne connaît pas par ceux qui leur ressemblent, et ça vaut pour les
+    /// noms propres et les mots étrangers autant que pour le code.
     var explanation: String {
         switch self {
         case .apple:
-            "Inclus dans macOS, rien à télécharger. Transcrit pendant que "
-                + "vous parlez, donc sans attente. Ne connaît pas votre "
-                + "vocabulaire technique : il écrira « use effect »."
+            "Inclus dans macOS, rien à télécharger, et le texte arrive dès "
+                + "que vous avez fini de parler. Il transcrit en français "
+                + "courant : les mots qu'il ne connaît pas — noms propres, "
+                + "mots anglais, vocabulaire de votre métier — sont remplacés "
+                + "par ceux qui leur ressemblent."
         case .crisperWhisper:
-            "Écrit `useEffect` correctement et distingue texte nettoyé et "
-                + "mot à mot. Demande un modèle de 1,6 Go, environ 3 Go en "
-                + "mémoire, et des poids sous licence non commerciale."
+            "Vous lui donnez la liste des mots que vous employez, et il les "
+                + "écrit tels quels. Il sait aussi séparer le texte nettoyé du "
+                + "mot à mot, qui garde vos hésitations. En échange : 1,6 Go à "
+                + "télécharger, environ 3 Go en mémoire, et des poids sous "
+                + "licence non commerciale."
         }
     }
 }
