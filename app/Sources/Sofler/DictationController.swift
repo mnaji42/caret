@@ -136,6 +136,7 @@ final class DictationController {
             // sélecteur — impossible pendant qu'on parle.
             canPickNote: state != .recording,
             previewEnabled: Preferences.shared.livePreviewEnabled,
+            modesAvailable: Preferences.shared.engine.hasModes,
             corpusEnabled: Preferences.shared.corpusEnabled,
             corpusKeepsAudio: Preferences.shared.corpusKeepsAudio)
     }

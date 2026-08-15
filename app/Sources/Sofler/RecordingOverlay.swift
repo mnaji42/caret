@@ -41,6 +41,9 @@ final class RecordingOverlay {
         /// peut pas ouvrir maintenant.
         var canPickNote: Bool = true
         var previewEnabled: Bool
+        /// Faux quand le moteur actif n'a qu'un rendu : la pastille de mode se
+        /// grise plutôt que de donner l'illusion d'un choix sans effet.
+        var modesAvailable: Bool = true
         var corpusEnabled: Bool
         var corpusKeepsAudio: Bool
     }
@@ -244,6 +247,12 @@ final class RecordingOverlay {
         self.status = status
 
         modeControl.select(TranscriptionMode.allCases.firstIndex(of: status.mode) ?? 0)
+        for index in TranscriptionMode.allCases.indices {
+            modeControl.setEnabled(status.modesAvailable, at: index)
+        }
+        modeControl.toolTip = status.modesAvailable
+            ? nil
+            : "Le moteur de macOS n'a qu'un rendu\nChanger de moteur dans les réglages"
 
         targetControl.setLabel(Self.noteLabel(for: status), at: 1)
         targetControl.select(status.target.isLocked ? 1 : 0)
