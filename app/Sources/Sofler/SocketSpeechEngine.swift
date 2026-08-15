@@ -104,8 +104,12 @@ actor SocketSpeechEngine: SpeechEngine {
             }
         }
         guard connected == 0 else {
-            throw SpeechEngineError.unavailable(
-                "service injoignable — démarrer `uv run python -m sofler_engine.server`")
+            // Le message disait de lancer une commande dans le dépôt du
+            // projet. C'est inutilisable pour qui a installé depuis le .dmg —
+            // il n'a pas de dépôt — et trompeur quand les poids sont là mais
+            // pas le service, ce qui est l'état laissé par une désinstallation
+            // où l'on a coché « service moteur » en gardant le modèle.
+            throw SpeechEngineError.unavailable(EngineService.unreachableAdvice)
         }
 
         var outHeader = header
