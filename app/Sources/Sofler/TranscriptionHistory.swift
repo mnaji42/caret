@@ -42,8 +42,21 @@ final class TranscriptionHistory {
 
     static let limit = 5
 
-    private let storageKey = "sofler.history"
+    private static let storageKey = "sofler.history"
+    private let storageKey = TranscriptionHistory.storageKey
     private let enabledKey = "sofler.history.enabled"
+
+    /// Combien de transcriptions sont stockées, sans instancier l'historique.
+    ///
+    /// Le désinstalleur doit pouvoir annoncer ce qu'il s'apprête à effacer, et
+    /// il n'a aucune raison de posséder un historique pour ça — celui qui
+    /// existe appartient au contrôleur de dictée.
+    static var storedCount: Int {
+        guard let data = UserDefaults.standard.data(forKey: storageKey),
+              let stored = try? JSONDecoder().decode([Entry].self, from: data)
+        else { return 0 }
+        return stored.count
+    }
 
     private(set) var entries: [Entry] = []
 

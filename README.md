@@ -370,6 +370,39 @@ It also needs no Input Monitoring permission, going through Carbon's
 
 ---
 
+## Uninstalling
+
+Menu bar → **Désinstaller Sofler…**, which opens a window listing everything
+Sofler put on the machine, with what each thing weighs, and a checkbox for
+each. The app itself always goes; the rest is a choice.
+
+**Nothing is deleted outright — everything goes to the Trash.** That is the
+macOS convention, and more importantly it is what separates a mistake from a
+disaster: the dictation corpus is hundreds of real recordings that cannot be
+reconstituted.
+
+The corpus and the model weights are **unchecked by default**. One is
+irreplaceable, the other is a 1.6 GB download; a checkbox pre-ticked on the
+only thing you cannot get back is a trap. Everything small and rebuildable is
+ticked.
+
+| Item | Where | Ticked by default |
+|---|---|---|
+| The app | wherever it was installed — read from the bundle, not hardcoded | always |
+| Settings and history | `~/Library/Preferences/fr.lyriastudio.sofler.plist` | yes |
+| Microphone, Accessibility | TCC, via `tccutil` | yes |
+| Engine launch agent | `~/Library/LaunchAgents/fr.lyriastudio.sofler.engine.plist` | yes |
+| Logs and socket | `~/Library/Logs/Sofler`, `~/Library/Caches/sofler` | yes |
+| **Dictation corpus** | `~/Library/Application Support/Sofler` | **no** |
+| **CrisperWhisper weights** | `~/.cache/huggingface/hub/models--nyralabs--*` | **no** |
+
+The login item is removed unconditionally — left behind, macOS would try to
+launch a deleted application at every login and complain that it is missing.
+
+Your **note file is never touched**. Sofler wrote into it; it is your document,
+not part of the installation. Nor is the rest of the Hugging Face cache, which
+is shared with any other project using the library.
+
 ## Testing a clean install
 
 You cannot judge a first-run experience on the machine that developed it:

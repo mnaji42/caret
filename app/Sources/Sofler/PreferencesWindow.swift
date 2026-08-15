@@ -457,6 +457,11 @@ private struct CollectionTab: View {
                     Text(stats.summary).font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
+                // `stats` partait d'une structure vide que rien ne remplissait
+                // : l'onglet annonçait « Corpus vide » quel qu'en soit le
+                // contenu — le pire mensonge possible sur un écran dont le
+                // seul rôle est de dire ce qui est gardé.
+                .onAppear { stats = Corpus.shared.statistics() }
                 ButtonRow {
                     Button("Afficher dans le Finder") { Corpus.shared.reveal() }
                     Button("Tout effacer") {

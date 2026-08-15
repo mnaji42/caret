@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controller: DictationController!
     private let preferences = PreferencesWindowController()
     private let onboarding = OnboardingWindowController()
+    private let uninstaller = UninstallWindowController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let engine = SocketSpeechEngine()
@@ -345,6 +346,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         welcome.target = self
         menu.addItem(welcome)
 
+        // Sous les réglages, au-dessus de « Quitter » : là où on cherche une
+        // sortie. Une application qui réclame le micro, l'accessibilité et le
+        // démarrage automatique doit savoir partir, et le dire.
+        let uninstall = NSMenuItem(title: "Désinstaller Sofler…",
+                                   action: #selector(openUninstaller), keyEquivalent: "")
+        uninstall.target = self
+        menu.addItem(uninstall)
+
         menu.addItem(NSMenuItem(title: "Quitter Sofler", action: #selector(NSApplication.terminate(_:)),
                                 keyEquivalent: "q"))
         statusItem.menu = menu
@@ -363,6 +372,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openOnboarding() {
         onboarding.show()
+    }
+
+    @objc private func openUninstaller() {
+        uninstaller.show()
     }
 
     /// Déroule le menu de la barre de menus par programme.
