@@ -194,6 +194,7 @@ final class DictationController {
         }
         do {
             try recorder.start()
+            Log.info("enregistrement démarré")
             captureEscape()
             // Une collecte encore en cours cède la place : le moteur ne traite
             // qu'une requête à la fois, et la dictée qui commence est
@@ -219,12 +220,12 @@ final class DictationController {
         overlay.showProcessing()
 
         let seconds = Double(samples.count) / AudioRecorder.targetSampleRate
-        NSLog("sofler: fin d'enregistrement, %.1fs capturées", seconds)
+        Log.info("fin d'enregistrement : \(String(format: "%.1f", seconds)) s capturées, moteur \(Preferences.shared.engine.rawValue)")
 
         // Un appui-relâché trop bref ne contient rien d'exploitable ; inutile
         // de réveiller le moteur. Un vrai VAD reste à faire (cf. README).
         guard samples.count > Int(AudioRecorder.targetSampleRate * 0.3) else {
-            NSLog("sofler: trop court, ignoré")
+            Log.info("trop court, ignoré")
             overlay.hide()
             state = .idle
             return
@@ -250,6 +251,12 @@ final class DictationController {
             let text = result.text
             overlay.hide()
             guard !text.isEmpty else {
+                // Cas silencieux à l'usage : rien n'est inséré, rien n'entre
+                // dans l'historique, et sans trace on ne peut pas distinguer
+                // « le moteur n'a rien entendu » d'une panne.
+                Log.error("le moteur a rendu un texte vide "
+                          + "(\(Preferences.shared.engine.rawValue), "
+                          + "\(Int(result.latency.wallMs)) ms)")
                 pendingAudio = nil
                 state = .idle
                 return
@@ -257,8 +264,7 @@ final class DictationController {
             try await deliver(text)
             history.add(text, mode: used)
             pendingAudio = nil
-            NSLog("sofler: %.0f ms, fenêtre %.0fs — %@",
-                  result.latency.wallMs, result.windowSeconds, text)
+            Log.info("transcrit en \(Int(result.latency.wallMs)) ms, \(text.count) caractères")
             state = .idle
             // Après l'insertion, jamais avant : la collecte ne doit rien
             // coûter au temps que l'utilisateur attend.
@@ -267,7 +273,7 @@ final class DictationController {
             overlay.hide()
             pendingAudio = samples
             let minutes = Double(samples.count) / AudioRecorder.targetSampleRate / 60
-            NSLog("sofler: échec, %.1f min d'audio conservées pour réessai", minutes)
+            Log.error("échec de transcription : \(error.localizedDescription) — \(String(format: "%.1f", minutes)) min conservées")
             state = .failed("\(error.localizedDescription) — audio conservé, « Réessayer » dans le menu.")
         }
     }
