@@ -204,13 +204,91 @@ Two things worth knowing, both verified against the released weights:
 
 ## Requirements
 
-- Apple Silicon Mac (M1 or later) — Intel is not supported
-- macOS 26+
-- ~1,6 GB disk for the `turbo` model, downloaded on first run
+They depend entirely on which engine you use, and the difference is large
+enough that one list would mislead:
 
-## Getting started
+| | Built-in engine (macOS) | CrisperWhisper |
+|---|---|---|
+| macOS | **26+** | 14+ |
+| Chip | any Mac that runs macOS 26 | Apple Silicon (M1+) |
+| To download | nothing | ~1,6 GB of weights |
+| Memory | negligible | ~3 GB resident |
+| Setup | none | clone the repo, run a script |
+| Licence | — | **non-commercial** — [read this](#licensing--read-this-before-using-the-models) |
+
+The built-in engine is the default and needs no setup at all. It does not know
+your technical vocabulary — it writes *"use effect"*. CrisperWhisper is what
+writes `useEffect`, and it is opt-in.
+
+---
+
+## Install
+
+### From the release (recommended)
+
+1. Download **[Sofler.dmg](https://github.com/mnaji42/sofler/releases/latest/download/Sofler.dmg)**
+   from the latest release.
+2. Open it and drag Sofler to Applications.
+3. Launch it. **macOS will refuse the first time** — see just below.
+4. A welcome window walks through the microphone, Accessibility, and the
+   choice of engine.
+
+#### Why macOS refuses, and what to do
+
+Sofler is **not notarized**. Notarization requires a paid Apple Developer
+account, which this project does not have yet. So on first launch macOS says:
+
+> « Apple n'a pas pu vérifier que « Sofler » ne contient pas de logiciel
+> malveillant. »
+
+This is Gatekeeper doing its job: it cannot verify software it has never seen.
+It is not a claim that anything is wrong — but you are being asked to trust an
+unsigned binary from a stranger, and you should decide that deliberately. The
+source is here, and you can always build it yourself (below) instead.
+
+To open it anyway:
+
+1. Click **Terminer** on the dialog.
+2. Go to  **Réglages Système › Confidentialité et sécurité**.
+3. Scroll to the bottom: *« Sofler » a été bloqué…* → **Ouvrir quand même**.
+4. Confirm, and authenticate.
+
+Since macOS 15, Control-clicking the app no longer bypasses this — System
+Settings is the only route.
+
+The one-line equivalent, if you prefer the terminal:
+
+```bash
+xattr -d com.apple.quarantine /Applications/Sofler.app
+```
+
+That strips the quarantine flag so macOS stops asking. It is the same decision
+as clicking through the panel, made faster — and it disables a check that
+exists for a reason, so run it only on software you meant to install.
+
+#### Updating
+
+**Sofler makes no network request at all unless you ask it to.** Out of the
+box it never contacts anything — the statement "nothing leaves your Mac" has
+no exception to declare, which is the point.
+
+Settings › Général › Version offers two ways to learn about a new version:
+
+- **Vérifier maintenant** — a one-off check, whenever you feel like it.
+- **Vérifier automatiquement** — a switch, off by default, that checks once a
+  day and reports in the menu bar menu.
+
+Either way the request is a GET on GitHub's public API, sending nothing but an
+IP address, and Sofler never installs anything by itself: you download the new
+DMG and drag it over the old app.
+
+---
+
+## Build from source
 
 ### 1. Install the engine service
+
+Only needed for CrisperWhisper. With the built-in macOS engine, skip to step 2.
 
 ```bash
 cd engine && uv venv --python 3.12 && uv pip install -e . && cd ..
@@ -262,6 +340,11 @@ different `cdhash` values produce an identical requirement, so the grant holds.
 The certificate is local and self-signed — it is not a substitute for an Apple
 Developer ID, which distribution will require.
 
+The same reasoning applies to *released* builds, and it is why the release
+workflow imports a certificate rather than signing ad hoc: with an ad-hoc
+signature, every new version would be a new identity, and macOS would revoke
+everyone's Accessibility grant on every update.
+
 ### 4. Dictate
 
 | Shortcut | Action |
@@ -284,6 +367,80 @@ focused.
 
 It also needs no Input Monitoring permission, going through Carbon's
 `RegisterEventHotKey` rather than a `CGEventTap`.
+
+---
+
+## Testing a clean install
+
+You cannot judge a first-run experience on the machine that developed it:
+permissions are already granted, settings already chosen, and the welcome
+window never appears.
+
+```bash
+./scripts/reset-state.sh
+```
+
+This clears settings and history, and revokes Microphone and Accessibility, so
+the next launch behaves exactly like a first install. **It does not touch the
+corpus** — the one irreplaceable thing on the machine.
+
+| What | Where | Cleared by default? |
+|---|---|---|
+| Settings, history | `UserDefaults` | yes |
+| Microphone, Accessibility | TCC | yes |
+| **Dictation corpus** | `~/Library/Application Support/Sofler/corpus` | **no** |
+| Engine logs | `~/Library/Logs/Sofler` | no |
+| Model weights | `~/.cache/huggingface/hub/models--nyralabs--*` | no |
+
+`./scripts/reset-state.sh --all` removes everything above, plus the launch
+agent and the app itself. It lists what it will delete and asks you to type a
+word before doing it.
+
+### Testing the download itself
+
+The reset covers the app, but not Gatekeeper: quarantine is attached when a
+browser downloads a file, so the "macOS refuses to open it" step can only be
+rehearsed by actually downloading the DMG. A second macOS user account is the
+clean way — permissions, settings, and caches are all per-user, and deleting
+the account removes them with it. Install into that account's own
+`~/Applications` rather than `/Applications`, which is shared.
+
+## Cutting a release
+
+Versions come from git tags — nothing is written by hand. `scripts/version.sh`
+derives `CFBundleShortVersionString` from the latest tag, `CFBundleVersion`
+from the commit count, and records whether the build sits exactly on a tag.
+
+```bash
+git tag -a v0.2.0 -m "Sofler 0.2.0" && git push origin v0.2.0
+```
+
+That triggers [`.github/workflows/release.yml`](.github/workflows/release.yml),
+which builds, signs, packages, verifies the microphone entitlement, and
+attaches `Sofler.dmg` to the release. The asset name never changes, so
+`releases/latest/download/Sofler.dmg` is a permanent link.
+
+To build the same package locally:
+
+```bash
+./scripts/package-dmg.sh
+```
+
+A build that is not exactly on a clean tag marks itself as a development build:
+it reports as such in Settings and never offers updates, since a working copy
+is nearly always ahead of the last release.
+
+Two optional repository secrets control signing. Without them the workflow
+still produces a DMG, ad-hoc signed, and warns:
+
+| Secret | Contents |
+|---|---|
+| `SIGNING_CERTIFICATE_P12` | the signing certificate, base64-encoded |
+| `SIGNING_CERTIFICATE_PASSWORD` | its password |
+
+The day an Apple Developer ID exists, it goes in those same two secrets, and
+notarization is two commands added to the workflow — `notarytool submit` then
+`stapler staple`.
 
 ---
 
@@ -395,7 +552,8 @@ it offline on the retained audio.
 - [x] **J5** — menu bar, settings, history, file target
 - [x] **J6** — test suite (64 fast, 12 regression)
 - [x] **J7** — control bar, note memory, live preview, corpus collection
-- [ ] **J8** — signing, notarization, DMG
+- [x] **J8** — app icon, onboarding, DMG, tagged releases, update check
+- [ ] **J8b** — notarization (waiting on an Apple Developer account)
 - [ ] **J9** — Core ML / Neural Engine backend
 - [ ] **J10** — word-level speech detection from the live preview (below)
 - [ ] **J11** — offline Apple pass on retained audio, for a fair comparison
