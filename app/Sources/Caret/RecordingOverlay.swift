@@ -66,6 +66,7 @@ final class RecordingOverlay {
     private var previewHeight: NSLayoutConstraint?
     private var card: NSVisualEffectView?
     private var cardSheen: CAGradientLayer?
+    private var processingGlow: CALayer?
     private var cardBelowTabs: NSLayoutConstraint?
     private var cardAlone: NSLayoutConstraint?
     private var previewLineCount = 1
@@ -94,7 +95,7 @@ final class RecordingOverlay {
     private static let collecting = NSColor.systemOrange
 
     private static let rowHeight: CGFloat = 26
-    private static let controlRowHeight: CGFloat = 29
+    private static let controlRowHeight: CGFloat = 32
     private static let padding: CGFloat = 13
     private static let rowSpacing: CGFloat = 9
     /// Vide entre les onglets flottants et la carte. C'est lui qui les fait
@@ -132,6 +133,7 @@ final class RecordingOverlay {
         self.panel = panel
 
         startedAt = Date()
+        stopProcessingGlow()
         statusLabel.isHidden = true
         container?.isHidden = false
         textRow?.isHidden = false
@@ -166,13 +168,74 @@ final class RecordingOverlay {
         panel.setContentSize(NSSize(width: 210, height: 2 * Self.padding + 20))
         cardSheen?.frame = card?.bounds ?? .zero
         position(panel)
+        startProcessingGlow()
     }
 
     func hide() {
         timer?.invalidate()
         timer = nil
         startedAt = nil
+        stopProcessingGlow()
         panel?.orderOut(nil)
+    }
+
+    /// Liseré lumineux qui fait le tour de la carte pendant la transcription.
+    ///
+    /// Sans lui, l'état « Transcription… » est parfaitement immobile : sur une
+    /// longue dictée, plusieurs secondes sans le moindre mouvement se lisent
+    /// comme un plantage, et on relance une dictée déjà en cours.
+    ///
+    /// Un dégradé conique tournant plutôt qu'un trait qui parcourt le
+    /// contour : `strokeStart`/`strokeEnd` butent sur les bornes 0 et 1, donc
+    /// l'arc s'y écrase à chaque tour. La rotation, elle, boucle sans couture.
+    /// Le dégradé tourne à l'intérieur d'un calque porteur, et c'est ce
+    /// dernier qui porte le masque — masquer le dégradé lui-même ferait
+    /// tourner le masque avec, et il n'y aurait plus de contour du tout.
+    private func startProcessingGlow() {
+        guard let card, let host = card.layer else { return }
+        stopProcessingGlow()
+        card.layoutSubtreeIfNeeded()
+        let bounds = card.bounds
+        guard bounds.width > 0 else { return }
+
+        let outline = CAShapeLayer()
+        outline.path = CGPath(roundedRect: bounds.insetBy(dx: 1, dy: 1),
+                              cornerWidth: 15, cornerHeight: 15, transform: nil)
+        outline.fillColor = nil
+        outline.strokeColor = NSColor.black.cgColor      // seul l'alpha compte
+        outline.lineWidth = 2
+
+        let carrier = CALayer()
+        carrier.frame = bounds
+        carrier.mask = outline
+
+        let side = max(bounds.width, bounds.height) * 1.5
+        let glow = CAGradientLayer()
+        glow.type = .conic
+        glow.frame = CGRect(x: bounds.midX - side / 2, y: bounds.midY - side / 2,
+                            width: side, height: side)
+        glow.startPoint = CGPoint(x: 0.5, y: 0.5)
+        glow.endPoint = CGPoint(x: 1, y: 0.5)
+        glow.colors = [Self.accent.withAlphaComponent(0).cgColor,
+                       Self.accent.cgColor,
+                       Self.accent.withAlphaComponent(0).cgColor,
+                       Self.accent.withAlphaComponent(0).cgColor]
+        glow.locations = [0, 0.06, 0.30, 1]
+        carrier.addSublayer(glow)
+        host.addSublayer(carrier)
+
+        let spin = CABasicAnimation(keyPath: "transform.rotation.z")
+        spin.fromValue = 0
+        spin.toValue = 2 * Double.pi
+        spin.duration = 1.6
+        spin.repeatCount = .infinity
+        glow.add(spin, forKey: "rotation")
+        processingGlow = carrier
+    }
+
+    private func stopProcessingGlow() {
+        processingGlow?.removeFromSuperlayer()
+        processingGlow = nil
     }
 
     var isRecording: Bool { timer != nil }
@@ -578,6 +641,7 @@ final class RecordingOverlay {
         let wasRecording = isRecording
         let elapsed = startedAt
 
+        stopProcessingGlow()
         panel?.orderOut(nil)
         panel = nil
         cardBelowTabs = nil

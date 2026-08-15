@@ -21,8 +21,8 @@ final class PillSelector: NSView {
     private var buttons: [SegmentButton] = []
     private(set) var selectedIndex = 0
 
-    private static let height: CGFloat = 25
-    private static let inset: CGFloat = 3
+    private static let height: CGFloat = 32
+    private static let inset: CGFloat = 4
 
     init(labels: [String], accent: NSColor) {
         self.accent = accent
@@ -116,7 +116,7 @@ private final class SegmentButton: NSButton {
         isBordered = false
         setButtonType(.momentaryChange)
         wantsLayer = true
-        layer?.cornerRadius = 9.5
+        layer?.cornerRadius = 12
         translatesAutoresizingMaskIntoConstraints = false
     }
 
@@ -124,18 +124,29 @@ private final class SegmentButton: NSButton {
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
+    /// Actif = fond teinté et texte à la teinte, plutôt qu'un aplat saturé
+    /// sous du blanc.
+    ///
+    /// L'aplat plein se voyait de loin, mais il criait : sur une barre qu'on
+    /// garde sous les yeux pendant qu'on travaille, c'est fatigant. Un fond à
+    /// faible opacité suffit à désigner l'état, et le texte à la teinte le
+    /// confirme sans forcer le contraste.
     func restyle(selected: Bool, accent: NSColor) {
-        layer?.backgroundColor = selected ? accent.cgColor : NSColor.clear.cgColor
+        layer?.backgroundColor = selected
+            ? accent.withAlphaComponent(0.20).cgColor
+            : NSColor.clear.cgColor
         attributedTitle = NSAttributedString(string: title, attributes: [
-            .font: NSFont.systemFont(ofSize: 11, weight: selected ? .semibold : .medium),
-            .foregroundColor: selected ? NSColor.white : NSColor.secondaryLabelColor,
+            .font: NSFont.systemFont(ofSize: 12, weight: selected ? .semibold : .medium),
+            .foregroundColor: selected
+                ? accent.blended(withFraction: 0.25, of: .white) ?? accent
+                : NSColor.secondaryLabelColor,
         ])
     }
 
     override var intrinsicContentSize: NSSize {
         var size = super.intrinsicContentSize
-        size.width += 16
-        size.height = 19
+        size.width += 20
+        size.height = 24
         return size
     }
 }

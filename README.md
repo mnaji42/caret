@@ -7,7 +7,7 @@ Caret is a macOS dictation tool for Apple Silicon that handles how developers
 actually speak: French and English in the same sentence, technical vocabulary,
 hesitations. Everything runs on-device. No account, no cloud, no telemetry.
 
-**Status: engine validated, native app in progress.** See [Roadmap](#roadmap).
+**Status: engine validated, app in daily use.** See [Roadmap](#roadmap).
 
 ---
 
@@ -40,6 +40,42 @@ Measured on real French/English developer speech:
 | **With lexicon** | **32/34 (94%)** |
 
 No regression on plain French sentences.
+
+---
+
+## While you are speaking
+
+Dictation is not a one-shot command. You realise mid-sentence that the text
+should not go where it is going, or that you wanted verbatim rather than clean
+text. Stopping to fix that means saying it all again.
+
+So a bar floats at the bottom of the screen while you talk, and everything on
+it can be changed **without interrupting you**:
+
+```
+      [ Texte nettoyé │ Mot à mot ]      [ Curseur │ Notes › review.md ]
+
+  ● 0:42  ▮▮▮▮▮                     Isolement    COLLECTE     👁
+  … the words being recognised, as you speak them
+```
+
+- **Mode** — clean text or word-for-word.
+- **Destination** — the caret of whatever app you are in, or a file. The note
+  file is remembered independently of the current destination, so switching
+  back and forth costs one click, even mid-sentence.
+- **Live preview** — what is being heard, in real time. It comes from macOS's
+  own recogniser, not from CrisperWhisper, and the interface says so: it has
+  no lexicon, so the inserted text will differ. It answers *"is the mic
+  hearing me"*, not *"will the transcription be right"*.
+- **Collection** — an always-visible reminder that dictations are being
+  archived, and a switch to stop it.
+
+Mode and destination are read **when the recording ends**, never when it
+starts. Pressing *Notes* halfway through a sentence sends that dictation to
+the file, and the reverse works too.
+
+The bar never takes focus — it is a non-activating panel — because the text
+has to land where your caret already is.
 
 ---
 
@@ -135,6 +171,12 @@ caret/
 │       ├── protocol.py   the app ↔ engine contract
 │       └── server.py     persistent unix-socket service
 ├── app/             Swift menu-bar app (builds to app/build/, gitignored)
+│   └── Sources/Caret/
+│       ├── DictationController.swift  the capture → transcribe → insert cycle
+│       ├── RecordingOverlay.swift     the floating bar
+│       ├── LivePreview.swift          macOS SpeechAnalyzer, streaming preview
+│       ├── Corpus.swift               archive of dictations, for comparison
+│       └── DictationTarget.swift      caret, or a file detected via AX
 ├── scripts/
 │   ├── dev-cert.sh      local signing certificate, so TCC grants persist
 │   ├── install.sh       build → sign → /Applications/Caret.app
@@ -265,6 +307,83 @@ digits, verbatim staying distinct from intended, silence producing nothing,
 long audio not being truncated. It needs `poc/samples/`, which is gitignored
 as personal data, and skips without it.
 
+## Improve it on your own voice
+
+Every comparison below was run on a handful of chosen recordings. That is
+enough to pick a starting point, not to settle anything. What actually decides
+an engine is spontaneous speech: your accent, your room, your vocabulary, your
+habit of switching languages mid-sentence.
+
+So the app can archive what you dictate. Turn on *Collect dictations* in
+Settings, and each dictation appends one JSON line to
+`~/Library/Application Support/Caret/corpus/sessions.jsonl`:
+
+```json
+{"id": "2026-08-15T13-21-40", "durationSeconds": 80.8, "language": "fr",
+ "modeUsed": "intended", "destination": "curseur",
+ "textIntended": "…", "textVerbatim": "…", "textApple": "…",
+ "latencyIntendedMs": 5235.6, "latencyVerbatimMs": 6358.8,
+ "audioFile": "2026-08-15T13-21-40.wav"}
+```
+
+Three transcriptions of the **same** audio: CrisperWhisper in both modes, plus
+macOS's `SpeechTranscriber`. The last one is free — it already runs while you
+speak, to drive the live preview. Keeping the audio is a separate checkbox,
+off by default: about 2 MB a minute against a few kilobytes of text.
+
+The second CrisperWhisper pass runs **after** insertion, never before, and
+gives up as soon as a new recording starts. The engine handles one request at
+a time, and dictation latency is not negotiable against collection.
+
+Append-only, one line per dictation, so the file can be read while the app is
+running:
+
+```python
+import pandas as pd
+df = pd.read_json("sessions.jsonl", lines=True)
+df[["textIntended", "textApple"]].head()
+```
+
+### Why this matters more than the benchmarks
+
+Keeping the audio is what turns opinions into measurements. A worked example
+from real use:
+
+CrisperWhisper wrote *"Effects"* three times where the speaker said *« en
+fait »* — a very common French filler. The cause looked obvious: `useEffect`
+sits in the lexicon and is known to surface as *"Effects"*. Removing it and
+re-running **the same audio** told a different story:
+
+| passage | with `useEffect` | without |
+|---|---|---|
+| « en fait, la feature… » | *"Effect la feature"* | *"La feature"* ✓ |
+| « en fait, ce qui fonctionne pas bien… » | *"Effects de fonctionnement pas bien, comment on peut…"* | *"Pourquoi on peut…"* — content lost |
+| trailing mumble | *"Effects de la réunion des deux deux deux"* | *"Potentation de la vidéo"* |
+
+One clear win, one regression, one unusable either way. The lexicon change
+moves *which* error you get, not whether you get one. Without the audio, the
+first table row alone would have justified a change that is not supported.
+
+### What you can fork this into
+
+The engine sits behind a unix socket with a small documented protocol, so the
+corpus is directly usable to:
+
+- **swap the engine** — anything that reads PCM and returns text can replace
+  `caret_engine`, and the corpus tells you immediately whether it is better
+  *on your voice*;
+- **compare a remote model** against the local one on identical audio, and
+  measure what the round trip actually buys;
+- **tune the lexicon** by measurement rather than intuition — the repository's
+  rule is that a term only enters if another leaves, and now that trade can be
+  evidenced;
+- **fine-tune** on your own recordings, with paired text already aligned.
+
+One honest caveat, so comparisons are not rigged: `textApple` comes from the
+streaming preview, which runs with `fastResults` — quicker, and slightly less
+accurate than the same engine given the whole file. To compare fairly, re-run
+it offline on the retained audio.
+
 ## Roadmap
 
 - [x] **J0** — validate CrisperWhisper on real French/English developer speech
@@ -272,7 +391,9 @@ as personal data, and skips without it.
 - [x] **J2** — persistent engine service (4–5× faster than reference pipeline)
 - [x] **J3** — Swift app: global hotkey, capture, inject at caret
 - [x] **J4** — VAD (no inference on silence) and anti-hallucination guards
-- [ ] **J5** — Core ML / Neural Engine backend
+- [x] **J5** — control bar, note memory, live preview, corpus collection
+- [ ] **J6** — Core ML / Neural Engine backend
+- [ ] **J7** — offline Apple pass on retained audio, for a fair engine comparison
 
 ### Engine comparison
 
