@@ -58,6 +58,28 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
         self.onFailure = onFailure
     }
 
+    /// Réserve la locale auprès du système, une fois pour toutes.
+    ///
+    /// Sans réservation la reconnaissance décroche en cours de route : le
+    /// framework le tolère en apparence mais journalise « Cannot use modules
+    /// with unallocated locales […] This will be an error in a future
+    /// release ». Constaté dans le corpus — sur une dictée de 200 s, le texte
+    /// s'arrêtait à 155 caractères, et deux autres longues ressortaient vides,
+    /// pendant que les courtes passaient. Panne invisible à l'usage.
+    ///
+    /// Le nombre de réservations est plafonné par le système
+    /// (`maximumReservedLocales`) : on libère les autres avant de prendre
+    /// celle qu'on veut.
+    static func reserve(_ locale: Locale) async throws {
+        let reserved = await AssetInventory.reservedLocales
+        guard !reserved.contains(where: { $0.identifier == locale.identifier }) else { return }
+        for previous in reserved {
+            _ = await AssetInventory.release(reservedLocale: previous)
+        }
+        let granted = try await AssetInventory.reserve(locale: locale)
+        NSLog("sofler: locale %@ réservée : %@", locale.identifier, granted ? "oui" : "non")
+    }
+
     func start(language: String) async {
         guard SpeechTranscriber.isAvailable else {
             await report("aperçu indisponible sur cette machine")
@@ -103,28 +125,7 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
                     try await request.downloadAndInstall()
                 }
             }
-            // Réserver la locale, sans quoi la reconnaissance décroche.
-            //
-            // Le framework le tolère en apparence, mais journalise « Cannot
-            // use modules with unallocated locales […] This will be an error
-            // in a future release ». Constaté dans le corpus : sur une dictée
-            // de 200 s, le texte d'Apple s'arrêtait à 155 caractères contre
-            // 2 995 pour CrisperWhisper, et deux autres dictées longues
-            // ressortaient vides. Les courtes passaient, ce qui rendait la
-            // panne invisible à l'usage.
-            //
-            // Le nombre de réservations est plafonné par le système
-            // (`maximumReservedLocales`) : on ne réserve donc que si ce n'est
-            // pas déjà fait, et jamais plus d'une à la fois.
-            let reserved = await AssetInventory.reservedLocales
-            if !reserved.contains(where: { $0.identifier == locale.identifier }) {
-                for previous in reserved {
-                    _ = await AssetInventory.release(reservedLocale: previous)
-                }
-                let granted = try await AssetInventory.reserve(locale: locale)
-                NSLog("sofler: locale d'aperçu %@ réservée : %@",
-                      locale.identifier, granted ? "oui" : "non")
-            }
+            try await Self.reserve(locale)
 
             guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(
                 compatibleWith: [transcriber]) else {

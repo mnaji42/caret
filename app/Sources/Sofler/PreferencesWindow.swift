@@ -26,7 +26,8 @@ final class PreferencesWindowController {
         let window = NSWindow(contentViewController: hosting)
         window.title = "Réglages de Sofler"
         window.styleMask = [.titled, .closable]
-        window.setContentSize(NSSize(width: 500, height: 640))
+        // La taille vient de la vue : les onglets la fixent eux-mêmes.
+        window.setContentSize(NSSize(width: 520, height: 600))
         window.center()
         window.isReleasedWhenClosed = false
         self.window = window
@@ -41,16 +42,115 @@ final class PreferencesWindowController {
 /// Le menu de la barre reste volontairement court — il sert aux gestes du
 /// quotidien, pas à la configuration. Un réglage qui n'existe que dans un menu
 /// déroulant est introuvable dès qu'on ne se souvient plus de son nom.
+/// Tous les réglages, en onglets.
+///
+/// Le menu de la barre reste volontairement court — il sert aux gestes du
+/// quotidien. Ici on regroupe par question posée : *avec quoi je transcris*,
+/// *comment je déclenche*, *ce que je garde*. Une seule liste déroulante de
+/// quinze réglages obligeait à tout parcourir pour en trouver un.
 private struct PreferencesView: View {
     let history: TranscriptionHistory
+
+    var body: some View {
+        TabView {
+            EngineTab().tabItem { Label("Moteur", systemImage: "waveform") }
+            DictationTab().tabItem { Label("Dictée", systemImage: "mic") }
+            CollectionTab().tabItem { Label("Collecte", systemImage: "tray.full") }
+            HistoryTab(history: history)
+                .tabItem { Label("Historique", systemImage: "clock") }
+        }
+        .frame(width: 520, height: 560)
+    }
+}
+
+// MARK: - Moteur
+
+private struct EngineTab: View {
     @State private var prefs = Preferences.shared
-    @State private var entries: [TranscriptionHistory.Entry] = []
-    @State private var justCopied: UUID?
-    @State private var lexiconText: String = ""
+    @State private var localReady = false
+    @State private var localName = "—"
+
+    var body: some View {
+        Form {
+            Section("Moteur de transcription") {
+                Picker("Écrire avec", selection: $prefs.engine) {
+                    ForEach(EngineChoice.allCases, id: \.self) { choice in
+                        Text(choice.label).tag(choice)
+                    }
+                }
+                .pickerStyle(.radioGroup)
+
+                Text(prefs.engine.explanation)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if prefs.engine == .crisperWhisper {
+                    LabeledContent("Service") {
+                        Text(localReady ? localName : "hors ligne")
+                            .foregroundStyle(localReady ? Color.primary : Color.red)
+                    }
+                    if !localReady {
+                        Text("Le modèle n'est pas installé ou le service ne "
+                             + "tourne pas. Lancez `scripts/setup.sh` une fois ; "
+                             + "Sofler démarre et arrête ensuite le service tout seul.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Section("Vocabulaire technique") {
+                if !prefs.engine.honoursLexicon {
+                    Text("Le moteur de macOS ne tient pas compte d'un "
+                         + "vocabulaire : mesuré sur de vrais enregistrements, "
+                         + "lui fournir la liste ne change pas sa sortie. Ces "
+                         + "réglages ne s'appliquent qu'à CrisperWhisper.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+                LexiconEditor(prefs: $prefs)
+            }
+        }
+        .formStyle(.grouped)
+        .task {
+            let engine = SocketSpeechEngine()
+            localReady = await engine.isReady()
+            localName = await engine.displayName
+        }
+    }
+}
+
+private struct LexiconEditor: View {
+    @Binding var prefs: Preferences
+    @State private var text = ""
+
+    var body: some View {
+        Toggle("Utiliser la liste intégrée", isOn: $prefs.useDefaultLexicon)
+        if !prefs.useDefaultLexicon {
+            TextEditor(text: $text)
+                .font(.system(.body, design: .monospaced))
+                .frame(minHeight: 140)
+                .border(Color.secondary.opacity(0.3))
+                .onChange(of: text) { _, new in
+                    prefs.lexicon = new.split(separator: "\n")
+                        .map { $0.trimmingCharacters(in: .whitespaces) }
+                        .filter { !$0.isEmpty }
+                }
+            Text("Un terme par ligne. Gardez la liste courte : plus elle est "
+                 + "longue, plus le modèle risque d'y piocher un mot sur un "
+                 + "passage où vous n'avez rien dit.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+// MARK: - Dictée
+
+private struct DictationTab: View {
+    @State private var prefs = Preferences.shared
     @State private var soundsEnabled = Feedback.soundsEnabled
-    @State private var corpusStats = Corpus.Statistics()
     @State private var noteFile: URL? = Preferences.shared.noteFile
-    @State private var engineName = "recherche du moteur…"
 
     var body: some View {
         Form {
@@ -62,8 +162,9 @@ private struct PreferencesView: View {
                 }
                 .disabled(!prefs.triggerEnabled)
                 Text("Option reste utilisable normalement : le déclenchement "
-                     + "n'a lieu que si aucune autre touche n'est pressée entre-temps. "
-                     + "\(HotkeyMonitor.Shortcut.dictate.label) fonctionne toujours.")
+                     + "n'a lieu que si aucune autre touche n'est pressée "
+                     + "entre-temps. \(HotkeyMonitor.Shortcut.dictate.label) "
+                     + "fonctionne toujours, et ne demande pas l'Accessibilité.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -73,26 +174,18 @@ private struct PreferencesView: View {
                     Text("Texte nettoyé").tag(TranscriptionMode.intended)
                     Text("Mot à mot").tag(TranscriptionMode.verbatim)
                 }
+                .disabled(!prefs.engine.hasModes)
                 Picker("Langue", selection: $prefs.language) {
                     ForEach(Preferences.languages, id: \.0) { code, name in
                         Text(name).tag(code)
                     }
                 }
-                Text("« Texte nettoyé » écrit les nombres en chiffres — « 500 » "
-                     + "et non « cinq cents ».")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("Aperçu en direct") {
-                Toggle("Afficher ce qui est entendu pendant la dictée",
-                       isOn: $prefs.livePreviewEnabled)
-                Text("Reconnaissance en flux par le moteur de macOS, affichée "
-                     + "sous la barre. Indicative : elle n'utilise pas votre "
-                     + "vocabulaire technique, donc le texte inséré ne sera pas "
-                     + "exactement celui affiché.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if !prefs.engine.hasModes {
+                    Text("Le moteur de macOS n'a qu'un rendu : le choix du mode "
+                         + "ne s'applique qu'à CrisperWhisper.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section("Notes") {
@@ -108,43 +201,99 @@ private struct PreferencesView: View {
                         }
                     }
                     if let url = noteFile {
-                        Button("Afficher dans le Finder") {
+                        Button("Afficher") {
                             NSWorkspace.shared.activateFileViewerSelecting([url])
                         }
-                        Button("Oublier") {
-                            prefs.noteFile = nil
-                            noteFile = nil
-                        }
+                        Button("Oublier") { prefs.noteFile = nil; noteFile = nil }
                     }
                 }
-                Text("Le bouton « Notes » de la barre écrit dans ce fichier. Il "
-                     + "reste mémorisé quand vous revenez au curseur, donc y "
-                     + "retourner ne coûte qu'un clic — même en pleine dictée.")
+                Text("Le bouton « Notes » de la barre écrit dans ce fichier, et "
+                     + "il reste mémorisé quand vous revenez au curseur.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
+            Section("Retour") {
+                Toggle("Aperçu en direct dans la barre", isOn: $prefs.livePreviewEnabled)
+                Toggle("Sons de début et de fin", isOn: $soundsEnabled)
+                    .onChange(of: soundsEnabled) { _, new in Feedback.soundsEnabled = new }
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear { noteFile = prefs.noteFile }
+    }
+}
+
+// MARK: - Collecte
+
+private struct CollectionTab: View {
+    @State private var prefs = Preferences.shared
+    @State private var stats = Corpus.Statistics()
+
+    var body: some View {
+        Form {
             Section("Collecte") {
                 Toggle("Archiver les dictées pour comparer les moteurs",
                        isOn: $prefs.corpusEnabled)
                 Toggle("Conserver aussi l'audio", isOn: $prefs.corpusKeepsAudio)
                     .disabled(!prefs.corpusEnabled)
-                LabeledContent("État") { Text(corpusStats.summary) }
-                HStack {
-                    Button("Afficher dans le Finder") { Corpus.shared.reveal() }
-                    Button("Tout effacer") {
-                        Corpus.shared.clear()
-                        corpusStats = Corpus.shared.statistics()
-                    }
-                    .disabled(corpusStats.count == 0)
-                }
-                Text("Chaque dictée devient une ligne JSON avec les trois "
-                     + "transcriptions issues du même audio. L'audio coûte "
-                     + "environ 2 Mo la minute, d'où la case séparée.")
+                Text("L'audio coûte environ 2 Mo la minute, contre quelques "
+                     + "kilo-octets de texte — d'où la case séparée. Sans lui, "
+                     + "impossible de rejouer une dictée pour arbitrer un "
+                     + "désaccord entre moteurs.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
+            Section("Transcrire aussi avec") {
+                ForEach(EngineChoice.allCases, id: \.self) { choice in
+                    Toggle(choice.label, isOn: Binding(
+                        get: { prefs.corpusEngines.contains(choice) },
+                        set: { on in
+                            if on { prefs.corpusEngines.insert(choice) }
+                            else { prefs.corpusEngines.remove(choice) }
+                        }))
+                    .disabled(!prefs.corpusEnabled || choice == prefs.engine)
+                }
+                Text("En plus du moteur qui écrit, et **après** insertion : "
+                     + "la latence de dictée n'est jamais échangée contre de "
+                     + "la collecte. Un moteur non coché n'est jamais chargé.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if prefs.needsLocalEngine {
+                    Label("Le service CrisperWhisper tourne — environ 3 Go en mémoire.",
+                          systemImage: "memorychip")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("Corpus") {
+                LabeledContent("État") { Text(stats.summary) }
+                HStack {
+                    Button("Afficher dans le Finder") { Corpus.shared.reveal() }
+                    Button("Tout effacer") {
+                        Corpus.shared.clear()
+                        stats = Corpus.shared.statistics()
+                    }
+                    .disabled(stats.count == 0)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear { stats = Corpus.shared.statistics() }
+    }
+}
+
+// MARK: - Historique
+
+private struct HistoryTab: View {
+    let history: TranscriptionHistory
+    @State private var entries: [TranscriptionHistory.Entry] = []
+    @State private var justCopied: UUID?
+
+    var body: some View {
+        Form {
             Section("Transcriptions récentes") {
                 Toggle("Conserver l'historique", isOn: Binding(
                     get: { history.isEnabled },
@@ -171,8 +320,7 @@ private struct PreferencesView: View {
                                 .foregroundStyle(.secondary)
                             Button {
                                 NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(entry.text,
-                                                               forType: .string)
+                                NSPasteboard.general.setString(entry.text, forType: .string)
                                 justCopied = entry.id
                             } label: {
                                 Image(systemName: justCopied == entry.id
@@ -192,48 +340,8 @@ private struct PreferencesView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            Section("Moteur") {
-                LabeledContent("Modèle") { Text(engineName) }
-            }
-
-            Section("Retour") {
-                Toggle("Sons de début et de fin", isOn: $soundsEnabled)
-                    .onChange(of: soundsEnabled) { _, new in
-                        Feedback.soundsEnabled = new
-                    }
-            }
-
-            Section("Vocabulaire technique") {
-                Toggle("Utiliser la liste intégrée", isOn: $prefs.useDefaultLexicon)
-                if !prefs.useDefaultLexicon {
-                    TextEditor(text: $lexiconText)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(minHeight: 150)
-                        .border(Color.secondary.opacity(0.3))
-                        .onChange(of: lexiconText) { _, new in
-                            prefs.lexicon = new
-                                .split(separator: "\n")
-                                .map { $0.trimmingCharacters(in: .whitespaces) }
-                                .filter { !$0.isEmpty }
-                        }
-                    Text("Un terme par ligne. Ces mots sont privilégiés au "
-                         + "décodage : c'est ce qui fait sortir « useEffect » plutôt "
-                         + "que « use effect ». Gardez la liste courte — plus elle "
-                         + "est longue, plus le modèle risque d'y piocher un mot sur "
-                         + "un passage où vous n'avez rien dit.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
         }
         .formStyle(.grouped)
-        .onAppear {
-            lexiconText = prefs.lexicon.joined(separator: "\n")
-            corpusStats = Corpus.shared.statistics()
-            noteFile = prefs.noteFile
-            entries = history.entries
-        }
-        .task { engineName = await SocketSpeechEngine().displayName }
+        .onAppear { entries = history.entries }
     }
 }

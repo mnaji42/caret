@@ -43,7 +43,11 @@ final class DictationController {
     /// Fichier des notes, mémorisé même quand on écrit au curseur.
     var noteFile: URL? { Preferences.shared.noteFile }
 
-    private let engine: any SpeechEngine
+    /// Le service local. Toujours construit, jamais contacté tant qu'il n'est
+    /// pas choisi — c'est `EngineService` qui décide s'il tourne.
+    private let localEngine: any SpeechEngine
+    /// Le moteur système, absent avant macOS 26.
+    private let systemEngine: (any SpeechEngine)?
     private let recorder = AudioRecorder()
     private let injector = TextInjector()
     private let overlay = RecordingOverlay()
@@ -60,10 +64,6 @@ final class DictationController {
     /// jamais retarder une nouvelle dictée.
     private var secondPassTask: Task<Void, Never>?
 
-    /// Dernière identité connue du moteur, pour ne pas la redemander à chaque
-    /// dictée — elle ne change qu'au redémarrage du service.
-    private var lastIdentity: EngineIdentity?
-
     let history = TranscriptionHistory()
 
     /// Audio d'une dictée dont la transcription a échoué. Conservé en mémoire
@@ -71,8 +71,26 @@ final class DictationController {
     /// insertion réussit ou que l'utilisateur y renonce.
     private var pendingAudio: [Float]?
 
+    /// Moteur qui écrit réellement, selon le réglage — avec repli sur celui
+    /// qui existe si l'autre est indisponible.
+    private var writer: any SpeechEngine {
+        engine(for: Preferences.shared.engine) ?? localEngine
+    }
+
+    private func engine(for choice: EngineChoice) -> (any SpeechEngine)? {
+        switch choice {
+        case .apple: systemEngine
+        case .crisperWhisper: localEngine
+        }
+    }
+
     init(engine: any SpeechEngine) {
-        self.engine = engine
+        self.localEngine = engine
+        if #available(macOS 26.0, *) {
+            self.systemEngine = AppleSpeechEngine()
+        } else {
+            self.systemEngine = nil
+        }
         overlay.levelProvider = { [weak self] in self?.recorder.level ?? 0 }
         overlay.onCancel = { [weak self] in self?.cancel() }
         overlay.onSelectMode = { [weak self] mode in
@@ -224,7 +242,7 @@ final class DictationController {
         state = .processing
         let used = mode
         do {
-            let result = try await engine.transcribe(
+            let result = try await writer.transcribe(
                 TranscriptionRequest(samples: samples, mode: used,
                                      language: language, lexicon: lexicon))
 
@@ -329,90 +347,107 @@ final class DictationController {
 
     // MARK: - Collecte
 
-    /// Archive la dictée, puis la complète avec le mode non utilisé.
+    /// Archive la dictée, puis la complète avec les autres moteurs demandés.
     ///
-    /// Le texte d'Apple ne coûte rien : il a été produit pendant que
-    /// l'utilisateur parlait, et il était jusqu'ici jeté. Seul le second mode
-    /// de CrisperWhisper demande une passe supplémentaire.
+    /// Le texte du moteur système est gratuit quand l'aperçu tournait : il a
+    /// été produit pendant que l'utilisateur parlait. Tout le reste demande
+    /// une passe supplémentaire, lancée **après** insertion.
     private func collect(samples: [Float], primary: TranscriptionResult,
                          mode used: TranscriptionMode) {
-        guard Preferences.shared.corpusEnabled else { return }
+        let prefs = Preferences.shared
+        guard prefs.corpusEnabled else { return }
 
         let id = Corpus.makeIdentifier()
-        let engine = self.engine
+        let choice = prefs.engine
         var entry = CorpusEntry(
             id: id,
             date: Date(),
             durationSeconds: Double(samples.count) / AudioRecorder.targetSampleRate,
             language: language,
-            modeUsed: used.rawValue,
             destination: target.isLocked ? "notes" : "curseur",
-            lexicon: lexicon)
-        entry.engineUsed = lastIdentity?.engine ?? "crisperwhisper"
-        entry.modelUsed = lastIdentity?.model
-        record(primary.text, latency: primary.latency.wallMs, mode: used, in: &entry)
+            lexicon: choice.honoursLexicon ? lexicon : nil,
+            transcriptions: [])
 
-        if Preferences.shared.corpusKeepsAudio {
+        if prefs.corpusKeepsAudio {
             entry.audioFile = Corpus.shared.writeAudio(samples, id: id)
         }
 
-        let other: TranscriptionMode = used == .intended ? .verbatim : .intended
+        let pending = prefs.enginesToCollect().subtracting([choice])
         secondPassTask = Task { [weak self] in
-            await self?.completeAndArchive(entry, samples: samples, mode: other)
+            await self?.completeAndArchive(entry, samples: samples,
+                                           primary: primary, insertedMode: used,
+                                           writer: choice, pending: pending)
         }
     }
 
-    private func record(_ text: String, latency: Double,
-                        mode: TranscriptionMode, in entry: inout CorpusEntry) {
-        switch mode {
-        case .intended:
-            entry.textIntended = text
-            entry.latencyIntendedMs = latency
-        case .verbatim:
-            entry.textVerbatim = text
-            entry.latencyVerbatimMs = latency
-        }
-    }
-
-    /// Transcrit le mode restant, puis écrit la ligne.
+    /// Complète l'archive avec ce qui manque, puis écrit la ligne.
     ///
-    /// Le moteur ne traite qu'une requête à la fois : cette passe doit donc
-    /// pouvoir renoncer. D'où le délai de grâce avant de l'engager — si
-    /// l'utilisateur réappuie aussitôt, on abandonne sans avoir occupé le
-    /// moteur, et la ligne est écrite quand même, marquée comme incomplète.
-    /// Une donnée manquante et signalée vaut mieux qu'une dictée qui attend.
+    /// Chaque moteur supplémentaire occupe la machine : ces passes sont donc
+    /// lancées après insertion, et abandonnées dès qu'une nouvelle dictée
+    /// démarre. Ce qui n'a pas été produit est **consigné** dans `skipped` —
+    /// une transcription manquante ne doit jamais être confondue avec un
+    /// moteur qu'on n'avait pas coché.
     private func completeAndArchive(_ entry: CorpusEntry, samples: [Float],
-                                    mode other: TranscriptionMode) async {
+                                    primary: TranscriptionResult,
+                                    insertedMode: TranscriptionMode,
+                                    writer choice: EngineChoice,
+                                    pending: Set<EngineChoice>) async {
         var entry = entry
-        // L'identité se demande au moteur, donc hors du chemin de la dictée.
-        let identity = await engine.identity
-        entry.engineUsed = identity.engine
-        entry.modelUsed = identity.model
-        lastIdentity = identity
+        let identity = await (engine(for: choice)?.identity
+                              ?? EngineIdentity(engine: choice.rawValue, model: nil))
 
-        try? await Task.sleep(for: .milliseconds(400))
+        entry.transcriptions.append(CorpusTranscription(
+            engine: identity.engine, model: identity.model,
+            mode: choice.hasModes ? insertedMode.rawValue : nil,
+            text: primary.text, latencyMs: primary.latency.wallMs, inserted: true))
 
-        if Task.isCancelled || state != .idle {
-            entry.secondPassSkipped = true
-        } else {
+        // Le second mode du moteur qui vient d'écrire, quand il en a deux.
+        var remaining: [(EngineChoice, TranscriptionMode?)] = []
+        if choice.hasModes {
+            let other: TranscriptionMode = insertedMode == .intended ? .verbatim : .intended
+            remaining.append((choice, other))
+        }
+        for engine in pending.sorted(by: { $0.rawValue < $1.rawValue }) {
+            remaining.append((engine, engine.hasModes ? .intended : nil))
+        }
+
+        // L'aperçu a déjà transcrit avec le moteur système : on ne le refait
+        // pas tourner pour rien.
+        if !applePreviewText.isEmpty,
+           let index = remaining.firstIndex(where: { $0.0 == .apple }) {
+            entry.transcriptions.append(CorpusTranscription(
+                engine: "apple", model: nil, mode: nil,
+                text: applePreviewText, latencyMs: nil, inserted: false))
+            remaining.remove(at: index)
+        }
+
+        for (choice, mode) in remaining {
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled, state == .idle else {
+                entry.skipped.append("\(choice.rawValue): dictée enchaînée")
+                continue
+            }
+            guard let engine = engine(for: choice) else {
+                entry.skipped.append("\(choice.rawValue): indisponible")
+                continue
+            }
             do {
-                let result = try await engine.transcribe(
-                    TranscriptionRequest(samples: samples, mode: other,
-                                         language: entry.language,
-                                         lexicon: entry.lexicon))
-                record(result.text, latency: result.latency.wallMs,
-                       mode: other, in: &entry)
+                let result = try await engine.transcribe(TranscriptionRequest(
+                    samples: samples, mode: mode ?? .intended,
+                    language: entry.language,
+                    lexicon: choice.honoursLexicon ? entry.lexicon : nil))
+                let identity = await engine.identity
+                entry.transcriptions.append(CorpusTranscription(
+                    engine: identity.engine, model: identity.model,
+                    mode: mode?.rawValue, text: result.text,
+                    latencyMs: result.latency.wallMs, inserted: false))
             } catch {
-                NSLog("sofler: corpus — seconde passe échouée : %@",
+                NSLog("sofler: corpus — %@ a échoué : %@", choice.rawValue,
                       error.localizedDescription)
-                entry.secondPassSkipped = true
+                entry.skipped.append("\(choice.rawValue): \(error.localizedDescription)")
             }
         }
 
-        // Relu ici et pas à la création : le moteur de macOS finalise son
-        // texte juste après l'arrêt du micro, donc quelques centaines de
-        // millisecondes après que l'insertion a eu lieu.
-        if !applePreviewText.isEmpty { entry.textApple = applePreviewText }
         Corpus.shared.append(entry)
     }
 

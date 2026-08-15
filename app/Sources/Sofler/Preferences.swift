@@ -22,6 +22,8 @@ final class Preferences {
         static let livePreview = "sofler.preview.live"
         static let corpus = "sofler.corpus.enabled"
         static let corpusAudio = "sofler.corpus.audio"
+        static let engine = "sofler.engine"
+        static let corpusEngines = "sofler.corpus.engines"
     }
 
     private let defaults = UserDefaults.standard
@@ -99,6 +101,46 @@ final class Preferences {
         didSet { defaults.set(livePreviewEnabled, forKey: Key.livePreview) }
     }
 
+    // MARK: - Moteur
+
+    /// Moteur qui écrit réellement le texte inséré.
+    ///
+    /// Apple par défaut : il est inclus dans le système, sans téléchargement
+    /// ni licence à accepter, et il transcrit pendant qu'on parle. Il ne sait
+    /// pas écrire `useEffect` — c'est mesuré — donc l'utilisateur qui dicte du
+    /// code choisira CrisperWhisper en connaissance de cause.
+    var engine: EngineChoice {
+        didSet {
+            defaults.set(engine.rawValue, forKey: Key.engine)
+            EngineService.reconcile(needed: needsLocalEngine)
+        }
+    }
+
+    /// Moteurs à faire tourner **en plus** pour la collecte, après insertion.
+    ///
+    /// C'est ce qui permet de comparer sans changer d'outil : on dicte avec
+    /// Apple, on archive aussi ce qu'aurait écrit CrisperWhisper.
+    var corpusEngines: Set<EngineChoice> {
+        didSet {
+            defaults.set(corpusEngines.map(\.rawValue), forKey: Key.corpusEngines)
+            EngineService.reconcile(needed: needsLocalEngine)
+        }
+    }
+
+    /// Le service local doit-il tourner ? Un modèle de 3 Go ne reste pas
+    /// chargé « au cas où » : il faut qu'il écrive, ou qu'il soit coché dans
+    /// une collecte réellement active.
+    var needsLocalEngine: Bool {
+        if engine == .crisperWhisper { return true }
+        return corpusEnabled && corpusEngines.contains(.crisperWhisper)
+    }
+
+    /// Moteurs qui produiront une transcription pour cette dictée.
+    func enginesToCollect() -> Set<EngineChoice> {
+        guard corpusEnabled else { return [engine] }
+        return corpusEngines.union([engine])
+    }
+
     // MARK: - Collecte
 
     /// Archive chaque dictée avec les textes des trois moteurs.
@@ -106,7 +148,10 @@ final class Preferences {
     /// Coûte une seconde passe du moteur par dictée, lancée après insertion et
     /// abandonnée si on réenchaîne — la latence de dictée ne se négocie pas.
     var corpusEnabled: Bool {
-        didSet { defaults.set(corpusEnabled, forKey: Key.corpus) }
+        didSet {
+            defaults.set(corpusEnabled, forKey: Key.corpus)
+            EngineService.reconcile(needed: needsLocalEngine)
+        }
     }
 
     /// Conserve aussi l'audio. Séparé de la collecte parce que le coût en
@@ -133,6 +178,14 @@ final class Preferences {
         livePreviewEnabled = defaults.object(forKey: Key.livePreview) as? Bool ?? true
         corpusEnabled = defaults.bool(forKey: Key.corpus)
         corpusKeepsAudio = defaults.bool(forKey: Key.corpusAudio)
+        // Apple par défaut : inclus dans le système, aucun téléchargement,
+        // aucune licence à accepter, et rien ne réside en mémoire. Une
+        // installation neuve ne charge donc aucun modèle tant que
+        // l'utilisateur n'a pas explicitement choisi le contraire.
+        engine = EngineChoice(rawValue: defaults.string(forKey: Key.engine) ?? "")
+            ?? .apple
+        corpusEngines = Set((defaults.stringArray(forKey: Key.corpusEngines) ?? [])
+            .compactMap(EngineChoice.init(rawValue:)))
     }
 
     /// Point de départ quand l'utilisateur passe à sa propre liste : le même

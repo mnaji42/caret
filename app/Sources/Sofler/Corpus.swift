@@ -1,44 +1,51 @@
 import AVFoundation
 import AppKit
 
+/// Une transcription, quel que soit le moteur qui l'a produite.
+///
+/// Toutes les transcriptions d'une même dictée viennent du **même** audio :
+/// c'est ce qui rend la comparaison honnête.
+struct CorpusTranscription: Codable {
+    /// Famille du moteur : `apple`, `crisperwhisper`, `whisper`…
+    var engine: String
+    /// Modèle précis quand il y en a un ; la locale pour un moteur système.
+    var model: String?
+    /// `intended`, `verbatim`, ou absent quand le moteur n'a qu'un rendu.
+    var mode: String?
+    var text: String
+    /// Temps mur du moteur. Absent pour un texte capté en flux pendant la
+    /// dictée, où la notion n'a pas de sens.
+    var latencyMs: Double?
+    /// Vrai pour celle qui a été réellement insérée chez l'utilisateur.
+    var inserted: Bool
+}
+
 /// Une dictée, telle qu'archivée pour comparer les moteurs.
 ///
-/// Les trois textes sont produits à partir du **même** audio : c'est ce qui
-/// rend la comparaison honnête. Un champ absent signifie que le texte n'a pas
-/// pu être obtenu, jamais qu'il était vide — un texte vide est enregistré tel
-/// quel, et c'est une information en soi.
+/// La liste est ouverte : on peut en ajouter un quatrième ou un cinquième sans
+/// toucher au format. La version précédente nommait un champ par moteur
+/// (`textIntended`, `textApple`), ce qui ne survivait pas au premier moteur
+/// supplémentaire — les entrées d'alors ont été converties.
 struct CorpusEntry: Codable {
     var id: String
     var date: Date
     var durationSeconds: Double
     var language: String
-    /// Moteur qui a produit le texte réellement inséré, et son modèle.
-    ///
-    /// Indispensable dès lors que le moteur est interchangeable : sans ça,
-    /// comparer deux lignes du corpus revient à comparer deux inconnues. Les
-    /// entrées antérieures à ce champ ont été complétées à la main — elles
-    /// sont toutes de CrisperWhisper turbo, seul moteur disponible alors.
-    var engineUsed: String = "crisperwhisper"
-    var modelUsed: String?
-    /// Mode réellement inséré ce jour-là — l'autre a été transcrit après coup.
-    var modeUsed: String
     var destination: String
-    /// Lexique envoyé au moteur ; `nil` signifie « celui du moteur ».
+    /// Lexique envoyé aux moteurs qui en acceptent un ; `nil` = celui du moteur.
     var lexicon: [String]?
-
-    var textIntended: String?
-    var textVerbatim: String?
-    /// Moteur de macOS, capté pendant la dictée par l'aperçu en direct.
-    var textApple: String?
-
-    var latencyIntendedMs: Double?
-    var latencyVerbatimMs: Double?
+    var transcriptions: [CorpusTranscription]
+    /// Ce qui était demandé mais n'a pas été produit, et pourquoi. Sans cette
+    /// trace, une transcription manquante serait indistinguable d'un moteur
+    /// qu'on n'avait pas coché.
+    var skipped: [String] = []
     /// Nom du fichier dans `audio/`, si l'option est active.
     var audioFile: String?
-    /// Vrai quand la seconde passe a été abandonnée pour ne pas retarder une
-    /// nouvelle dictée. Sans ce drapeau, un `textVerbatim` manquant serait
-    /// indistinguable d'un échec du moteur.
-    var secondPassSkipped = false
+
+    /// Ce qui a été inséré chez l'utilisateur.
+    var insertedTranscription: CorpusTranscription? {
+        transcriptions.first { $0.inserted }
+    }
 }
 
 /// Archive locale des dictées, pour mesurer les moteurs sur de la vraie voix.
@@ -200,10 +207,9 @@ final class Corpus {
                                                   from: Data(line.utf8)) else { continue }
             stats.count += 1
             stats.totalSeconds += entry.durationSeconds
-            if entry.textApple?.isEmpty == false { stats.withApple += 1 }
-            if entry.textIntended != nil && entry.textVerbatim != nil {
-                stats.withBothEngines += 1
-            }
+            let moteurs = Set(entry.transcriptions.map(\.engine))
+            if moteurs.contains("apple") { stats.withApple += 1 }
+            if moteurs.count > 1 { stats.withBothEngines += 1 }
             if entry.audioFile != nil { stats.audioFiles += 1 }
         }
         stats.bytes = directorySize()
@@ -254,16 +260,16 @@ final class Corpus {
     | `date` | ISO 8601 |
     | `durationSeconds` | durée de parole captée |
     | `language` | langue demandée au moteur |
-    | `engineUsed`, `modelUsed` | moteur et modèle ayant produit le texte inséré |
-    | `modeUsed` | mode réellement inséré ce jour-là |
     | `destination` | `curseur` ou `notes` |
-    | `lexicon` | termes envoyés au moteur, absent si celui du moteur |
-    | `textIntended` | CrisperWhisper, mode texte nettoyé |
-    | `textVerbatim` | CrisperWhisper, mode mot à mot |
-    | `textApple` | moteur de macOS (SpeechTranscriber), capté en direct |
-    | `latencyIntendedMs`, `latencyVerbatimMs` | temps mur du moteur |
+    | `lexicon` | termes envoyés aux moteurs, absent si celui du moteur |
+    | `transcriptions[]` | une entrée par moteur et par mode |
+    | `transcriptions[].engine` | `apple`, `crisperwhisper`, … |
+    | `transcriptions[].model` | modèle précis, ou locale pour un moteur système |
+    | `transcriptions[].mode` | `intended`, `verbatim`, absent si le moteur n'en a qu'un |
+    | `transcriptions[].inserted` | celle qui a été réellement insérée |
+    | `transcriptions[].latencyMs` | temps mur, absent pour un texte capté en flux |
+    | `skipped[]` | moteurs demandés mais non exécutés, avec la raison |
     | `audioFile` | nom dans `audio/`, absent si l'audio n'est pas conservé |
-    | `secondPassSkipped` | la seconde passe a été abandonnée (dictée enchaînée) |
 
     Les trois textes viennent du **même** audio. `textApple` est celui de
     l'aperçu en direct : il est produit en flux pendant la dictée, avec

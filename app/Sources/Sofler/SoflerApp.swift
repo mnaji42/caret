@@ -22,6 +22,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         render(.idle)
 
         let prefs = Preferences.shared
+        // Un modèle de 3 Go ne reste pas chargé « au cas où » : le service
+        // local ne tourne que s'il écrit ou s'il est coché dans une collecte
+        // active. Réconcilié au lancement, puis à chaque changement.
+        EngineService.reconcile(needed: prefs.needsLocalEngine)
         controller.mode = prefs.defaultMode
         controller.language = prefs.language
         controller.lexicon = prefs.effectiveLexicon
@@ -303,6 +307,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Reporte les réglages sur les composants déjà en place.
     private func applyPreferences() {
         let prefs = Preferences.shared
+        // Un modèle de 3 Go ne reste pas chargé « au cas où » : le service
+        // local ne tourne que s'il écrit ou s'il est coché dans une collecte
+        // active. Réconcilié au lancement, puis à chaque changement.
+        EngineService.reconcile(needed: prefs.needsLocalEngine)
         controller.mode = prefs.defaultMode
         controller.language = prefs.language
         controller.lexicon = prefs.effectiveLexicon
