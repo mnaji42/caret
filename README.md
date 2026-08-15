@@ -463,17 +463,51 @@ A build that is not exactly on a clean tag marks itself as a development build:
 it reports as such in Settings and never offers updates, since a working copy
 is nearly always ahead of the last release.
 
-Two optional repository secrets control signing. Without them the workflow
-still produces a DMG, ad-hoc signed, and warns:
+### Signing, and why ad-hoc is not good enough
+
+Without a certificate the workflow still produces a DMG, ad-hoc signed. It
+installs and runs — but the bundle's designated requirement becomes the
+binary's own hash:
+
+```
+designated => cdhash H"f82cc3b2…"
+```
+
+That changes with every build, so macOS sees each release as a *different*
+application and revokes Accessibility. **Every user re-grants every
+permission on every update.**
+
+A stable certificate fixes it, and needs no Apple account:
+
+```bash
+./scripts/make-signing-cert.sh
+```
+
+It creates a self-signed distribution certificate, imports it so local builds
+share the identity, and writes the two secret values to `dist/signing/` — to
+files rather than the terminal, since anything printed there ends up in a
+history or a screenshot. Paste them into GitHub → Settings → Secrets and
+variables → Actions:
 
 | Secret | Contents |
 |---|---|
-| `SIGNING_CERTIFICATE_P12` | the signing certificate, base64-encoded |
+| `SIGNING_CERTIFICATE_P12` | the certificate, base64-encoded |
 | `SIGNING_CERTIFICATE_PASSWORD` | its password |
 
-The day an Apple Developer ID exists, it goes in those same two secrets, and
-notarization is two commands added to the workflow — `notarytool submit` then
-`stapler staple`.
+The requirement then becomes identity-based and survives rebuilds:
+
+```
+designated => identifier "fr.lyriastudio.sofler" and certificate leaf = H"…"
+```
+
+Keep that certificate. Replacing it later breaks Accessibility for everyone
+who already installed Sofler.
+
+This is **not** notarization. Gatekeeper will still refuse the first launch
+and send people through System Settings; that is a separate problem and it
+needs the paid Apple Developer Program. The day a Developer ID exists it goes
+into those same two secrets, and notarization is two commands added to the
+workflow — `notarytool submit` then `stapler staple`.
 
 ---
 
