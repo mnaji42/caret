@@ -123,13 +123,24 @@ final class DictationController {
             refreshOverlay()
             onStateChange?(state)
         }
-        // La langue se change bien plus souvent que le mode — on s'en rend
-        // compte en basculant d'une phrase française à une phrase anglaise —
-        // d'où sa présence dans la barre. Comme le reste, elle est lue à la
-        // livraison : basculer en pleine dictée vaut pour la dictée en cours.
-        overlay.onSelectLanguage = { [weak self] code in
+        overlay.onToggleCorpus = { [weak self] in
             guard let self else { return }
-            Preferences.shared.language = code
+            Preferences.shared.corpusEnabled.toggle()
+            refreshOverlay()
+            onStateChange?(state)
+        }
+        // La collecte se coupe depuis la barre, pas seulement depuis le menu :
+        // c'est en dictant qu'on se rend compte qu'on ne veut pas archiver
+        // ce qu'on est en train de dire.
+        overlay.onToggleCorpus = { [weak self] in
+            guard let self else { return }
+            Preferences.shared.corpusEnabled.toggle()
+            refreshOverlay()
+            onStateChange?(state)
+        }
+        overlay.onToggleCorpus = { [weak self] in
+            guard let self else { return }
+            Preferences.shared.corpusEnabled.toggle()
             refreshOverlay()
             onStateChange?(state)
         }
@@ -146,7 +157,6 @@ final class DictationController {
             canPickNote: state != .recording,
             previewEnabled: Preferences.shared.livePreviewEnabled,
             modesAvailable: Preferences.shared.engine.hasModes,
-            language: Preferences.shared.language,
             corpusEnabled: Preferences.shared.corpusEnabled,
             corpusKeepsAudio: Preferences.shared.corpusKeepsAudio)
     }

@@ -28,9 +28,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         EngineService.reconcile(needed: prefs.needsLocalEngine)
 
         // Déclencheur principal : Option pressée seule.
-        modifierKey = ModifierKeyMonitor(side: prefs.triggerSide) { [weak self] in
-            self?.controller.toggle()
-        }
+        modifierKey = ModifierKeyMonitor(
+            side: prefs.triggerSide,
+            onTrigger: { [weak self] in self?.controller.toggle() },
+            onHold: { [weak self] in self?.openSettingsFromHold() })
         if prefs.triggerEnabled, !modifierKey.start() {
             NSLog("sofler: tap clavier indisponible — accessibilité accordée ?")
         }
@@ -297,6 +298,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Option maintenue : on ouvre les réglages, et on renonce à la dictée en
+    /// cours s'il y en avait une.
+    ///
+    /// L'audio est jeté, rien n'est transcrit ni inséré : quelqu'un qui tient
+    /// la touche deux secondes ne demande pas qu'on écrive ce qu'il vient de
+    /// dire, il demande les réglages.
+    private func openSettingsFromHold() {
+        controller.cancel()
+        Log.info("Option maintenue — ouverture des réglages")
+        openPreferences()
+    }
+
     @objc private func openPreferences() {
         preferences.show(history: controller.history)
     }
@@ -313,9 +326,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // dans les préférences au moment de s'en servir. Reste le déclencheur,
         // dont le côté est fixé à la création du tap : il faut le reconstruire.
         modifierKey.stop()
-        modifierKey = ModifierKeyMonitor(side: prefs.triggerSide) { [weak self] in
-            self?.controller.toggle()
-        }
+        modifierKey = ModifierKeyMonitor(
+            side: prefs.triggerSide,
+            onTrigger: { [weak self] in self?.controller.toggle() },
+            onHold: { [weak self] in self?.openSettingsFromHold() })
         if prefs.triggerEnabled { modifierKey.start() }
 
         // Le raccourci Carbon est enregistré auprès du système : en changer

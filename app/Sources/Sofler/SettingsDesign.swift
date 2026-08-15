@@ -80,32 +80,46 @@ struct Note: View {
     }
 }
 
-/// Sélecteur en pastilles, la version SwiftUI de celui de la barre.
+/// Sélecteur en pastilles.
+///
+/// Les mesures viennent de `PillSelector`, celui de la barre flottante, et
+/// doivent le rester : c'est le même contrôle, sur deux surfaces. Il avait
+/// dérivé — rayons, hauteurs et graisses différents — et la version des
+/// réglages paraissait bâclée à côté de l'autre alors qu'elle prétendait être
+/// la même chose.
 struct PillPicker<Value: Hashable>: View {
     let options: [(value: Value, label: String)]
     @Binding var selection: Value
     var disabled = false
 
+    /// Identiques à PillSelector : conteneur de 32, marge de 4, segment de 24.
+    private static var height: CGFloat { 32 }
+    private static var inset: CGFloat { 4 }
+
     var body: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 2) {
             ForEach(options, id: \.value) { option in
                 let active = option.value == selection
                 Text(option.label)
                     .font(.system(size: 12, weight: active ? .semibold : .medium))
-                    .foregroundStyle(active ? Style.accent : Color.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                    .foregroundStyle(active
+                        ? Color(nsColor: NSColor.systemTeal
+                            .blended(withFraction: 0.25, of: .white) ?? .systemTeal)
+                        : Color.secondary)
+                    .padding(.horizontal, 10)
+                    .frame(height: Self.height - 2 * Self.inset)
                     .background(
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .fill(active ? Style.accent.opacity(0.20) : .clear))
                     .contentShape(Rectangle())
                     .onTapGesture { if !disabled { selection = option.value } }
             }
         }
-        .padding(3)
+        .padding(Self.inset)
+        .frame(height: Self.height)
         .background(
             Capsule().fill(Color.white.opacity(0.06))
-                .overlay(Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 1)))
+                .overlay(Capsule().strokeBorder(Color.white.opacity(0.06), lineWidth: 1)))
         .opacity(disabled ? 0.4 : 1)
     }
 }

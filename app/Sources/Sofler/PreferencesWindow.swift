@@ -96,24 +96,34 @@ private struct PreferencesView: View {
     /// Les onglets reprennent la forme des pastilles de la barre plutôt que le
     /// `TabView` système, dont la barre d'outils grise casse la continuité.
     private var tabBar: some View {
-        HStack(spacing: 4) {
-            ForEach(Tab.allCases, id: \.self) { item in
-                let active = item == tab
-                Label(item.label, systemImage: item.symbol)
-                    .font(.system(size: 12, weight: active ? .semibold : .medium))
-                    .foregroundStyle(active ? Style.accent : Color.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .fill(active ? Style.accent.opacity(0.18) : .clear))
-                    .contentShape(Rectangle())
-                    .onTapGesture { tab = item }
+        HStack {
+            Spacer()
+            HStack(spacing: 2) {
+                ForEach(Tab.allCases, id: \.self) { item in
+                    let active = item == tab
+                    Label(item.label, systemImage: item.symbol)
+                        .font(.system(size: 12, weight: active ? .semibold : .medium))
+                        .foregroundStyle(active
+                            ? Color(nsColor: NSColor.systemTeal
+                                .blended(withFraction: 0.25, of: .white) ?? .systemTeal)
+                            : Color.secondary)
+                        .padding(.horizontal, 12)
+                        .frame(height: 24)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(active ? Style.accent.opacity(0.20) : .clear))
+                        .contentShape(Rectangle())
+                        .onTapGesture { tab = item }
+                }
             }
+            .padding(4)
+            .background(
+                Capsule().fill(Color.white.opacity(0.06))
+                    .overlay(Capsule().strokeBorder(Color.white.opacity(0.06),
+                                                    lineWidth: 1)))
             Spacer()
         }
-        .padding(.horizontal, 18)
-        .padding(.bottom, 12)
+        .padding(.bottom, 14)
     }
 }
 
@@ -135,7 +145,10 @@ private struct GeneralTab: View {
                            disabled: !prefs.triggerEnabled)
             }
             Note("Option reste utilisable normalement : le déclenchement n'a "
-                 + "lieu que si aucune autre touche n'est pressée entre-temps.")
+                 + "lieu que si aucune autre touche n'est pressée entre-temps.\n\n"
+                 + "**Maintenir Option deux secondes** ouvre ces réglages. Si "
+                 + "une dictée était en cours, elle est abandonnée sans être "
+                 + "transcrite.")
 
             Divider().opacity(0.25)
             Row(label: "Raccourci clavier") {

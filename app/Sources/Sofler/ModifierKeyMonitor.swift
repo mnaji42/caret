@@ -39,9 +39,23 @@ final class ModifierKeyMonitor {
     private var source: CFRunLoopSource?
     private let side: Side
     private let onTrigger: () -> Void
+    /// Appelé quand Option a été maintenue seule assez longtemps.
+    private let onHold: () -> Void
 
     /// Vrai entre l'appui et le relâchement d'Option.
     private var isDown = false
+    /// Instant de l'appui, pour distinguer une pression d'un maintien.
+    private var pressedAt = Date.distantPast
+
+    /// Au-delà, le relâchement n'est plus lu comme « dicter » mais comme
+    /// « ouvre les réglages ».
+    ///
+    /// Deux secondes, parce que le déclenchement a lieu au **relâchement** :
+    /// quelqu'un qui presse Option puis hésite avant de parler tiendrait la
+    /// touche sans le vouloir, et un seuil court lui ouvrirait les réglages à
+    /// la place de sa dictée. Maintenir un modificateur deux secondes sans
+    /// appuyer sur rien d'autre, en revanche, n'arrive pas par accident.
+    private let holdDuration: TimeInterval = 2.0
     /// Passe à vrai si une autre touche est pressée pendant qu'Option est
     /// maintenue : le relâchement ne doit alors rien déclencher.
     private var usedAsModifier = false
@@ -56,8 +70,11 @@ final class ModifierKeyMonitor {
     private var lastTrigger = Date.distantPast
     private let debounce: TimeInterval = 0.4
 
-    init(side: Side = .right, onTrigger: @escaping () -> Void) {
+    init(side: Side = .right,
+         onTrigger: @escaping () -> Void,
+         onHold: @escaping () -> Void = {}) {
         self.side = side
+        self.onHold = onHold
         self.onTrigger = onTrigger
     }
 
@@ -128,6 +145,7 @@ final class ModifierKeyMonitor {
             if pressed {
                 isDown = true
                 usedAsModifier = false
+                pressedAt = Date()
             } else if isDown {
                 isDown = false
                 guard !usedAsModifier else { return }
@@ -137,7 +155,14 @@ final class ModifierKeyMonitor {
                     return
                 }
                 lastTrigger = now
-                DispatchQueue.main.async { [weak self] in self?.onTrigger() }
+                // Maintenue seule : c'est une demande d'ouvrir les réglages,
+                // pas de dicter. Rien n'a démarré entre-temps, puisque le
+                // déclenchement n'a lieu qu'ici, au relâchement.
+                let held = now.timeIntervalSince(pressedAt) >= holdDuration
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    held ? onHold() : onTrigger()
+                }
             }
 
         case .keyDown, .leftMouseDown:

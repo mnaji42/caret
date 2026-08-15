@@ -45,7 +45,6 @@ final class RecordingOverlay {
         /// **disparaît** plutôt que d'être grisée. Un contrôle inerte occupe
         /// la place et l'attention sans rien offrir.
         var modesAvailable: Bool = true
-        var language: String
         var corpusEnabled: Bool
         var corpusKeepsAudio: Bool
     }
@@ -60,8 +59,6 @@ final class RecordingOverlay {
     private let meter = LevelMeter()
     private let modeControl = PillSelector(
         labels: TranscriptionMode.allCases.map(\.label), accent: accent)
-    private let languageControl = PillSelector(
-        labels: Preferences.languages.map(\.1), accent: accent)
     private let targetControl = PillSelector(
         labels: ["Curseur", "Notes…"], accent: accent)
     private let micButton = FirstMouseButton()
@@ -80,14 +77,14 @@ final class RecordingOverlay {
     var levelProvider: (() -> Float)?
     var onSelectMode: ((TranscriptionMode) -> Void)?
     var onSelectTarget: ((Bool) -> Void)?
-    var onSelectLanguage: ((String) -> Void)?
+
     var onToggleCorpus: (() -> Void)?
     var onCancel: (() -> Void)?
 
     private var startedAt: Date?
     private var pulsePhase: CGFloat = 0
     private var status = Status(mode: .intended, target: .caret, noteName: nil,
-                                previewEnabled: false, language: "fr",
+                                previewEnabled: false,
                                 corpusEnabled: false, corpusKeepsAudio: false)
 
     // MARK: - Mesures et couleurs
@@ -250,9 +247,10 @@ final class RecordingOverlay {
         self.status = status
 
         modeControl.select(TranscriptionMode.allCases.firstIndex(of: status.mode) ?? 0)
+        // Masquée sous un moteur à rendu unique : les entretoises de la
+        // rangée se répartissent alors autour du seul contrôle restant, qui se
+        // retrouve centré sans calcul particulier.
         modeControl.isHidden = !status.modesAvailable
-        languageControl.select(
-            Preferences.languages.firstIndex { $0.0 == status.language } ?? 0)
 
         targetControl.setLabel(Self.noteLabel(for: status), at: 1)
         targetControl.select(status.target.isLocked ? 1 : 0)
@@ -475,7 +473,7 @@ final class RecordingOverlay {
 
         let recording = makeRow([dot, timeLabel, meter, NSView(),
                                  micButton, corpusBadge])
-        let tabs = makeSpacedRow([languageControl, modeControl, targetControl])
+        let tabs = makeSpacedRow([modeControl, targetControl])
         recordingRow = recording
         textRow = tabs
 
@@ -629,10 +627,6 @@ final class RecordingOverlay {
         }
         targetControl.onSelect = { [weak self] index in
             self?.onSelectTarget?(index == 1)
-        }
-        languageControl.onSelect = { [weak self] index in
-            guard Preferences.languages.indices.contains(index) else { return }
-            self?.onSelectLanguage?(Preferences.languages[index].0)
         }
     }
 
