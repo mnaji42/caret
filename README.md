@@ -814,3 +814,26 @@ This is a summary, not legal advice. Read
 
 - [CrisperWhisper](https://github.com/nyrahealth/CrisperWhisper) by Nyra Health
 - [Whisper](https://github.com/openai/whisper) by OpenAI
+
+---
+
+## Why permissions break between versions
+
+macOS attaches a TCC grant to the application's **code signature**, not to its
+path. Change the signature and the old grant survives, matching nothing that
+runs. System Settings keeps showing Sofler ticked while Sofler reports no
+access, and unticking then reticking changes nothing — the checkbox drives a
+stale record.
+
+Measured on a machine where this had built up: `tccutil reset Accessibility
+fr.lyriastudio.sofler` reported success **five times**, one grant per signature
+the app had carried across versions.
+
+This is not hypothetical for users. CI builds signed ad-hoc get a fresh
+`cdhash` every release, so every update produces a new identity and the same
+dead end. **This is the concrete reason to set the two signing secrets**, see
+[Signing](#signing-and-why-ad-hoc-is-not-good-enough) — it is not about
+Gatekeeper, which is a separate problem needing notarization.
+
+Settings › Autorisations now names this failure and offers to clear the grant,
+because nobody works out on their own that a permission is bound to a signature.

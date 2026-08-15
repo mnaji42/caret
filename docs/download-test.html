@@ -109,15 +109,27 @@
 </main>
 
 <script>
-  // Même requête que celle de l'application, contre le même point d'entrée :
-  // ce qui échoue ici échouera là-bas.
-  fetch("https://api.github.com/repos/mnaji42/sofler/releases/latest")
+  // On interroge *toutes* les releases, pas seulement la dernière.
+  //
+  // GitHub compte les téléchargements par asset, et chaque version a le sien :
+  // publier une 0.1.4 remettait donc le compteur à zéro, comme si personne
+  // n'avait jamais rien téléchargé. Or quelqu'un qui a pris la 0.1.2 est bien
+  // un utilisateur — il mettra à jour, ou pas, mais il compte. Le total se
+  // cumule sur toutes les versions.
+  fetch("https://api.github.com/repos/mnaji42/sofler/releases")
     .then(function (r) {
-      if (r.status === 404) throw new Error("aucune release publiée pour l'instant");
       if (!r.ok) throw new Error("GitHub a répondu " + r.status);
       return r.json();
     })
-    .then(function (release) {
+    .then(function (releases) {
+      if (!releases.length) throw new Error("aucune release publiée pour l'instant");
+      // Renvoyées de la plus récente à la plus ancienne.
+      var release = releases[0];
+      var downloads = releases.reduce(function (sum, rel) {
+        return sum + (rel.assets || []).reduce(function (s, a) {
+          return s + (a.download_count || 0);
+        }, 0);
+      }, 0);
       var dmg = (release.assets || []).filter(function (a) {
         return a.name === "Sofler.dmg";
       })[0];
@@ -141,7 +153,7 @@
       btn.textContent = "Télécharger pour macOS";
       el.textContent = "✓ " + release.tag_name + " · "
         + (dmg.size / 1048576).toFixed(1) + " Mo · "
-        + dmg.download_count + " téléchargement(s)";
+        + downloads + " téléchargement(s) au total";
     })
     .catch(function (e) {
       document.getElementById("status").textContent = "⚠ " + e.message;

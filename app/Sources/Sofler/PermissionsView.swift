@@ -106,6 +106,10 @@ struct PermissionsChecklist: View {
     var explains = false
 
     @State private var monitor = PermissionsMonitor.shared
+    /// Une réinitialisation par ouverture de fenêtre : recliquer sans être
+    /// passé par les Réglages Système ne ferait qu'effacer ce qu'on vient
+    /// d'accorder.
+    @State private var justReset = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -200,6 +204,27 @@ struct PermissionsChecklist: View {
                      + "Système. Sofler reste ouvert pendant ce temps, et "
                      + "l'état ci-dessus se met à jour tout seul dès que "
                      + "c'est fait.")
+
+                Divider().opacity(0.25)
+
+                // La panne qui fait perdre une heure : la case est cochée, et
+                // l'application ne la voit pas. On la nomme, parce que
+                // personne ne devine tout seul que macOS attache
+                // l'autorisation à une signature et non à une application.
+                Note("**Sofler apparaît déjà coché dans les Réglages Système ?** "
+                     + "Alors l'autorisation a été accordée à une version "
+                     + "signée autrement, et macOS ne la reconnaît plus. "
+                     + "Décocher puis recocher n'y fera rien : la case pilote "
+                     + "une entrée périmée.")
+                Button(justReset ? "Autorisation effacée — recochez la case"
+                                 : "Réinitialiser l'autorisation") {
+                    Permissions.resetAccessibility()
+                    monitor.refresh()
+                    justReset = true
+                }
+                .disabled(justReset)
+                Note("Efface l'entrée et repart de zéro. Il faudra ensuite "
+                     + "recocher Sofler dans les Réglages Système.")
             }
         }
     }

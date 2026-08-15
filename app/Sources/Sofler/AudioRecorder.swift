@@ -76,6 +76,29 @@ final class AudioRecorder: @unchecked Sendable {
         case denied
     }
 
+    /// Mode micro courant, tel que macOS le rapporte.
+    ///
+    /// **Lecture seule, et c'est une contrainte du système, pas un oubli.**
+    /// Apple ne laisse aucune application imposer ce réglage : il vaut pour
+    /// toutes les apps à la fois, et c'est l'utilisateur qui le choisit. Tout
+    /// ce qu'on peut faire est l'afficher et ouvrir le panneau système.
+    ///
+    /// Partagé entre la barre et les réglages : la barre l'affichait seule,
+    /// ce qui laissait croire que c'était un réglage de dictée qu'on avait
+    /// oublié de mettre ailleurs.
+    static var microphoneModeLabel: String {
+        switch AVCaptureDevice.activeMicrophoneMode {
+        case .voiceIsolation: "Isolement de la voix"
+        case .wideSpectrum: "Large spectre"
+        default: "Standard"
+        }
+    }
+
+    /// Ouvre le panneau de macOS où ce mode se change.
+    static func showMicrophoneModes() {
+        AVCaptureDevice.showSystemUserInterface(.microphoneModes)
+    }
+
     static var microphoneAccess: MicrophoneAccess {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
         case .authorized: .granted

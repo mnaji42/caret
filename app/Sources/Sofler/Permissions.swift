@@ -41,6 +41,34 @@ enum Permissions {
         return AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
     }
 
+    /// Efface l'autorisation d'accessibilité pour repartir de zéro.
+    ///
+    /// Sert à une panne précise, et déroutante. macOS attache l'autorisation à
+    /// la **signature** de l'application, pas à son chemin. Quand la signature
+    /// change — une version signée autrement que la précédente — l'ancienne
+    /// entrée survit et ne correspond plus au binaire qui tourne. Les Réglages
+    /// Système affichent alors Sofler coché, tandis que Sofler jure qu'il n'a
+    /// rien. Décocher et recocher n'y change rien : la case pilote une entrée
+    /// périmée.
+    ///
+    /// Mesuré sur une machine où le problème s'était installé : `tccutil` a
+    /// effacé **cinq** entrées pour le même identifiant, une par signature
+    /// portée au fil des versions.
+    ///
+    /// La vraie parade est en amont — signer toutes les versions avec la même
+    /// identité, cf. scripts/make-signing-cert.sh. Ceci répare l'existant.
+    @discardableResult
+    static func resetAccessibility() -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        task.arguments = ["reset", "Accessibility", "fr.lyriastudio.sofler"]
+        task.standardOutput = FileHandle.nullDevice
+        task.standardError = FileHandle.nullDevice
+        guard (try? task.run()) != nil else { return false }
+        task.waitUntilExit()
+        return task.terminationStatus == 0
+    }
+
     /// Résumé lisible de l'état courant, affiché dans le menu.
     static func summary(accessibilityGranted: Bool) -> String {
         let mic = switch AudioRecorder.microphoneAccess {

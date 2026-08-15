@@ -216,6 +216,8 @@ private struct GeneralTab: View {
                 .onChange(of: soundsEnabled) { _, new in Feedback.soundsEnabled = new }
         }
 
+        MicrophoneModeCard()
+
         LoginItemCard()
 
         // Avant la version : c'est ce qu'on vient vérifier quand quelque chose
@@ -228,6 +230,35 @@ private struct GeneralTab: View {
 
         VersionCard()
             .onAppear { noteFile = prefs.noteFile }
+    }
+}
+
+/// Mode micro de macOS.
+///
+/// Il n'apparaissait que sur la barre d'enregistrement, ce qui donnait
+/// l'impression d'un réglage de Sofler rangé au mauvais endroit. En réalité
+/// **aucune application ne peut le changer** : c'est un réglage système,
+/// commun à toutes les apps. Le dire ici évite de le chercher.
+private struct MicrophoneModeCard: View {
+    @State private var mode = AudioRecorder.microphoneModeLabel
+
+    var body: some View {
+        Card(title: "Micro") {
+            Row(label: "Mode") {
+                Text(mode).font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+            Note("**L'isolement de la voix** retire le bruit autour de vous et "
+                 + "améliore nettement la transcription en environnement "
+                 + "bruyant.")
+            Note("macOS ne laisse aucune application imposer ce mode : il vaut "
+                 + "pour toutes à la fois, et c'est vous qui le choisissez. "
+                 + "Sofler ne peut que l'afficher et vous y emmener.")
+            Button("Ouvrir les modes micro de macOS") {
+                AudioRecorder.showMicrophoneModes()
+            }
+        }
+        // Il change depuis le Centre de contrôle, sans nous prévenir.
+        .onAppear { mode = AudioRecorder.microphoneModeLabel }
     }
 }
 
