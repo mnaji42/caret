@@ -52,11 +52,15 @@ final class ModifierKeyMonitor {
     /// on ne sait pas s'il a été compris n'en est pas un. Là, l'action se
     /// produit sous les doigts et le relâchement ne fait plus rien.
     ///
-    /// Deux secondes parce que la dictée se déclenche, elle, au relâchement :
-    /// quelqu'un qui presse Option puis hésite avant de parler tient la touche
-    /// sans le vouloir, et un seuil court lui ouvrirait les réglages à la
-    /// place de sa dictée.
-    private let holdDuration: TimeInterval = 2.0
+    /// Une seconde, retenue à l'usage : à deux, l'attente se sent, et un
+    /// geste qu'on subit cesse d'être un raccourci.
+    ///
+    /// Le compromis est connu et assumé. La dictée se déclenche au
+    /// relâchement, donc quelqu'un qui presse Option puis hésite avant de
+    /// parler tient la touche sans le vouloir : plus le seuil est court, plus
+    /// une hésitation risque d'ouvrir les réglages à la place d'une dictée.
+    /// Si ça se produit à l'usage, c'est cette valeur qu'il faut remonter.
+    private let holdDuration: TimeInterval = 1.0
 
     /// Décompte armé à l'appui, désarmé au relâchement ou dès qu'une autre
     /// touche intervient.

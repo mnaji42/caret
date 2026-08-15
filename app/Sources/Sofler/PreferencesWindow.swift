@@ -146,7 +146,7 @@ private struct GeneralTab: View {
             }
             Note("Option reste utilisable normalement : le déclenchement n'a "
                  + "lieu que si aucune autre touche n'est pressée entre-temps.\n\n"
-                 + "**Maintenir Option deux secondes** ouvre ces réglages. Si "
+                 + "**Maintenir Option une seconde** ouvre ces réglages. Si "
                  + "une dictée était en cours, elle est abandonnée sans être "
                  + "transcrite.")
 
