@@ -657,7 +657,30 @@ class CrisperWhisperEngine:
                 segments.append(audio[start:end])
             start = end
 
-        return [s for s in segments if len(s) > 0]
+        segments = [s for s in segments if len(s) > 0]
+
+        # Un dernier segment très court est la première source d'hallucination
+        # observée en usage réel. La boucle ci-dessus fusionne les segments
+        # trop courts avec le suivant, sauf le dernier — il n'a pas de suivant,
+        # donc il sort tel quel, parfois moins d'une seconde. Isolé, il est
+        # ensuite complété jusqu'à `MIN_WINDOW_S` par la fenêtre d'encodage :
+        # le modèle voit une seconde de souffle dans quinze secondes de vide,
+        # n'a rien à transcrire, et produit une formule apprise.
+        #
+        # Constaté sur une dictée de 73 s découpée en 11 segments : le dernier
+        # faisait 0,7 s et ajoutait « Effects de la réunion des deux deux
+        # deux. » à un texte par ailleurs correct.
+        #
+        # On le rattache au précédent plutôt que de le jeter : l'audio est
+        # conservé, et il est de toute façon trop court pour porter autre
+        # chose que la fin d'un mot.
+        if len(segments) > 1 and len(segments[-1]) < MIN_SEGMENT_S * SAMPLE_RATE:
+            merged = np.concatenate([segments[-2], segments[-1]])
+            if len(merged) <= window:
+                segments[-2:] = [merged]
+                log.debug("dernier segment trop court, rattaché au précédent")
+
+        return segments
 
     def _transcribe_window(
         self,

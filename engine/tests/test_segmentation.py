@@ -8,8 +8,8 @@ quand la moitié des échantillons disparaissait sur un enregistrement de 157 s.
 import numpy as np
 import pytest
 
-from caret_engine.crisper import (MAX_WINDOW_S, MIN_PAUSE_S, MIN_WINDOW_S,
-                                  SAMPLE_RATE)
+from caret_engine.crisper import (MAX_WINDOW_S, MIN_PAUSE_S, MIN_SEGMENT_S,
+                                  MIN_WINDOW_S, SAMPLE_RATE)
 from caret_engine.crisper import CrisperWhisperEngine as Engine
 
 
@@ -99,3 +99,38 @@ def test_mel_frame_count_stays_even():
         window, _ = engine._window_for(float(duration))
         frames = int(window * 100)
         assert (frames - frames % 2) % 2 == 0
+
+
+# --- dernier segment trop court -------------------------------------------
+#
+# Cas venu d'une dictée réelle de 73 s : le découpage produisait 11 segments
+# dont le dernier de 0,7 s. Complété jusqu'à `MIN_WINDOW_S` par la fenêtre
+# d'encodage, il n'offrait au modèle qu'une seconde de souffle dans quinze
+# secondes de vide, et lui faisait ajouter « Effects de la réunion des deux
+# deux deux. » à un texte par ailleurs correct.
+
+def test_short_trailing_segment_is_merged(rng):
+    """Un reliquat d'une seconde ne doit pas devenir un segment isolé."""
+    audio = np.concatenate([
+        speech_block(rng, 12), pause(MIN_PAUSE_S * 2),
+        speech_block(rng, 12), pause(MIN_PAUSE_S * 2),
+        speech_block(rng, 1),
+    ])
+    segments = Engine._split_at_silence(audio)
+    assert all(len(s) >= MIN_SEGMENT_S * SAMPLE_RATE for s in segments), \
+        "aucun segment ne doit rester sous le plancher"
+
+
+def test_merging_preserves_every_sample(rng):
+    """La fusion rattache, elle ne jette pas : l'audio doit être intact."""
+    audio = np.concatenate([
+        speech_block(rng, 12), pause(MIN_PAUSE_S * 2), speech_block(rng, 1),
+    ])
+    segments = Engine._split_at_silence(audio)
+    assert sum(len(s) for s in segments) == len(audio)
+
+
+def test_a_lone_short_recording_is_kept(rng):
+    """Sans segment précédent, il n'y a rien à quoi rattacher : on garde."""
+    audio = speech_block(rng, 2)
+    assert len(Engine._split_at_silence(audio)) == 1
