@@ -66,6 +66,8 @@ final class RecordingOverlay {
     private var previewHeight: NSLayoutConstraint?
     private var card: NSVisualEffectView?
     private var cardSheen: CAGradientLayer?
+    private var cardBelowTabs: NSLayoutConstraint?
+    private var cardAlone: NSLayoutConstraint?
     private var previewLineCount = 1
 
     var levelProvider: (() -> Float)?
@@ -93,11 +95,11 @@ final class RecordingOverlay {
 
     private static let rowHeight: CGFloat = 26
     private static let controlRowHeight: CGFloat = 29
-    private static let padding: CGFloat = 10
-    private static let rowSpacing: CGFloat = 7
+    private static let padding: CGFloat = 13
+    private static let rowSpacing: CGFloat = 9
     /// Vide entre les onglets flottants et la carte. C'est lui qui les fait
     /// lire comme deux plans distincts.
-    private static let tabGap: CGFloat = 7
+    private static let tabGap: CGFloat = 9
     private static let previewLines = 3
     private static let previewFontSize: CGFloat = 13
     private static let previewLineHeight: CGFloat = 18
@@ -133,6 +135,8 @@ final class RecordingOverlay {
         statusLabel.isHidden = true
         container?.isHidden = false
         textRow?.isHidden = false
+        cardAlone?.isActive = false
+        cardBelowTabs?.isActive = true
         // Une ligne vide laisserait croire que l'aperçu est en panne le temps
         // que les premiers mots arrivent.
         setPreviewNotice(status.previewEnabled ? "en écoute…" : "")
@@ -155,9 +159,12 @@ final class RecordingOverlay {
         timer?.invalidate()
         container?.isHidden = true
         textRow?.isHidden = true
+        cardBelowTabs?.isActive = false
+        cardAlone?.isActive = true
         statusLabel.isHidden = false
         statusLabel.stringValue = "Transcription…"
-        panel.setContentSize(NSSize(width: 190, height: 46))
+        panel.setContentSize(NSSize(width: 210, height: 2 * Self.padding + 20))
+        cardSheen?.frame = card?.bounds ?? .zero
         position(panel)
     }
 
@@ -236,7 +243,7 @@ final class RecordingOverlay {
         guard let font = previewLabel.font, !text.isEmpty else { return (text, 1) }
         let width = previewLabel.bounds.width > 0
             ? previewLabel.bounds.width
-            : (panel?.frame.width ?? Self.widthWithPreview) - 2 * (Self.padding + 5)
+            : (panel?.frame.width ?? Self.widthWithPreview) - 2 * (Self.padding + 4)
         guard width > 0 else { return (text, 1) }
 
         let ceiling = CGFloat(Self.previewLines) * Self.previewLineHeight
@@ -423,22 +430,30 @@ final class RecordingOverlay {
         height.isActive = true
         previewHeight = height
 
+        // Deux ancrages hauts pour la carte, un seul actif à la fois : masquer
+        // les onglets ne suffit pas, une contrainte reste en vigueur même
+        // quand la vue qu'elle vise est cachée. Sans ça, l'état
+        // « Transcription… » gardait la place des onglets et la carte se
+        // retrouvait écrasée sur quelques pixels.
+        cardBelowTabs = card.topAnchor.constraint(equalTo: tabs.bottomAnchor,
+                                                  constant: Self.tabGap)
+        cardAlone = card.topAnchor.constraint(equalTo: root.topAnchor)
+        cardBelowTabs?.isActive = true
+
         NSLayoutConstraint.activate([
             tabs.topAnchor.constraint(equalTo: root.topAnchor),
             tabs.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             tabs.trailingAnchor.constraint(equalTo: root.trailingAnchor),
             tabs.heightAnchor.constraint(equalToConstant: Self.controlRowHeight),
 
-            card.topAnchor.constraint(equalTo: tabs.bottomAnchor,
-                                      constant: Self.tabGap),
             card.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             card.trailingAnchor.constraint(equalTo: root.trailingAnchor),
             card.bottomAnchor.constraint(equalTo: root.bottomAnchor),
 
             inner.leadingAnchor.constraint(equalTo: card.leadingAnchor,
-                                           constant: Self.padding + 5),
+                                           constant: Self.padding + 4),
             inner.trailingAnchor.constraint(equalTo: card.trailingAnchor,
-                                            constant: -(Self.padding + 5)),
+                                            constant: -(Self.padding + 4)),
             inner.topAnchor.constraint(equalTo: card.topAnchor, constant: Self.padding),
 
             recording.heightAnchor.constraint(equalToConstant: Self.rowHeight),
@@ -451,13 +466,14 @@ final class RecordingOverlay {
         return panel
     }
 
-    /// Rangée centrée, espaces égaux autour de chaque élément.
+    /// Rangée centrée, tous les espaces égaux — bords compris.
     ///
-    /// L'équivalent du `space-around` de flexbox, que `NSStackView` ne sait
-    /// pas faire seul : ses distributions répartissent l'espace *entre* les
-    /// vues, jamais aux extrémités. On intercale donc des entretoises dont on
-    /// contraint les largeurs — les bords valent la moitié de l'intervalle
-    /// central, ce qui est exactement la définition.
+    /// C'est le `space-evenly` de flexbox, et non `space-around` : ce dernier
+    /// donne des bords valant la moitié de l'intervalle central, ce qui se
+    /// voit tout de suite à l'œil comme un déséquilibre. `NSStackView` ne sait
+    /// faire ni l'un ni l'autre — ses distributions ne répartissent l'espace
+    /// qu'*entre* les vues, jamais aux extrémités — d'où des entretoises dont
+    /// on contraint toutes les largeurs à être identiques.
     private func makeSpacedRow(_ views: [NSView]) -> NSStackView {
         let spacers = (0...views.count).map { _ in NSView() }
         var arranged: [NSView] = []
@@ -469,12 +485,9 @@ final class RecordingOverlay {
 
         let row = makeRow(arranged)
         row.spacing = 0
-        for spacer in spacers.dropFirst().dropLast() {
-            spacer.widthAnchor.constraint(
-                equalTo: spacers[0].widthAnchor, multiplier: 2).isActive = true
+        for spacer in spacers.dropFirst() {
+            spacer.widthAnchor.constraint(equalTo: spacers[0].widthAnchor).isActive = true
         }
-        spacers[views.count].widthAnchor.constraint(
-            equalTo: spacers[0].widthAnchor).isActive = true
         return row
     }
 
@@ -567,6 +580,8 @@ final class RecordingOverlay {
 
         panel?.orderOut(nil)
         panel = nil
+        cardBelowTabs = nil
+        cardAlone = nil
         container = nil
         recordingRow = nil
         textRow = nil
