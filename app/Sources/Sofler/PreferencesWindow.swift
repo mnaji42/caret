@@ -251,11 +251,16 @@ private struct MicrophoneModeCard: View {
                  + "améliore nettement la transcription en environnement "
                  + "bruyant.")
             Note("macOS ne laisse aucune application imposer ce mode : il vaut "
-                 + "pour toutes à la fois, et c'est vous qui le choisissez. "
-                 + "Sofler ne peut que l'afficher et vous y emmener.")
-            Button("Ouvrir les modes micro de macOS") {
-                AudioRecorder.showMicrophoneModes()
-            }
+                 + "pour toutes à la fois, et c'est vous qui le choisissez.")
+            // Pas de bouton ici, et c'est mesuré : `showSystemUserInterface`
+            // n'ouvre rien tant qu'aucune capture n'est en cours. macOS ne
+            // propose ce choix que pendant qu'une application utilise le
+            // micro. Le bouton existait, ne faisait rien depuis les réglages,
+            // et laissait croire à une panne.
+            Note("Le choix ne s'offre que **pendant** qu'une application "
+                 + "utilise le micro. Depuis la barre de Sofler, en pleine "
+                 + "dictée, un clic sur le mode l'ouvre ; sinon, il est dans "
+                 + "le Centre de contrôle, sous « Micro ».")
         }
         // Il change depuis le Centre de contrôle, sans nous prévenir.
         .onAppear { mode = AudioRecorder.microphoneModeLabel }

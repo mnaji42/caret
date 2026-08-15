@@ -226,9 +226,46 @@ struct FeatureSwitch: View {
             Text(title).font(.system(size: 13, weight: .medium))
             Spacer(minLength: 16)
             Toggle("", isOn: $isOn)
-                .toggleStyle(.switch)
+                .toggleStyle(SoflerSwitch())
                 .labelsHidden()
         }
+    }
+}
+
+/// L'interrupteur du projet, dessiné plutôt qu'emprunté au système.
+///
+/// `Toggle(.switch)` se désature quand la fenêtre n'est plus au premier plan.
+/// Sur le gris clair d'une fenêtre système, un interrupteur actif reste
+/// reconnaissable ainsi : la piste est pleine, même terne. Sur le verre sombre
+/// de Sofler, cette piste grise se confond avec le fond et **un réglage activé
+/// se lit comme désactivé** — au point de faire douter qu'il ait été pris en
+/// compte.
+///
+/// On le dessine donc soi-même : l'état affiché ne dépend plus de la fenêtre
+/// qui a le focus, seulement de la valeur.
+struct SoflerSwitch: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        let on = configuration.isOn
+        return Capsule()
+            .fill(on ? Style.accent : Color.white.opacity(0.14))
+            .overlay(
+                Capsule().strokeBorder(
+                    on ? Color.clear : Color.white.opacity(0.10), lineWidth: 1))
+            .frame(width: 38, height: 22)
+            .overlay(alignment: on ? .trailing : .leading) {
+                Circle()
+                    // Le bouton reste blanc dans les deux états : c'est la
+                    // piste qui porte l'information, comme sur macOS.
+                    .fill(.white)
+                    .shadow(color: .black.opacity(0.25), radius: 1, y: 0.5)
+                    .padding(2)
+            }
+            .animation(.easeOut(duration: 0.15), value: on)
+            .contentShape(Capsule())
+            .onTapGesture { configuration.isOn.toggle() }
+            .accessibilityRepresentation {
+                Toggle(isOn: configuration.$isOn) { configuration.label }
+            }
     }
 }
 
