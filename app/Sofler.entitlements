@@ -10,7 +10,7 @@
     <key>com.apple.security.device.audio-input</key>
     <true/>
 
-    <!-- Volontairement PAS de com.apple.security.app-sandbox : Caret doit
+    <!-- Volontairement PAS de com.apple.security.app-sandbox : Sofler doit
          joindre le socket du moteur hors de son conteneur et insérer du texte
          dans d'autres applications, deux choses que le bac à sable interdit. -->
 </dict>

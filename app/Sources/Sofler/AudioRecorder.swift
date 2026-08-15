@@ -93,7 +93,7 @@ final class AudioRecorder: @unchecked Sendable {
     /// Le dialogue est présenté par le système mais s'affiche derrière les
     /// autres fenêtres tant que l'app reste en arrière-plan — ce qui est le
     /// cas permanent d'une app de barre de menus. L'appelant doit donc activer
-    /// l'app avant (cf. CaretApp.requestMicrophoneIfNeeded).
+    /// l'app avant (cf. SoflerApp.requestMicrophoneIfNeeded).
     static func requestPermission() async -> Bool {
         guard microphoneAccess == .undetermined else {
             return microphoneAccess == .granted

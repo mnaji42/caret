@@ -97,7 +97,7 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
             let installed = await SpeechTranscriber.installedLocales
             if !installed.contains(where: { $0.identifier == locale.identifier }) {
                 await report("aperçu : téléchargement du modèle \(locale.identifier)…")
-                NSLog("caret: téléchargement du modèle d'aperçu (%@)…", locale.identifier)
+                NSLog("sofler: téléchargement du modèle d'aperçu (%@)…", locale.identifier)
                 if let request = try await AssetInventory.assetInstallationRequest(
                     supporting: [transcriber]) {
                     try await request.downloadAndInstall()
@@ -122,7 +122,7 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
                     _ = await AssetInventory.release(reservedLocale: previous)
                 }
                 let granted = try await AssetInventory.reserve(locale: locale)
-                NSLog("caret: locale d'aperçu %@ réservée : %@",
+                NSLog("sofler: locale d'aperçu %@ réservée : %@",
                       locale.identifier, granted ? "oui" : "non")
             }
 
@@ -144,7 +144,7 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
             try await analyzer.start(inputSequence: stream)
         } catch {
             await report("aperçu indisponible — \(error.localizedDescription)")
-            NSLog("caret: aperçu en direct impossible — %@", String(describing: error))
+            NSLog("sofler: aperçu en direct impossible — %@", String(describing: error))
             stop()
         }
     }
@@ -169,7 +169,7 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
                 }
             }
         } catch {
-            NSLog("caret: flux d'aperçu interrompu — %@", String(describing: error))
+            NSLog("sofler: flux d'aperçu interrompu — %@", String(describing: error))
         }
     }
 

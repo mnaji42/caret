@@ -15,7 +15,7 @@ import QuartzCore
 /// * **ne jamais prendre le focus.** Le texte doit atterrir dans l'application
 ///   que l'utilisateur avait devant lui ; une fenêtre qui devient active
 ///   déplacerait le curseur. D'où un `NSPanel` `.nonactivatingPanel`, dont les
-///   contrôles restent cliquables sans activer Caret.
+///   contrôles restent cliquables sans activer Sofler.
 /// * **montrer qu'on entend.** Un point fixe dit que l'enregistrement est
 ///   lancé, pas que le micro capte. Le niveau en direct, si.
 /// * **montrer l'état, pas seulement l'action.** Des boutons qui font défiler
@@ -252,7 +252,7 @@ final class RecordingOverlay {
         // phrase entière produit une bulle plus large que la moitié de l'écran.
         targetControl.toolTip = status.noteName.map {
             "Ajouté à \($0)\nVaut aussi pour la dictée en cours"
-        } ?? "Aucun fichier de notes\nEn choisir un dans le menu de Caret"
+        } ?? "Aucun fichier de notes\nEn choisir un dans le menu de Sofler"
 
         micButton.attributedTitle = Self.buttonTitle(Self.microphoneModeLabel)
         micButton.toolTip = "Mode micro du système\nCliquer pour le changer"
@@ -613,7 +613,7 @@ final class RecordingOverlay {
             button.bezelStyle = .inline
             button.target = self
             button.action = action
-            // Réagit sans que Caret passe au premier plan.
+            // Réagit sans que Sofler passe au premier plan.
             button.setButtonType(.momentaryChange)
         }
         previewButton.imagePosition = .imageOnly
@@ -651,7 +651,7 @@ final class RecordingOverlay {
         textRow = nil
         card = nil
         cardSheen = nil
-        NSLog("caret: écrans modifiés — panneau reconstruit")
+        NSLog("sofler: écrans modifiés — panneau reconstruit")
 
         guard wasRecording else { return }
         showRecording(status)

@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Fenêtre de réglages.
 ///
-/// Caret est une app d'arrière-plan sans Dock : ouvrir une fenêtre demande de
+/// Sofler est une app d'arrière-plan sans Dock : ouvrir une fenêtre demande de
 /// l'activer explicitement, sinon elle apparaît derrière tout le reste. On
 /// repasse en arrière-plan à la fermeture pour ne pas rester dans le
 /// sélecteur d'applications.
@@ -11,16 +11,20 @@ import SwiftUI
 final class PreferencesWindowController {
     private var window: NSWindow?
 
-    func show() {
+    /// L'historique appartient au contrôleur de dictée : on le passe plutôt
+    /// que d'en faire un singleton de plus, pour qu'il n'existe qu'un seul
+    /// propriétaire de ces données.
+    func show(history: TranscriptionHistory) {
         if let window {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
             return
         }
 
-        let hosting = NSHostingController(rootView: PreferencesView())
+        let hosting = NSHostingController(
+            rootView: PreferencesView(history: history))
         let window = NSWindow(contentViewController: hosting)
-        window.title = "Réglages de Caret"
+        window.title = "Réglages de Sofler"
         window.styleMask = [.titled, .closable]
         window.setContentSize(NSSize(width: 500, height: 640))
         window.center()
@@ -38,7 +42,10 @@ final class PreferencesWindowController {
 /// quotidien, pas à la configuration. Un réglage qui n'existe que dans un menu
 /// déroulant est introuvable dès qu'on ne se souvient plus de son nom.
 private struct PreferencesView: View {
+    let history: TranscriptionHistory
     @State private var prefs = Preferences.shared
+    @State private var entries: [TranscriptionHistory.Entry] = []
+    @State private var justCopied: UUID?
     @State private var lexiconText: String = ""
     @State private var soundsEnabled = Feedback.soundsEnabled
     @State private var corpusStats = Corpus.Statistics()
@@ -138,6 +145,54 @@ private struct PreferencesView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Transcriptions récentes") {
+                Toggle("Conserver l'historique", isOn: Binding(
+                    get: { history.isEnabled },
+                    set: { history.isEnabled = $0; entries = history.entries }))
+
+                if entries.isEmpty {
+                    Text(history.isEnabled ? "Aucune pour l'instant"
+                                           : "Historique désactivé")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(entries) { entry in
+                        HStack(alignment: .firstTextBaseline) {
+                            // Tronqué à une ligne : la fenêtre doit rester
+                            // lisible d'un coup d'œil, pas devenir une liste
+                            // qu'on fait défiler.
+                            Text(entry.preview)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .help(entry.text)
+                            Spacer()
+                            Text(entry.relativeAge)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Button {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(entry.text,
+                                                               forType: .string)
+                                justCopied = entry.id
+                            } label: {
+                                Image(systemName: justCopied == entry.id
+                                      ? "checkmark" : "doc.on.doc")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Copier le texte entier")
+                        }
+                    }
+                    Button("Effacer l'historique") {
+                        history.clear()
+                        entries = []
+                    }
+                }
+                Text("Le texte complet est copié, pas la version tronquée. "
+                     + "L'historique reste aussi dans le menu de la barre.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Moteur") {
                 LabeledContent("Modèle") { Text(engineName) }
             }
@@ -177,6 +232,7 @@ private struct PreferencesView: View {
             lexiconText = prefs.lexicon.joined(separator: "\n")
             corpusStats = Corpus.shared.statistics()
             noteFile = prefs.noteFile
+            entries = history.entries
         }
         .task { engineName = await SocketSpeechEngine().displayName }
     }

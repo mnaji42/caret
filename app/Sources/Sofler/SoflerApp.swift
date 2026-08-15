@@ -1,6 +1,6 @@
 import AppKit
 
-/// Caret vit dans la barre de menus, sans fenêtre ni icône au Dock.
+/// Sofler vit dans la barre de menus, sans fenêtre ni icône au Dock.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
@@ -31,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.controller.toggle()
         }
         if prefs.triggerEnabled, !modifierKey.start() {
-            NSLog("caret: tap clavier indisponible — accessibilité accordée ?")
+            NSLog("sofler: tap clavier indisponible — accessibilité accordée ?")
         }
 
         // Repli clavier, utile si l'accessibilité n'est pas encore accordée
@@ -39,7 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkey = HotkeyMonitor { [weak self] in self?.controller.toggle() }
         let shortcut = HotkeyMonitor.Shortcut.dictate
         if !hotkey.register(shortcut) {
-            NSLog("caret: impossible d'enregistrer \(shortcut.label) — raccourci déjà pris ?")
+            NSLog("sofler: impossible d'enregistrer \(shortcut.label) — raccourci déjà pris ?")
         }
 
         // Ouvrir le menu au clavier : sans ça, retrouver une transcription
@@ -88,11 +88,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let (symbol, description): (String, String) = switch state {
         case .idle:
             controller.target.isLocked
-                ? ("mic.badge.plus", "Caret — écrit dans \(controller.target.displayName)")
-                : ("mic", "Caret — prêt")
-        case .recording:  ("mic.fill", "Caret — enregistrement")
-        case .processing: ("waveform", "Caret — transcription")
-        case .failed:     ("exclamationmark.triangle", "Caret — erreur")
+                ? ("mic.badge.plus", "Sofler — écrit dans \(controller.target.displayName)")
+                : ("mic", "Sofler — prêt")
+        case .recording:  ("mic.fill", "Sofler — enregistrement")
+        case .processing: ("waveform", "Sofler — transcription")
+        case .failed:     ("exclamationmark.triangle", "Sofler — erreur")
         }
 
         button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: description)
@@ -101,7 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if case .failed(let message) = state {
             button.toolTip = message
-            NSLog("caret: %@", message)
+            NSLog("sofler: %@", message)
         }
         Task { await refreshMenu() }
     }
@@ -269,7 +269,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.target = self
         menu.addItem(settings)
 
-        menu.addItem(NSMenuItem(title: "Quitter Caret", action: #selector(NSApplication.terminate(_:)),
+        menu.addItem(NSMenuItem(title: "Quitter Sofler", action: #selector(NSApplication.terminate(_:)),
                                 keyEquivalent: "q"))
         statusItem.menu = menu
     }
@@ -289,7 +289,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openPreferences() {
-        preferences.show()
+        preferences.show(history: controller.history)
         // Les réglages s'appliquent à la volée : rien à redémarrer.
         Task {
             for await _ in NotificationCenter.default.notifications(
@@ -317,9 +317,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { await refreshMenu() }
     }
 
-    /// Montre ce que Caret perçoit, sans passer par les journaux système.
+    /// Montre ce que Sofler perçoit, sans passer par les journaux système.
     @objc private func showTargetDiagnostics() {
-        // Capturer avant d'activer Caret : activer changerait l'application
+        // Capturer avant d'activer Sofler : activer changerait l'application
         // au premier plan, donc ce qu'on cherche à observer.
         let report = TargetWriter.diagnostics()
         NSApp.activate(ignoringOtherApps: true)
@@ -399,7 +399,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 /// s'exécute hors du main actor, ce qui interdit d'y instancier le delegate.
 @main
 @MainActor
-struct CaretApp {
+struct SoflerApp {
     static func main() {
         let app = NSApplication.shared
         let delegate = AppDelegate()

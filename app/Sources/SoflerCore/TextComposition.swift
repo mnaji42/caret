@@ -43,7 +43,7 @@ public enum TextComposition {
     ///
     /// Les éditeurs dérivés de VS Code titrent « fichier.ext — projet ». Le
     /// séparateur est un tiret **entouré d'espaces** : découper sur le tiret
-    /// seul casserait « test-caret.md » en « test ».
+    /// seul casserait « test-sofler.md » en « test ».
     public static func parseWindowTitle(_ title: String) -> WindowTitle? {
         let parts = title
             .replacingOccurrences(of: #"\s+[—–-]\s+"#, with: "\u{1}",

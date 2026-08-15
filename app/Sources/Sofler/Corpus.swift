@@ -83,7 +83,7 @@ final class Corpus {
     private init() {
         let support = FileManager.default.urls(for: .applicationSupportDirectory,
                                                in: .userDomainMask)[0]
-        root = support.appendingPathComponent("Caret/corpus", isDirectory: true)
+        root = support.appendingPathComponent("Sofler/corpus", isDirectory: true)
     }
 
     /// Identifiant lisible et triable, qui sert aussi de nom de fichier audio.
@@ -110,9 +110,9 @@ final class Corpus {
                 try line.write(to: sessionsFile)
             }
             cachedStatistics = nil
-            NSLog("caret: corpus — dictée %@ archivée", entry.id)
+            NSLog("sofler: corpus — dictée %@ archivée", entry.id)
         } catch {
-            NSLog("caret: corpus — écriture impossible : %@", String(describing: error))
+            NSLog("sofler: corpus — écriture impossible : %@", String(describing: error))
         }
     }
 
@@ -144,7 +144,7 @@ final class Corpus {
             try file.write(from: buffer)
             return name
         } catch {
-            NSLog("caret: corpus — audio non conservé : %@", String(describing: error))
+            NSLog("sofler: corpus — audio non conservé : %@", String(describing: error))
             return nil
         }
     }
@@ -229,11 +229,11 @@ final class Corpus {
         try? manager.removeItem(at: audioDirectory)
         try? prepare()
         cachedStatistics = nil
-        NSLog("caret: corpus vidé")
+        NSLog("sofler: corpus vidé")
     }
 
     private static let readme = """
-    # Corpus Caret
+    # Corpus Sofler
 
     Une ligne JSON par dictée dans `sessions.jsonl`, en ajout seul. Le fichier
     n'est jamais réécrit : il peut être lu pendant que l'application tourne.
@@ -269,7 +269,7 @@ final class Corpus {
 
     ## Repartir de zéro
 
-    Menu de Caret › Effacer le corpus. Ou supprimer `sessions.jsonl` et
+    Menu de Sofler › Effacer le corpus. Ou supprimer `sessions.jsonl` et
     `audio/` à la main : l'application les recrée.
     """
 }

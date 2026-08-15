@@ -10,7 +10,7 @@ import AppKit
 /// familiers, calibrés en volume, et suivent les réglages de l'utilisateur.
 enum Feedback {
     private static func play(_ name: String) {
-        guard UserDefaults.standard.object(forKey: "caret.sounds") as? Bool ?? true,
+        guard UserDefaults.standard.object(forKey: "sofler.sounds") as? Bool ?? true,
               let sound = NSSound(named: name) else { return }
         sound.stop()          // coupe l'occurrence précédente si on enchaîne vite
         sound.play()
@@ -21,7 +21,7 @@ enum Feedback {
     static func cancelled() { play("Funk") }
 
     static var soundsEnabled: Bool {
-        get { UserDefaults.standard.object(forKey: "caret.sounds") as? Bool ?? true }
-        set { UserDefaults.standard.set(newValue, forKey: "caret.sounds") }
+        get { UserDefaults.standard.object(forKey: "sofler.sounds") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "sofler.sounds") }
     }
 }

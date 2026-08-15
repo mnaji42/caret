@@ -4,8 +4,8 @@ Le modèle est chargé une fois au démarrage et reste chaud : chaque dictée ne
 paie que l'inférence. C'est la moitié du gain de latence — l'autre venant de
 la fenêtre d'encodage adaptative.
 
-    uv run python -m caret_engine.server
-    uv run python -m caret_engine.server --model nyralabs/CrisperWhisper2.0_large
+    uv run python -m sofler_engine.server
+    uv run python -m sofler_engine.server --model nyralabs/CrisperWhisper2.0_large
 
 Requêtes acceptées (champ ``op``) :
 
@@ -28,10 +28,10 @@ import sys
 import time
 from pathlib import Path
 
-from caret_engine import protocol
-from caret_engine.crisper import CrisperWhisperEngine
+from sofler_engine import protocol
+from sofler_engine.crisper import CrisperWhisperEngine
 
-log = logging.getLogger("caret.server")
+log = logging.getLogger("sofler.server")
 
 
 class EngineServer:
@@ -145,7 +145,7 @@ class EngineServer:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Service de transcription Caret")
+    ap = argparse.ArgumentParser(description="Service de transcription Sofler")
     ap.add_argument("--model", default="nyralabs/CrisperWhisper2.0_turbo")
     ap.add_argument("--device", default="mps")
     ap.add_argument("--socket", type=Path, default=protocol.DEFAULT_SOCKET)

@@ -133,7 +133,7 @@ final class ModifierKeyMonitor {
                 guard !usedAsModifier else { return }
                 let now = Date()
                 guard now.timeIntervalSince(lastTrigger) > debounce else {
-                    NSLog("caret: rebond ignoré")
+                    NSLog("sofler: rebond ignoré")
                     return
                 }
                 lastTrigger = now
@@ -154,6 +154,6 @@ final class ModifierKeyMonitor {
     func reArmIfNeeded() {
         guard let tap, !CGEvent.tapIsEnabled(tap: tap) else { return }
         CGEvent.tapEnable(tap: tap, enable: true)
-        NSLog("caret: tap clavier réarmé")
+        NSLog("sofler: tap clavier réarmé")
     }
 }

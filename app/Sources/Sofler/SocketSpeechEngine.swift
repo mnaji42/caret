@@ -16,7 +16,7 @@ actor SocketSpeechEngine: SpeechEngine {
     static var defaultSocketPath: String {
         FileManager.default
             .homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Caches/caret/engine.sock")
+            .appendingPathComponent("Library/Caches/sofler/engine.sock")
             .path
     }
 
@@ -98,7 +98,7 @@ actor SocketSpeechEngine: SpeechEngine {
         }
         guard connected == 0 else {
             throw SpeechEngineError.unavailable(
-                "service injoignable — démarrer `uv run python -m caret_engine.server`")
+                "service injoignable — démarrer `uv run python -m sofler_engine.server`")
         }
 
         var outHeader = header

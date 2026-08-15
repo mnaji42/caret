@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fabrique le .dmg de distribution : Caret.app à côté d'un raccourci vers
+# Fabrique le .dmg de distribution : Sofler.app à côté d'un raccourci vers
 # /Applications, la disposition attendue sous macOS.
 #
 # Attention avant toute diffusion : ce paquet est signé avec le certificat de
@@ -9,7 +9,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_NAME="Caret"
+APP_NAME="Sofler"
 VERSION="$(awk -F'[<>]' '/CFBundleShortVersionString/{getline; print $3}' \
     "$ROOT/app/build/$APP_NAME.app/Contents/Info.plist" 2>/dev/null || echo "0.1.0")"
 DMG="$ROOT/dist/$APP_NAME-$VERSION.dmg"

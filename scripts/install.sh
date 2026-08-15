@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compile Caret et l'installe dans /Applications.
+# Compile Sofler et l'installe dans /Applications.
 #
 # /Applications est l'emplacement canonique, y compris en développement :
 # c'est là que macOS s'attend à trouver une app dans le sélecteur des
@@ -13,8 +13,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_DIR="$ROOT/app"
-BUNDLE_ID="dev.mnaji.caret"
-APP_NAME="Caret"
+BUNDLE_ID="fr.lyriastudio.sofler"
+APP_NAME="Sofler"
 INSTALL_PATH="/Applications/$APP_NAME.app"
 
 CONFIG="debug"
@@ -61,12 +61,12 @@ cat > "$STAGE/Contents/Info.plist" <<PLIST
          que l'utilisateur a devant lui. -->
     <key>LSUIElement</key>                <true/>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Caret transcrit votre voix en texte. L'audio est traité sur votre Mac et n'est jamais envoyé ailleurs.</string>
+    <string>Sofler transcrit votre voix en texte. L'audio est traité sur votre Mac et n'est jamais envoyé ailleurs.</string>
     <!-- Uniquement pour l'aperçu en direct affiché dans la barre pendant la
          dictée, qui passe par le moteur de reconnaissance de macOS. La
          transcription réelle, elle, ne l'utilise pas. -->
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Caret affiche pendant la dictée un aperçu de ce qu'il entend, reconnu sur votre Mac. Rien n'est envoyé ailleurs.</string>
+    <string>Sofler affiche pendant la dictée un aperçu de ce qu'il entend, reconnu sur votre Mac. Rien n'est envoyé ailleurs.</string>
 </dict>
 </plist>
 PLIST
@@ -77,7 +77,7 @@ echo "▸ signature (certificat $CERT_HASH)"
 # sans qu'aucun dialogue n'apparaisse.
 codesign --force --sign "$CERT_HASH" --identifier "$BUNDLE_ID" \
          --options runtime --timestamp=none \
-         --entitlements "$APP_DIR/Caret.entitlements" "$STAGE" 2>/dev/null
+         --entitlements "$APP_DIR/Sofler.entitlements" "$STAGE" 2>/dev/null
 
 if ! codesign -d --entitlements - "$STAGE" 2>/dev/null | grep -q "audio-input"; then
     echo "  ✗ entitlement micro absent — le micro serait muet" >&2
@@ -120,7 +120,7 @@ cat <<EOF
   installé : $INSTALL_PATH
 
   Si l'accessibilité n'est pas encore accordée :
-    Réglages Système › Confidentialité et sécurité › Accessibilité → ajouter Caret
+    Réglages Système › Confidentialité et sécurité › Accessibilité → ajouter Sofler
 
   Grâce au certificat stable, cette autorisation persiste d'un build à l'autre.
   Elle n'est à refaire que si le certificat change (cf. scripts/dev-cert.sh).

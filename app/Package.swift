@@ -2,25 +2,25 @@
 import PackageDescription
 
 let package = Package(
-    name: "Caret",
+    name: "Sofler",
     platforms: [.macOS(.v14)],
     targets: [
         // Logique pure, sans dépendance système, donc testable.
         .target(
-            name: "CaretCore",
-            path: "Sources/CaretCore",
+            name: "SoflerCore",
+            path: "Sources/SoflerCore",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .executableTarget(
-            name: "Caret",
-            dependencies: ["CaretCore"],
-            path: "Sources/Caret",
+            name: "Sofler",
+            dependencies: ["SoflerCore"],
+            path: "Sources/Sofler",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(
-            name: "CaretCoreTests",
-            dependencies: ["CaretCore"],
-            path: "Tests/CaretCoreTests",
+            name: "SoflerCoreTests",
+            dependencies: ["SoflerCore"],
+            path: "Tests/SoflerCoreTests",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
     ]

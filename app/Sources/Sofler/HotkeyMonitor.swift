@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 
-/// Raccourci global, actif même quand Caret n'est pas au premier plan.
+/// Raccourci global, actif même quand Sofler n'est pas au premier plan.
 ///
 /// On passe par `RegisterEventHotKey` (Carbon) et non par un `CGEventTap` :
 /// l'API Carbon ne demande **aucune permission**, là où un tap exige
@@ -42,7 +42,7 @@ final class HotkeyMonitor {
             id: 1
         )
 
-        /// Ouvre le menu de Caret sur l'historique.
+        /// Ouvre le menu de Sofler sur l'historique.
         static let history = Shortcut(
             keyCode: UInt32(kVK_ANSI_H),
             modifiers: UInt32(controlKey | optionKey | cmdKey),

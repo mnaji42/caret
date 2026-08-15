@@ -1,9 +1,9 @@
-# Caret
+# Sofler
 
 > **Local dictation that speaks developer.**
 > Press a key. Talk. Press it again. Your words land at the caret — `useEffect` spelled `useEffect`.
 
-Caret is a macOS dictation tool for Apple Silicon that handles how developers
+Sofler is a macOS dictation tool for Apple Silicon that handles how developers
 actually speak: French and English in the same sentence, technical vocabulary,
 hesitations. Everything runs on-device. No account, no cloud, no telemetry.
 
@@ -29,7 +29,7 @@ In French mode, English technical terms get phonetically absorbed:
 | `dependencies` | *« dépendances »* |
 | `React` | *« react »* (lowercase) |
 
-Caret fixes this with **vocabulary conditioning** — a trained mechanism in
+Sofler fixes this with **vocabulary conditioning** — a trained mechanism in
 CrisperWhisper 2.0 that biases decoding toward a supplied lexicon.
 
 Measured on real French/English developer speech:
@@ -100,7 +100,7 @@ audio, with byte-identical transcriptions. Two findings account for the gap:
 
 **1. The reference pipeline costs more than the model.** Raw compute measured
 at ~0,80 s where the package took ~2,30 s — roughly **1,5 s of pipeline
-overhead** per transcription. Caret calls mel → encoder → greedy decode
+overhead** per transcription. Sofler calls mel → encoder → greedy decode
 directly.
 
 **2. Whisper always encodes 30 seconds.** Encoder cost is independent of what
@@ -117,7 +117,7 @@ short dictation. Shrinking the window to 15 s cuts encoder time ~45% with
 Below 15 s the model leaves its training distribution and output becomes
 unpredictable — one clip stayed intact down to 4 s while another degraded at
 10 s (*« Tu as oublié »* → *« State a oublié »*). **15 s is the safe floor**,
-and Caret does not go under it.
+and Sofler does not go under it.
 
 ### Verbatim vs Intended
 
@@ -148,7 +148,7 @@ touching the app:
 
 ```
 ┌──────────────────────────┐
-│  Caret.app  (Swift)      │
+│  Sofler.app  (Swift)      │
 │  hotkey → capture →      │
 │  inject at caret         │
 └───────────┬──────────────┘
@@ -163,15 +163,15 @@ touching the app:
 ```
 
 ```
-caret/
+sofler/
 ├── engine/          Python transcription service (current backend)
-│   └── caret_engine/
+│   └── sofler_engine/
 │       ├── crisper.py    inference: mel → encoder → greedy decode
 │       ├── prompt.py     CrisperWhisper decoder prompt construction
 │       ├── protocol.py   the app ↔ engine contract
 │       └── server.py     persistent unix-socket service
 ├── app/             Swift menu-bar app (builds to app/build/, gitignored)
-│   └── Sources/Caret/
+│   └── Sources/Sofler/
 │       ├── DictationController.swift  the capture → transcribe → insert cycle
 │       ├── RecordingOverlay.swift     the floating bar
 │       ├── LivePreview.swift          macOS SpeechAnalyzer, streaming preview
@@ -179,7 +179,7 @@ caret/
 │       └── DictationTarget.swift      caret, or a file detected via AX
 ├── scripts/
 │   ├── dev-cert.sh      local signing certificate, so TCC grants persist
-│   ├── install.sh       build → sign → /Applications/Caret.app
+│   ├── install.sh       build → sign → /Applications/Sofler.app
 │   └── package-dmg.sh   .dmg with the Applications shortcut
 └── poc/             benchmarks and experiments behind the numbers above
 ```
@@ -219,7 +219,7 @@ cd engine && uv venv --python 3.12 && uv pip install -e . && cd ..
 
 This registers the engine as a launch agent, so it starts with your session
 and restarts if it dies. The model loads once (~8 s) and stays warm; each
-dictation pays inference only. Logs land in `~/Library/Logs/Caret/engine.log`.
+dictation pays inference only. Logs land in `~/Library/Logs/Sofler/engine.log`.
 
 To remove it: `./scripts/install-service.sh --uninstall`
 
@@ -229,8 +229,8 @@ To remove it: `./scripts/install-service.sh --uninstall`
 ./scripts/install.sh
 ```
 
-This builds, signs, installs to `/Applications/Caret.app`, and launches it.
-Caret appears in the menu bar — no Dock icon, no window. Build artifacts stay
+This builds, signs, installs to `/Applications/Sofler.app`, and launches it.
+Sofler appears in the menu bar — no Dock icon, no window. Build artifacts stay
 in `app/build/`, never in the repo.
 
 ### 3. Grant two permissions
@@ -253,7 +253,7 @@ you would re-tick the checkbox after every single build.
 requirement becomes:
 
 ```
-identifier "dev.mnaji.caret" and certificate leaf = H"d25baa4b…"
+identifier "fr.lyriastudio.sofler" and certificate leaf = H"d25baa4b…"
 ```
 
 It depends on the certificate, not the binary. Verified: two builds with
@@ -316,7 +316,7 @@ habit of switching languages mid-sentence.
 
 So the app can archive what you dictate. Turn on *Collect dictations* in
 Settings, and each dictation appends one JSON line to
-`~/Library/Application Support/Caret/corpus/sessions.jsonl`:
+`~/Library/Application Support/Sofler/corpus/sessions.jsonl`:
 
 ```json
 {"id": "2026-08-15T13-21-40", "durationSeconds": 80.8, "language": "fr",
@@ -370,7 +370,7 @@ The engine sits behind a unix socket with a small documented protocol, so the
 corpus is directly usable to:
 
 - **swap the engine** — anything that reads PCM and returns text can replace
-  `caret_engine`, and the corpus tells you immediately whether it is better
+  `sofler_engine`, and the corpus tells you immediately whether it is better
   *on your voice*;
 - **compare a remote model** against the local one on identical audio, and
   measure what the round trip actually buys;
@@ -495,12 +495,12 @@ re-attempted:
 
 ## Licensing — read this before using the models
 
-Caret's own code and CrisperWhisper's inference code are MIT. **The model
+Sofler's own code and CrisperWhisper's inference code are MIT. **The model
 weights are not.**
 
 | Component | License |
 |---|---|
-| Caret source code | MIT |
+| Sofler source code | MIT |
 | CrisperWhisper inference code | MIT |
 | **CrisperWhisper 2.0 weights** | **Nyra Health Non-Commercial Research** |
 
@@ -509,7 +509,7 @@ requires a licence from [Nyra Health](https://nyra-labs.com/crisperwhisper).
 Under a strict reading, dictating work email may itself count as commercial
 use.
 
-Consequently Caret **does not bundle or silently download the weights**. The
+Consequently Sofler **does not bundle or silently download the weights**. The
 licence is shown before any download, and the choice is yours. A
 commercially-unencumbered engine is on the roadmap so the app is usable
 regardless.

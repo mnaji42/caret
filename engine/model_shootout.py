@@ -68,7 +68,7 @@ def samples():
 # --------------------------------------------------------------------------
 
 def run_crisper():
-    from caret_engine.crisper import CrisperWhisperEngine
+    from sofler_engine.crisper import CrisperWhisperEngine
     engine = CrisperWhisperEngine()
     engine.load()
     out = {}

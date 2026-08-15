@@ -1,5 +1,5 @@
 import AppKit
-import CaretCore
+import SoflerCore
 
 /// Où atterrit le texte transcrit.
 ///
@@ -87,14 +87,14 @@ enum TargetWriter {
         let axWindow = focused as! AXUIElement
 
         if let url = documentAttribute(of: axWindow) {
-            NSLog("caret: document via AXDocument — %@", url.path)
+            NSLog("sofler: document via AXDocument — %@", url.path)
             return url
         }
         if let url = documentFromTitle(of: axWindow) {
-            NSLog("caret: document via titre de fenêtre — %@", url.path)
+            NSLog("sofler: document via titre de fenêtre — %@", url.path)
             return url
         }
-        NSLog("caret: aucun document identifié pour %@",
+        NSLog("sofler: aucun document identifié pour %@",
               app.localizedName ?? "l'app active")
         return nil
     }
@@ -170,7 +170,7 @@ enum TargetWriter {
         return url
     }
 
-    /// Ce que Caret perçoit de l'application active.
+    /// Ce que Sofler perçoit de l'application active.
     ///
     /// La détection dépend de ce que publie chaque application, et il n'y a
     /// aucun moyen de le deviner de l'extérieur. Plutôt que de faire deviner

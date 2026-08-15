@@ -12,16 +12,16 @@ final class Preferences {
     static let shared = Preferences()
 
     private enum Key {
-        static let lexicon = "caret.lexicon"
-        static let useDefaultLexicon = "caret.lexicon.useDefault"
-        static let triggerSide = "caret.trigger.side"
-        static let triggerEnabled = "caret.trigger.enabled"
-        static let defaultMode = "caret.mode"
-        static let language = "caret.language"
-        static let noteFile = "caret.notes.file"
-        static let livePreview = "caret.preview.live"
-        static let corpus = "caret.corpus.enabled"
-        static let corpusAudio = "caret.corpus.audio"
+        static let lexicon = "sofler.lexicon"
+        static let useDefaultLexicon = "sofler.lexicon.useDefault"
+        static let triggerSide = "sofler.trigger.side"
+        static let triggerEnabled = "sofler.trigger.enabled"
+        static let defaultMode = "sofler.mode"
+        static let language = "sofler.language"
+        static let noteFile = "sofler.notes.file"
+        static let livePreview = "sofler.preview.live"
+        static let corpus = "sofler.corpus.enabled"
+        static let corpusAudio = "sofler.corpus.audio"
     }
 
     private let defaults = UserDefaults.standard
@@ -82,7 +82,7 @@ final class Preferences {
     ///
     /// Revenir au curseur ne doit pas l'oublier : on alterne entre les deux en
     /// pleine dictée, et redemander le fichier à chaque retour ouvrirait un
-    /// sélecteur — qui activerait Caret et déplacerait le curseur, exactement
+    /// sélecteur — qui activerait Sofler et déplacerait le curseur, exactement
     /// ce que l'overlay `nonactivatingPanel` s'applique à éviter.
     ///
     /// Un chemin suffit : l'application n'est pas en bac à sable, donc pas de

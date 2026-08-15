@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installe le moteur comme service de session, démarré à l'ouverture de session.
 #
-# Sans ça, Caret est inutilisable après un redémarrage tant qu'on n'a pas
+# Sans ça, Sofler est inutilisable après un redémarrage tant qu'on n'a pas
 # ouvert un terminal pour relancer le moteur à la main — ce qui disqualifie
 # l'outil pour un usage quotidien.
 #
@@ -10,9 +10,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LABEL="dev.mnaji.caret.engine"
+LABEL="fr.lyriastudio.sofler.engine"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-LOG_DIR="$HOME/Library/Logs/Caret"
+LOG_DIR="$HOME/Library/Logs/Sofler"
 
 if [ "${1:-}" = "--uninstall" ]; then
     launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
@@ -45,7 +45,7 @@ cat > "$PLIST" <<PLIST_EOF
         <string>$ROOT/engine</string>
         <string>python</string>
         <string>-m</string>
-        <string>caret_engine.server</string>
+        <string>sofler_engine.server</string>
     </array>
 
     <key>WorkingDirectory</key>
@@ -83,7 +83,7 @@ echo "  journal : $LOG_DIR/engine.log"
 echo
 printf "  chargement du modèle "
 for _ in $(seq 1 60); do
-    if [ -S "$HOME/Library/Caches/caret/engine.sock" ]; then
+    if [ -S "$HOME/Library/Caches/sofler/engine.sock" ]; then
         echo "— prêt"
         exit 0
     fi

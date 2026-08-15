@@ -159,14 +159,14 @@ final class DictationController {
                 return
             }
         case .denied:
-            state = .failed("Micro refusé — ouvrir Réglages › Micro depuis le menu de Caret.")
+            state = .failed("Micro refusé — ouvrir Réglages › Micro depuis le menu de Sofler.")
             Permissions.openMicrophoneSettings()
             return
         }
 
         guard injector.hasPermission else {
             injector.requestPermission()
-            state = .failed("Accessibilité requise — voir le menu de Caret.")
+            state = .failed("Accessibilité requise — voir le menu de Sofler.")
             return
         }
         do {
@@ -196,12 +196,12 @@ final class DictationController {
         overlay.showProcessing()
 
         let seconds = Double(samples.count) / AudioRecorder.targetSampleRate
-        NSLog("caret: fin d'enregistrement, %.1fs capturées", seconds)
+        NSLog("sofler: fin d'enregistrement, %.1fs capturées", seconds)
 
         // Un appui-relâché trop bref ne contient rien d'exploitable ; inutile
         // de réveiller le moteur. Un vrai VAD reste à faire (cf. README).
         guard samples.count > Int(AudioRecorder.targetSampleRate * 0.3) else {
-            NSLog("caret: trop court, ignoré")
+            NSLog("sofler: trop court, ignoré")
             overlay.hide()
             state = .idle
             return
@@ -234,7 +234,7 @@ final class DictationController {
             try await deliver(text)
             history.add(text, mode: used)
             pendingAudio = nil
-            NSLog("caret: %.0f ms, fenêtre %.0fs — %@",
+            NSLog("sofler: %.0f ms, fenêtre %.0fs — %@",
                   result.latency.wallMs, result.windowSeconds, text)
             state = .idle
             // Après l'insertion, jamais avant : la collecte ne doit rien
@@ -244,7 +244,7 @@ final class DictationController {
             overlay.hide()
             pendingAudio = samples
             let minutes = Double(samples.count) / AudioRecorder.targetSampleRate / 60
-            NSLog("caret: échec, %.1f min d'audio conservées pour réessai", minutes)
+            NSLog("sofler: échec, %.1f min d'audio conservées pour réessai", minutes)
             state = .failed("\(error.localizedDescription) — audio conservé, « Réessayer » dans le menu.")
         }
     }
@@ -260,7 +260,7 @@ final class DictationController {
             try await injector.inject(text)
         case .file(let url):
             try TargetWriter.append(text, to: url)
-            NSLog("caret: ajouté à %@", url.lastPathComponent)
+            NSLog("sofler: ajouté à %@", url.lastPathComponent)
         }
     }
 
@@ -279,7 +279,7 @@ final class DictationController {
     /// courante : revenir au curseur ne l'oublie pas, et y retourner ne coûte
     /// qu'un clic. La version précédente relançait la détection à chaque
     /// bascule, donc pouvait ouvrir un sélecteur au milieu d'une phrase — un
-    /// panneau modal qui active Caret, déplace le curseur et avale les
+    /// panneau modal qui active Sofler, déplace le curseur et avale les
     /// frappes, c'est-à-dire tout ce que la barre flottante évite par
     /// ailleurs.
     func setNotesTarget(_ wantsNotes: Bool) {
@@ -292,7 +292,7 @@ final class DictationController {
             return
         }
         guard state != .recording else {
-            NSLog("caret: aucun fichier de notes mémorisé — en choisir un depuis le menu")
+            NSLog("sofler: aucun fichier de notes mémorisé — en choisir un depuis le menu")
             return
         }
         chooseNoteFile()
@@ -308,13 +308,13 @@ final class DictationController {
         if chosen == nil {
             // Détection impossible : plutôt qu'un sélecteur surgissant sans
             // raison apparente, on dit pourquoi avant de le proposer.
-            NSLog("caret: fichier non identifié — sélecteur")
+            NSLog("sofler: fichier non identifié — sélecteur")
             chosen = TargetWriter.chooseFile()
         }
         guard let chosen else { return nil }
         Preferences.shared.noteFile = chosen
         target = .file(chosen)
-        NSLog("caret: notes dans %@", chosen.path)
+        NSLog("sofler: notes dans %@", chosen.path)
         return chosen
     }
 
@@ -390,7 +390,7 @@ final class DictationController {
                 record(result.text, latency: result.latency.wallMs,
                        mode: other, in: &entry)
             } catch {
-                NSLog("caret: corpus — seconde passe échouée : %@",
+                NSLog("sofler: corpus — seconde passe échouée : %@",
                       error.localizedDescription)
                 entry.secondPassSkipped = true
             }

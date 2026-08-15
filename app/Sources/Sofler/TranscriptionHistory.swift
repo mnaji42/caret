@@ -42,8 +42,8 @@ final class TranscriptionHistory {
 
     static let limit = 5
 
-    private let storageKey = "caret.history"
-    private let enabledKey = "caret.history.enabled"
+    private let storageKey = "sofler.history"
+    private let enabledKey = "sofler.history.enabled"
 
     private(set) var entries: [Entry] = []
 

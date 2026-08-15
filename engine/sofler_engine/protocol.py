@@ -27,7 +27,7 @@ import numpy as np
 HEADER_STRUCT = struct.Struct(">I")
 SAMPLE_RATE = 16_000
 
-DEFAULT_SOCKET = Path.home() / "Library" / "Caches" / "caret" / "engine.sock"
+DEFAULT_SOCKET = Path.home() / "Library" / "Caches" / "sofler" / "engine.sock"
 
 
 def pcm16_to_float32(raw: bytes) -> np.ndarray:

@@ -1,5 +1,5 @@
 import Testing
-@testable import CaretCore
+@testable import SoflerCore
 
 // MARK: - Ajout dans un fichier verrouillé
 
@@ -52,13 +52,13 @@ struct WindowTitleTests {
 
     @Test("Un nom contenant un tiret survit",
           arguments: [
-            "test-caret.md — CrispType",
-            "● test-caret.md — CrispType",
-            "test-caret.md - CrispType - Antigravity",
+            "test-sofler.md — sofler",
+            "● test-sofler.md — sofler",
+            "test-sofler.md - sofler - Antigravity",
           ])
     func dashInFileName(title: String) {
         // Régression réelle : découper sur le tiret nu donnait « test ».
-        #expect(TextComposition.parseWindowTitle(title)?.fileName == "test-caret.md")
+        #expect(TextComposition.parseWindowTitle(title)?.fileName == "test-sofler.md")
     }
 
     @Test("Le marqueur de modification est retiré")

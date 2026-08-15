@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import torch
 
-from caret_engine import prompt as prompt_mod
+from sofler_engine import prompt as prompt_mod
 
 log = logging.getLogger(__name__)
 

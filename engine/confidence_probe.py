@@ -7,8 +7,8 @@ permettrait de les repérer sans relire.
 """
 import numpy as np, soundfile as sf, torch
 from pathlib import Path
-from caret_engine.crisper import CrisperWhisperEngine, SAMPLE_RATE, MEL_FRAMES_PER_S, DEFAULT_LEXICON
-from caret_engine import prompt as prompt_mod
+from sofler_engine.crisper import CrisperWhisperEngine, SAMPLE_RATE, MEL_FRAMES_PER_S, DEFAULT_LEXICON
+from sofler_engine import prompt as prompt_mod
 
 engine = CrisperWhisperEngine()
 engine.load()

@@ -6,7 +6,7 @@ configuration commet, sur les mêmes enregistrements.
 import sys, time
 from pathlib import Path
 import numpy as np, soundfile as sf
-from caret_engine.crisper import CrisperWhisperEngine
+from sofler_engine.crisper import CrisperWhisperEngine
 
 SAMPLES = sorted((Path(__file__).parent.parent / "poc/samples").glob("*.wav"))
 

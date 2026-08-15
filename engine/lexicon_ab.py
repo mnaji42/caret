@@ -7,7 +7,7 @@ enregistrements réels.
 """
 from pathlib import Path
 import soundfile as sf
-from caret_engine.crisper import CrisperWhisperEngine
+from sofler_engine.crisper import CrisperWhisperEngine
 
 ORIGINAL = [
     "useEffect", "useState", "component", "React", "Next.js", "TypeScript",

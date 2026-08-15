@@ -64,8 +64,8 @@ def run_french() -> dict[str, tuple[str, float]]:
     return out
 
 
-def run_caret() -> dict[str, tuple[str, float]]:
-    from caret_engine.crisper import CrisperWhisperEngine
+def run_sofler() -> dict[str, tuple[str, float]]:
+    from sofler_engine.crisper import CrisperWhisperEngine
 
     engine = CrisperWhisperEngine()
     engine.load()
@@ -87,23 +87,23 @@ def score(text: str, terms: list[str]) -> tuple[int, list[str]]:
 
 def main() -> None:
     print("CrisperWhisper + lexique …")
-    caret = run_caret()
+    sofler = run_sofler()
     print(f"Whisper français ({FRENCH_MODEL.split('/')[-1]}) …")
     french = run_french()
 
-    totals = {"caret": 0, "french": 0, "max": 0}
-    for name in sorted(caret):
+    totals = {"sofler": 0, "french": 0, "max": 0}
+    for name in sorted(sofler):
         terms = EXPECTED[name]
-        c_text, c_ms = caret[name]
+        c_text, c_ms = sofler[name]
         f_text, f_ms = french[name]
         c_score, c_missing = score(c_text, terms)
         f_score, f_missing = score(f_text, terms)
-        totals["caret"] += c_score
+        totals["sofler"] += c_score
         totals["french"] += f_score
         totals["max"] += len(terms)
 
         print(f"\n── {name}")
-        print(f"   Caret   {c_score}/{len(terms)}  {c_ms:5.0f} ms  {c_text[:105]}")
+        print(f"   Sofler   {c_score}/{len(terms)}  {c_ms:5.0f} ms  {c_text[:105]}")
         if c_missing:
             print(f"            perdus : {', '.join(c_missing)}")
         print(f"   Français {f_score}/{len(terms)}  {f_ms:5.0f} ms  {f_text[:105]}")
@@ -111,7 +111,7 @@ def main() -> None:
             print(f"            perdus : {', '.join(f_missing)}")
 
     print(f"\n{'=' * 74}")
-    print(f"  Caret (CrisperWhisper + lexique) : {totals['caret']}/{totals['max']}")
+    print(f"  Sofler (CrisperWhisper + lexique) : {totals['sofler']}/{totals['max']}")
     print(f"  Whisper français                 : {totals['french']}/{totals['max']}")
 
 
