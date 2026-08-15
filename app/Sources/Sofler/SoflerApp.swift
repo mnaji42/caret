@@ -38,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Repli clavier, utile si l'accessibilité n'est pas encore accordée
         // (le tap l'exige, pas Carbon) ou si Option droite sert à autre chose.
         hotkey = HotkeyMonitor { [weak self] in self?.controller.toggle() }
-        let shortcut = HotkeyMonitor.Shortcut.dictate
+        let shortcut = prefs.dictateShortcut
         if !hotkey.register(shortcut) {
             NSLog("sofler: impossible d'enregistrer \(shortcut.label) — raccourci déjà pris ?")
         }
@@ -128,7 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
 
         let dictate = NSMenuItem(
-            title: "Dicter  ⌥ droite  ·  \(HotkeyMonitor.Shortcut.dictate.label)",
+            title: "Dicter  ⌥ droite  ·  \(Preferences.shared.dictateShortcut.label)",
             action: #selector(triggerDictation), keyEquivalent: "")
         dictate.target = self
         menu.addItem(dictate)
@@ -317,6 +317,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.controller.toggle()
         }
         if prefs.triggerEnabled { modifierKey.start() }
+
+        // Le raccourci Carbon est enregistré auprès du système : en changer
+        // suppose de rendre l'ancien avant de prendre le nouveau.
+        hotkey.unregister()
+        if !hotkey.register(prefs.dictateShortcut) {
+            Log.error("raccourci \(prefs.dictateShortcut.label) refusé — déjà pris ?")
+        }
         Task { await refreshMenu() }
     }
 

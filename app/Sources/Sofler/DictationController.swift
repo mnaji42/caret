@@ -123,15 +123,15 @@ final class DictationController {
             refreshOverlay()
             onStateChange?(state)
         }
-        overlay.onTogglePreview = { [weak self] in
+        // La langue se change bien plus souvent que le mode — on s'en rend
+        // compte en basculant d'une phrase française à une phrase anglaise —
+        // d'où sa présence dans la barre. Comme le reste, elle est lue à la
+        // livraison : basculer en pleine dictée vaut pour la dictée en cours.
+        overlay.onSelectLanguage = { [weak self] code in
             guard let self else { return }
-            Preferences.shared.livePreviewEnabled.toggle()
+            Preferences.shared.language = code
             refreshOverlay()
-            guard state == .recording else { return }
-            // En pleine dictée, l'aperçu ne rattrape pas ce qui a déjà été
-            // dit : il reprend à partir d'ici. Ça ne change rien au texte
-            // transcrit, qui vient d'un tout autre chemin.
-            if Preferences.shared.livePreviewEnabled { startPreview() } else { stopPreview() }
+            onStateChange?(state)
         }
     }
 
@@ -146,6 +146,7 @@ final class DictationController {
             canPickNote: state != .recording,
             previewEnabled: Preferences.shared.livePreviewEnabled,
             modesAvailable: Preferences.shared.engine.hasModes,
+            language: Preferences.shared.language,
             corpusEnabled: Preferences.shared.corpusEnabled,
             corpusKeepsAudio: Preferences.shared.corpusKeepsAudio)
     }

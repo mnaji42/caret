@@ -28,6 +28,7 @@ final class Preferences {
         static let corpus = "sofler.corpus.enabled"
         static let corpusAudio = "sofler.corpus.audio"
         static let engine = "sofler.engine"
+        static let shortcut = "sofler.shortcut"
         static let corpusEngines = "sofler.corpus.engines"
     }
 
@@ -66,6 +67,21 @@ final class Preferences {
     var triggerEnabled: Bool {
         didSet {
             defaults.set(triggerEnabled, forKey: Key.triggerEnabled)
+            NotificationCenter.default.post(name: .soflerTriggerChanged, object: nil)
+        }
+    }
+
+    /// Raccourci clavier de dictée, personnalisable.
+    ///
+    /// Un raccourci global s'approprie la combinaison dans *toutes* les
+    /// applications : celui qui convient dépend donc de ce que l'utilisateur
+    /// fait tourner par ailleurs, et aucun défaut ne peut convenir à tout le
+    /// monde.
+    var dictateShortcut: HotkeyMonitor.Shortcut {
+        didSet {
+            defaults.set(["keyCode": Int(dictateShortcut.keyCode),
+                          "modifiers": Int(dictateShortcut.modifiers),
+                          "label": dictateShortcut.label], forKey: Key.shortcut)
             NotificationCenter.default.post(name: .soflerTriggerChanged, object: nil)
         }
     }
@@ -190,16 +206,31 @@ final class Preferences {
             .map { URL(fileURLWithPath: $0) }
             .flatMap { FileManager.default.isWritableFile(atPath: $0.path) ? $0 : nil }
         livePreviewEnabled = defaults.object(forKey: Key.livePreview) as? Bool ?? true
+        // Fermée par défaut — rien n'est archivé sans un geste explicite.
+        // Mais une fois ouverte, complète : conserver l'audio et transcrire
+        // avec tous les moteurs, parce qu'une collecte amputée ne répond pas
+        // à la question qu'on se pose en l'activant.
         corpusEnabled = defaults.bool(forKey: Key.corpus)
-        corpusKeepsAudio = defaults.bool(forKey: Key.corpusAudio)
+        corpusKeepsAudio = defaults.object(forKey: Key.corpusAudio) as? Bool ?? true
         // Apple par défaut : inclus dans le système, aucun téléchargement,
         // aucune licence à accepter, et rien ne réside en mémoire. Une
         // installation neuve ne charge donc aucun modèle tant que
         // l'utilisateur n'a pas explicitement choisi le contraire.
+        if let stored = defaults.dictionary(forKey: Key.shortcut),
+           let code = stored["keyCode"] as? Int,
+           let modifiers = stored["modifiers"] as? Int,
+           let label = stored["label"] as? String {
+            dictateShortcut = HotkeyMonitor.Shortcut(
+                keyCode: UInt32(code), modifiers: UInt32(modifiers),
+                label: label, id: HotkeyMonitor.Shortcut.dictate.id)
+        } else {
+            dictateShortcut = .dictate
+        }
         engine = EngineChoice(rawValue: defaults.string(forKey: Key.engine) ?? "")
             ?? .apple
-        corpusEngines = Set((defaults.stringArray(forKey: Key.corpusEngines) ?? [])
-            .compactMap(EngineChoice.init(rawValue:)))
+        corpusEngines = defaults.stringArray(forKey: Key.corpusEngines)
+            .map { Set($0.compactMap(EngineChoice.init(rawValue:))) }
+            ?? Set(EngineChoice.allCases)
     }
 
     /// Point de départ quand l'utilisateur passe à sa propre liste : le même

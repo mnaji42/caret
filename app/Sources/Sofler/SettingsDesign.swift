@@ -164,7 +164,10 @@ struct ChoiceRow<Detail: View>: View {
 
             // Les options du moteur retenu sont attachées sous lui, pas
             // ailleurs : elles n'existent que parce qu'il a été choisi.
-            if selected && hasDetail {
+            // Affichées même quand le moteur n'est pas retenu : on peut
+            // écrire avec macOS tout en collectant avec CrisperWhisper, et il
+            // faut alors pouvoir régler ce dernier.
+            if hasDetail {
                 Divider().opacity(0.25).padding(.horizontal, 12)
                 VStack(alignment: .leading, spacing: 12) { detail }
                     .padding(12)
@@ -189,5 +192,40 @@ struct ButtonRow<Content: View>: View {
         HStack(spacing: 8) { content }
             .buttonStyle(.bordered)
             .controlSize(.small)
+    }
+}
+
+
+/// Interrupteur d'une fonctionnalité entière, par opposition à une case qui
+/// coche une option.
+///
+/// La distinction n'est pas décorative : une case à cocher se lit comme « ce
+/// détail est retenu », un interrupteur comme « cette fonctionnalité est en
+/// marche ». Confondre les deux fait qu'on active une collecte de données en
+/// croyant cocher une préférence.
+struct FeatureSwitch: View {
+    let title: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        HStack {
+            Text(title).font(.system(size: 13, weight: .medium))
+            Spacer(minLength: 16)
+            Toggle("", isOn: $isOn)
+                .toggleStyle(.switch)
+                .labelsHidden()
+        }
+    }
+}
+
+/// Case à cocher pour une option à l'intérieur d'une fonctionnalité.
+struct OptionCheck: View {
+    let title: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Toggle(title, isOn: $isOn)
+            .toggleStyle(.checkbox)
+            .font(.system(size: 13))
     }
 }

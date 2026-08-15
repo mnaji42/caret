@@ -126,8 +126,8 @@ private struct GeneralTab: View {
 
     var body: some View {
         Card(title: "Déclencheur") {
-            Toggle("Dicter avec la touche Option seule", isOn: $prefs.triggerEnabled)
-                .font(.system(size: 13))
+            FeatureSwitch(title: "Dicter avec la touche Option seule",
+                          isOn: $prefs.triggerEnabled)
             Row(label: "Côté") {
                 PillPicker(options: [(ModifierKeyMonitor.Side.right, "Droite"),
                                      (ModifierKeyMonitor.Side.left, "Gauche")],
@@ -135,9 +135,17 @@ private struct GeneralTab: View {
                            disabled: !prefs.triggerEnabled)
             }
             Note("Option reste utilisable normalement : le déclenchement n'a "
-                 + "lieu que si aucune autre touche n'est pressée entre-temps. "
-                 + "\(HotkeyMonitor.Shortcut.dictate.label) fonctionne toujours, "
-                 + "et ne demande pas l'Accessibilité.")
+                 + "lieu que si aucune autre touche n'est pressée entre-temps.")
+
+            Divider().opacity(0.25)
+            Row(label: "Raccourci clavier") {
+                ShortcutRecorder(shortcut: $prefs.dictateShortcut) { _ in }
+                    .frame(width: 150, height: 26)
+            }
+            Note("Cliquez puis tapez la combinaison voulue. Elle fonctionne "
+                 + "même sans l'autorisation d'Accessibilité, contrairement à la "
+                 + "touche Option seule. macOS refuse les raccourcis sans "
+                 + "Contrôle ni Commande.")
         }
 
         Card(title: "Où va le texte") {
@@ -167,10 +175,12 @@ private struct GeneralTab: View {
         }
 
         Card(title: "Retours pendant la dictée") {
-            Toggle("Aperçu en direct dans la barre", isOn: $prefs.livePreviewEnabled)
-                .font(.system(size: 13))
-            Toggle("Sons de début et de fin", isOn: $soundsEnabled)
-                .font(.system(size: 13))
+            FeatureSwitch(title: "Aperçu en direct dans la barre",
+                          isOn: $prefs.livePreviewEnabled)
+            Note("Affiche sous la barre ce que le moteur de macOS entend "
+                 + "pendant que vous parlez. Indicatif : il n'a pas votre "
+                 + "vocabulaire technique, donc le texte inséré peut différer.")
+            FeatureSwitch(title: "Sons de début et de fin", isOn: $soundsEnabled)
                 .onChange(of: soundsEnabled) { _, new in Feedback.soundsEnabled = new }
         }
         .onAppear { noteFile = prefs.noteFile }
@@ -225,8 +235,8 @@ private struct TranscriptionTab: View {
                 Divider().opacity(0.25)
                 Text("Vocabulaire technique")
                     .font(.system(size: 12, weight: .medium))
-                Toggle("Utiliser la liste intégrée", isOn: $prefs.useDefaultLexicon)
-                    .font(.system(size: 13))
+                OptionCheck(title: "Utiliser la liste intégrée",
+                            isOn: $prefs.useDefaultLexicon)
                 if !prefs.useDefaultLexicon {
                     TextEditor(text: $lexiconText)
                         .font(.system(size: 12, design: .monospaced))
@@ -269,54 +279,64 @@ private struct CollectionTab: View {
 
     var body: some View {
         Card(title: "Collecte") {
-            Toggle("Archiver les dictées pour comparer les moteurs",
-                   isOn: $prefs.corpusEnabled)
-                .font(.system(size: 13))
-            Toggle("Conserver aussi l'audio", isOn: $prefs.corpusKeepsAudio)
-                .font(.system(size: 13))
-                .disabled(!prefs.corpusEnabled)
-            Note("L'audio coûte environ 2 Mo la minute, contre quelques "
-                 + "kilo-octets de texte — d'où la case séparée. Sans lui, "
-                 + "impossible de rejouer une dictée pour arbitrer un désaccord "
-                 + "entre moteurs.")
+            FeatureSwitch(title: "Archiver mes dictées", isOn: $prefs.corpusEnabled)
+            Note("À chaque dictée, Sofler garde le texte produit par chaque "
+                 + "moteur à partir du **même** audio. Ça sert à une seule "
+                 + "chose : vous permettre de comparer les moteurs sur votre "
+                 + "voix, votre vocabulaire et votre micro, au lieu de vous fier "
+                 + "à des mesures faites sur celle de quelqu'un d'autre.\n\n"
+                 + "**Tout reste sur votre Mac.** Rien n'est envoyé nulle part, "
+                 + "ni à l'auteur de l'application ni à personne — il n'existe "
+                 + "aucun serveur pour le recevoir. Vous pouvez ouvrir le "
+                 + "dossier, le lire, et l'effacer quand vous voulez.")
         }
 
-        Card(title: "Transcrire aussi avec") {
-            ForEach(EngineChoice.allCases, id: \.self) { choice in
-                Toggle(choice.label, isOn: Binding(
-                    get: { prefs.corpusEngines.contains(choice) },
-                    set: { on in
-                        if on { prefs.corpusEngines.insert(choice) }
-                        else { prefs.corpusEngines.remove(choice) }
-                    }))
-                    .font(.system(size: 13))
-                    .disabled(!prefs.corpusEnabled || choice == prefs.engine)
-            }
-            Note("En plus du moteur qui écrit, et **après** insertion : la "
-                 + "latence de dictée n'est jamais échangée contre de la "
-                 + "collecte. Un moteur non coché n'est jamais chargé.")
-            if prefs.needsLocalEngine {
-                Label("Le service CrisperWhisper tourne — environ 3 Go en mémoire.",
-                      systemImage: "memorychip")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Style.collecting)
-            }
-        }
+        if prefs.corpusEnabled {
+            Card(title: "Ce qui est gardé") {
+                OptionCheck(title: "Conserver aussi l'audio",
+                            isOn: $prefs.corpusKeepsAudio)
+                Note("Environ 2 Mo la minute, contre quelques kilo-octets de "
+                     + "texte. Sans lui, impossible de réécouter une dictée pour "
+                     + "arbitrer un désaccord entre deux moteurs.")
 
-        Card(title: "Corpus") {
-            Row(label: "État") {
-                Text(stats.summary).font(.system(size: 12)).foregroundStyle(.secondary)
-            }
-            ButtonRow {
-                Button("Afficher dans le Finder") { Corpus.shared.reveal() }
-                Button("Tout effacer") {
-                    Corpus.shared.clear()
-                    stats = Corpus.shared.statistics()
+                Divider().opacity(0.25)
+                Text("Transcrire aussi avec")
+                    .font(.system(size: 12, weight: .medium))
+                ForEach(EngineChoice.allCases, id: \.self) { choice in
+                    OptionCheck(title: choice.label, isOn: Binding(
+                        get: { prefs.corpusEngines.contains(choice) },
+                        set: { on in
+                            if on { prefs.corpusEngines.insert(choice) }
+                            else { prefs.corpusEngines.remove(choice) }
+                        }))
+                    .disabled(choice == prefs.engine)
                 }
-                .disabled(stats.count == 0)
+                Note("En plus du moteur qui écrit, et **après** insertion : la "
+                     + "latence de dictée n'est jamais échangée contre de la "
+                     + "collecte. Un moteur non coché n'est jamais chargé.")
+                if prefs.needsLocalEngine {
+                    Label("Le service CrisperWhisper tourne — environ 3 Go en mémoire.",
+                          systemImage: "memorychip")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Style.collecting)
+                }
+            }
+
+            Card(title: "Corpus") {
+                Row(label: "État") {
+                    Text(stats.summary).font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+                ButtonRow {
+                    Button("Afficher dans le Finder") { Corpus.shared.reveal() }
+                    Button("Tout effacer") {
+                        Corpus.shared.clear()
+                        stats = Corpus.shared.statistics()
+                    }
+                    .disabled(stats.count == 0)
+                }
             }
         }
-        .onAppear { stats = Corpus.shared.statistics() }
     }
 }
 
@@ -329,14 +349,15 @@ private struct HistoryTab: View {
 
     var body: some View {
         Card(title: "Transcriptions récentes") {
-            Toggle("Conserver l'historique", isOn: Binding(
+            FeatureSwitch(title: "Conserver l'historique", isOn: Binding(
                 get: { history.isEnabled },
                 set: { history.isEnabled = $0; entries = history.entries }))
-                .font(.system(size: 13))
 
-            if entries.isEmpty {
-                Note(history.isEnabled ? "Aucune pour l'instant"
-                                       : "Historique désactivé")
+            if !history.isEnabled {
+                Note("Rien n'est écrit. Les transcriptions passées ne sont pas "
+                     + "conservées, même localement.")
+            } else if entries.isEmpty {
+                Note("Aucune pour l'instant")
             } else {
                 ForEach(entries) { entry in
                     Divider().opacity(0.25)

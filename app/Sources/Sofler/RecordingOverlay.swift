@@ -41,9 +41,11 @@ final class RecordingOverlay {
         /// peut pas ouvrir maintenant.
         var canPickNote: Bool = true
         var previewEnabled: Bool
-        /// Faux quand le moteur actif n'a qu'un rendu : la pastille de mode se
-        /// grise plutôt que de donner l'illusion d'un choix sans effet.
+        /// Faux quand le moteur actif n'a qu'un rendu : la pastille de mode
+        /// **disparaît** plutôt que d'être grisée. Un contrôle inerte occupe
+        /// la place et l'attention sans rien offrir.
         var modesAvailable: Bool = true
+        var language: String
         var corpusEnabled: Bool
         var corpusKeepsAudio: Bool
     }
@@ -58,10 +60,11 @@ final class RecordingOverlay {
     private let meter = LevelMeter()
     private let modeControl = PillSelector(
         labels: TranscriptionMode.allCases.map(\.label), accent: accent)
+    private let languageControl = PillSelector(
+        labels: Preferences.languages.map(\.1), accent: accent)
     private let targetControl = PillSelector(
         labels: ["Curseur", "Notes…"], accent: accent)
     private let micButton = FirstMouseButton()
-    private let previewButton = FirstMouseButton()
     private let corpusBadge = BadgeButton()
     private var container: NSStackView?
     private var recordingRow: NSStackView?
@@ -77,15 +80,15 @@ final class RecordingOverlay {
     var levelProvider: (() -> Float)?
     var onSelectMode: ((TranscriptionMode) -> Void)?
     var onSelectTarget: ((Bool) -> Void)?
-    var onTogglePreview: (() -> Void)?
+    var onSelectLanguage: ((String) -> Void)?
     var onToggleCorpus: (() -> Void)?
     var onCancel: (() -> Void)?
 
     private var startedAt: Date?
     private var pulsePhase: CGFloat = 0
     private var status = Status(mode: .intended, target: .caret, noteName: nil,
-                                previewEnabled: false, corpusEnabled: false,
-                                corpusKeepsAudio: false)
+                                previewEnabled: false, language: "fr",
+                                corpusEnabled: false, corpusKeepsAudio: false)
 
     // MARK: - Mesures et couleurs
 
@@ -247,12 +250,9 @@ final class RecordingOverlay {
         self.status = status
 
         modeControl.select(TranscriptionMode.allCases.firstIndex(of: status.mode) ?? 0)
-        for index in TranscriptionMode.allCases.indices {
-            modeControl.setEnabled(status.modesAvailable, at: index)
-        }
-        modeControl.toolTip = status.modesAvailable
-            ? nil
-            : "Le moteur de macOS n'a qu'un rendu\nChanger de moteur dans les réglages"
+        modeControl.isHidden = !status.modesAvailable
+        languageControl.select(
+            Preferences.languages.firstIndex { $0.0 == status.language } ?? 0)
 
         targetControl.setLabel(Self.noteLabel(for: status), at: 1)
         targetControl.select(status.target.isLocked ? 1 : 0)
@@ -266,12 +266,6 @@ final class RecordingOverlay {
         micButton.attributedTitle = Self.buttonTitle(Self.microphoneModeLabel)
         micButton.toolTip = "Mode micro du système\nCliquer pour le changer"
 
-        previewButton.image = NSImage(
-            systemSymbolName: status.previewEnabled ? "eye" : "eye.slash",
-            accessibilityDescription: "Aperçu en direct")
-        previewButton.contentTintColor = status.previewEnabled
-            ? Self.accent : .tertiaryLabelColor
-        previewButton.toolTip = Self.previewExplanation
         previewLabel.toolTip = Self.previewExplanation
         previewLabel.isHidden = !status.previewEnabled
 
@@ -480,8 +474,8 @@ final class RecordingOverlay {
         buildControls()
 
         let recording = makeRow([dot, timeLabel, meter, NSView(),
-                                 micButton, corpusBadge, previewButton])
-        let tabs = makeSpacedRow([modeControl, targetControl])
+                                 micButton, corpusBadge])
+        let tabs = makeSpacedRow([languageControl, modeControl, targetControl])
         recordingRow = recording
         textRow = tabs
 
@@ -616,8 +610,7 @@ final class RecordingOverlay {
     }
 
     private func buildControls() {
-        for (button, action) in [(micButton, #selector(openMicrophoneModes)),
-                                 (previewButton, #selector(togglePreview))] {
+        for (button, action) in [(micButton, #selector(openMicrophoneModes))] {
             button.isBordered = false
             button.bezelStyle = .inline
             button.target = self
@@ -625,9 +618,6 @@ final class RecordingOverlay {
             // Réagit sans que Sofler passe au premier plan.
             button.setButtonType(.momentaryChange)
         }
-        previewButton.imagePosition = .imageOnly
-        previewButton.symbolConfiguration = .init(pointSize: 12, weight: .medium)
-
         corpusBadge.title = "COLLECTE"
         corpusBadge.target = self
         corpusBadge.action = #selector(toggleCorpus)
@@ -639,6 +629,10 @@ final class RecordingOverlay {
         }
         targetControl.onSelect = { [weak self] index in
             self?.onSelectTarget?(index == 1)
+        }
+        languageControl.onSelect = { [weak self] index in
+            guard Preferences.languages.indices.contains(index) else { return }
+            self?.onSelectLanguage?(Preferences.languages[index].0)
         }
     }
 
@@ -688,7 +682,6 @@ final class RecordingOverlay {
         dot.layer?.opacity = Float(0.55 + 0.45 * (sin(pulsePhase) + 1) / 2)
     }
 
-    @objc private func togglePreview() { onTogglePreview?() }
     @objc private func toggleCorpus() { onToggleCorpus?() }
 
     @objc private func openMicrophoneModes() {
