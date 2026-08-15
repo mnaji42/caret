@@ -21,6 +21,10 @@ jobs:
     # compilation échoue sur un symbole introuvable, ce que l'étape « SDK »
     # ci-dessous transforme en message lisible.
     runs-on: macos-26
+    # Le build prend trois minutes. Au-delà de vingt, quelque chose attend une
+    # saisie plutôt que de travailler, et mieux vaut le voir échouer que le
+    # laisser pendre six heures jusqu'au délai par défaut.
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -68,6 +72,11 @@ jobs:
             echo "::warning::Aucun certificat : signature ad hoc." \
                  "Les utilisateurs devront ré-accorder l'accessibilité après" \
                  "cette mise à jour."
+            # Explicitement « - », et non une chaîne vide : vide, install.sh
+            # retomberait sur le certificat de développement local, dont la
+            # création attend un trousseau de session qu'aucun runner n'a
+            # déverrouillé — le build pendrait jusqu'au délai maximal.
+            echo "identity=-" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           keychain="$RUNNER_TEMP/sofler.keychain-db"

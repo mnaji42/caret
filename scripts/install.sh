@@ -39,7 +39,22 @@ done
 # runner, et la release serait signée par une identité différente à chaque
 # exécution : les autorisations d'accessibilité sauteraient à chaque mise à
 # jour chez tous les utilisateurs.
-CERT_HASH="${SOFLER_SIGN_IDENTITY:-$("$ROOT/scripts/dev-cert.sh" | tail -1)}"
+#   non défini ou vide → certificat de développement local (dev-cert.sh)
+#   "-"                → signature ad hoc, sans aucun trousseau
+#   une empreinte      → cette identité, déjà importée par l'appelant
+#
+# Le cas "-" existe pour les machines sans trousseau de session déverrouillé,
+# c'est-à-dire les runners d'intégration continue. Sans lui, dev-cert.sh y
+# lançait un `security import` qui attendait indéfiniment une saisie que
+# personne ne peut donner : le build ne plantait pas, il pendait.
+if [ "${SOFLER_SIGN_IDENTITY:-}" = "-" ]; then
+    CERT_HASH="-"
+    echo "▸ signature ad hoc (aucun certificat fourni)"
+elif [ -n "${SOFLER_SIGN_IDENTITY:-}" ]; then
+    CERT_HASH="$SOFLER_SIGN_IDENTITY"
+else
+    CERT_HASH="$("$ROOT/scripts/dev-cert.sh" | tail -1)"
+fi
 
 # --- 2. compilation ------------------------------------------------------
 echo "▸ compilation ($CONFIG)"
