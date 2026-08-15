@@ -49,6 +49,13 @@
   }
   @media (prefers-color-scheme: dark) { .btn { color: #06222b; } }
   .btn:hover { opacity: .9; }
+  /* Tant que l'asset n'est pas confirmé, le bouton ne mène nulle part.
+     Un lien de téléchargement qui ouvre une page 404 est pire que pas de
+     bouton du tout : on croit que l'application est cassée. */
+  .btn[aria-disabled="true"] {
+    background: var(--line); color: var(--muted); cursor: not-allowed;
+    pointer-events: none;
+  }
   .status { margin-top: .9rem; font-size: .875rem; color: var(--muted); }
   .card {
     margin-top: 2.5rem; background: var(--card); border: 1px solid var(--line);
@@ -76,11 +83,10 @@
     curseur clignote. Tout reste sur votre Mac.
   </p>
 
-  <a class="btn" id="download"
-     href="https://github.com/mnaji42/sofler/releases/latest/download/Sofler.dmg">
-    Télécharger pour macOS
+  <a class="btn" id="download" aria-disabled="true" href="#">
+    Vérification…
   </a>
-  <p class="status" id="status">Vérification de la dernière version…</p>
+  <p class="status" id="status">Recherche de la dernière version publiée…</p>
 
   <div class="card">
     <h2>Au premier lancement</h2>
@@ -116,18 +122,30 @@
         return a.name === "Sofler.dmg";
       })[0];
       var el = document.getElementById("status");
+      var btn = document.getElementById("download");
       if (!dmg) {
         el.textContent = "⚠ Release " + release.tag_name
-          + " trouvée, mais aucun asset nommé Sofler.dmg — "
-          + "le lien de téléchargement ne résoudra pas.";
+          + " trouvée, mais aucun asset nommé Sofler.dmg.";
+        btn.textContent = "Indisponible";
         return;
       }
+      // On pointe sur l'URL réelle de l'asset plutôt que sur l'alias
+      // « latest » : c'est la même chose une fois la release publiée, mais
+      // celle-ci est confirmée existante par la réponse qu'on vient de lire.
+      //
+      // Le navigateur télécharge sans quitter la page : GitHub sert l'asset
+      // avec `content-disposition: attachment`. Les 404 qui font naviguer
+      // viennent d'une release absente, pas du lien.
+      btn.href = dmg.browser_download_url;
+      btn.setAttribute("aria-disabled", "false");
+      btn.textContent = "Télécharger pour macOS";
       el.textContent = "✓ " + release.tag_name + " · "
         + (dmg.size / 1048576).toFixed(1) + " Mo · "
         + dmg.download_count + " téléchargement(s)";
     })
     .catch(function (e) {
       document.getElementById("status").textContent = "⚠ " + e.message;
+      document.getElementById("download").textContent = "Indisponible";
     });
 </script>
 </body>
