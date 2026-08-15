@@ -179,13 +179,27 @@ struct PermissionsChecklist: View {
             }
 
             if !monitor.accessibilityGranted {
-                Button("Ouvrir Réglages Système › Accessibilité") {
-                    Permissions.openAccessibilitySettings()
+                HStack(spacing: 8) {
+                    // D'abord le dialogue de macOS : c'est une demande, pas
+                    // une éjection vers une autre application.
+                    Button("Autoriser l'accessibilité") {
+                        NSApp.activate(ignoringOtherApps: true)
+                        Permissions.requestAccessibility()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Style.accent)
+
+                    // Le dialogue n'apparaît qu'une fois par application :
+                    // au-delà, ce lien est le seul chemin restant.
+                    Button("Ouvrir les Réglages Système") {
+                        Permissions.openAccessibilitySettings()
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Style.accent)
-                Note("Ajoutez Sofler à la liste, puis revenez ici — l'état "
-                     + "se met à jour tout seul.")
+                Note("macOS ne laisse aucune application s'accorder ce droit "
+                     + "elle-même : la case se coche dans les Réglages "
+                     + "Système. Sofler reste ouvert pendant ce temps, et "
+                     + "l'état ci-dessus se met à jour tout seul dès que "
+                     + "c'est fait.")
             }
         }
     }

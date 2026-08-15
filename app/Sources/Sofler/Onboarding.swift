@@ -42,6 +42,12 @@ final class OnboardingWindowController {
         window.setContentSize(NSSize(width: 580, height: 620))
         window.center()
         window.isReleasedWhenClosed = false
+        // Sans ça, la fenêtre disparaît de l'écran dès que Sofler cesse d'être
+        // l'application active — c'est-à-dire à l'instant précis où l'accueil
+        // envoie quelqu'un accorder une autorisation dans les Réglages
+        // Système. Il revient, et l'accueil s'est évaporé : il croit avoir
+        // fait fuir l'application, alors qu'elle tourne toujours.
+        window.hidesOnDeactivate = false
         self.window = window
 
         NSApp.activate(ignoringOtherApps: true)

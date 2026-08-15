@@ -21,6 +21,26 @@ enum Permissions {
         open("Privacy_Accessibility")
     }
 
+    /// Demande l'accessibilité par le dialogue de macOS, plutôt que d'expédier
+    /// l'utilisateur dans les Réglages Système sans prévenir.
+    ///
+    /// Aucune application ne peut s'accorder ce droit : le passage par les
+    /// Réglages est imposé par le système, pas par nous. Mais macOS sait au
+    /// moins présenter la demande lui-même, avec un bouton qui y mène. C'est
+    /// une marche de moins, et surtout c'est une *demande* au lieu d'un saut
+    /// dans une autre application.
+    ///
+    /// Le dialogue n'est présenté qu'une fois par application : passé là,
+    /// l'appel ne fait plus rien de visible, et il faut le lien direct. Les
+    /// deux chemins doivent donc rester offerts.
+    ///
+    /// - Returns: vrai si le droit est déjà accordé.
+    @discardableResult
+    static func requestAccessibility() -> Bool {
+        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        return AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+    }
+
     /// Résumé lisible de l'état courant, affiché dans le menu.
     static func summary(accessibilityGranted: Bool) -> String {
         let mic = switch AudioRecorder.microphoneAccess {

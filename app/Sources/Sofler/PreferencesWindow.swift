@@ -32,6 +32,10 @@ final class PreferencesWindowController {
         window.setContentSize(NSSize(width: 540, height: 620))
         window.center()
         window.isReleasedWhenClosed = false
+        // Les réglages contiennent eux aussi des boutons qui ouvrent les
+        // Réglages Système. Sans ça, ils s'effacent au moment d'y aller, et on
+        // revient devant rien. Cf. Onboarding.swift, même cause.
+        window.hidesOnDeactivate = false
         self.window = window
 
         NSApp.activate(ignoringOtherApps: true)
