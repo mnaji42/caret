@@ -4,9 +4,7 @@ import SwiftUI
 /// Fenêtre de réglages.
 ///
 /// Sofler est une app d'arrière-plan sans Dock : ouvrir une fenêtre demande de
-/// l'activer explicitement, sinon elle apparaît derrière tout le reste. On
-/// repasse en arrière-plan à la fermeture pour ne pas rester dans le
-/// sélecteur d'applications.
+/// l'activer explicitement, sinon elle apparaît derrière tout le reste.
 @MainActor
 final class PreferencesWindowController {
     private var window: NSWindow?
@@ -21,13 +19,17 @@ final class PreferencesWindowController {
             return
         }
 
-        let hosting = NSHostingController(
-            rootView: PreferencesView(history: history))
+        let hosting = NSHostingController(rootView: PreferencesView(history: history))
         let window = NSWindow(contentViewController: hosting)
         window.title = "Réglages de Sofler"
-        window.styleMask = [.titled, .closable]
-        // La taille vient de la vue : les onglets la fixent eux-mêmes.
-        window.setContentSize(NSSize(width: 520, height: 600))
+        window.styleMask = [.titled, .closable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
+        // Le fond est peint par la vue, avec le même verre que la barre : sans
+        // ça, macOS glisse son gris système derrière et les deux surfaces de
+        // l'application ne se ressemblent plus.
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.setContentSize(NSSize(width: 540, height: 620))
         window.center()
         window.isReleasedWhenClosed = false
         self.window = window
@@ -37,29 +39,75 @@ final class PreferencesWindowController {
     }
 }
 
-/// Tous les réglages au même endroit.
-///
-/// Le menu de la barre reste volontairement court — il sert aux gestes du
-/// quotidien, pas à la configuration. Un réglage qui n'existe que dans un menu
-/// déroulant est introuvable dès qu'on ne se souvient plus de son nom.
-/// Tous les réglages, en onglets.
-///
-/// Le menu de la barre reste volontairement court — il sert aux gestes du
-/// quotidien. Ici on regroupe par question posée : *avec quoi je transcris*,
-/// *comment je déclenche*, *ce que je garde*. Une seule liste déroulante de
-/// quinze réglages obligeait à tout parcourir pour en trouver un.
+// MARK: - Fenêtre
+
 private struct PreferencesView: View {
     let history: TranscriptionHistory
+    @State private var tab: Tab = .engine
+
+    enum Tab: String, CaseIterable {
+        case engine, dictation, collection, history
+
+        var label: String {
+            switch self {
+            case .engine: "Moteur"
+            case .dictation: "Dictée"
+            case .collection: "Collecte"
+            case .history: "Historique"
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .engine: "waveform"
+            case .dictation: "mic"
+            case .collection: "tray.full"
+            case .history: "clock"
+            }
+        }
+    }
 
     var body: some View {
-        TabView {
-            EngineTab().tabItem { Label("Moteur", systemImage: "waveform") }
-            DictationTab().tabItem { Label("Dictée", systemImage: "mic") }
-            CollectionTab().tabItem { Label("Collecte", systemImage: "tray.full") }
-            HistoryTab(history: history)
-                .tabItem { Label("Historique", systemImage: "clock") }
+        VStack(spacing: 0) {
+            tabBar
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    switch tab {
+                    case .engine: EngineTab()
+                    case .dictation: DictationTab()
+                    case .collection: CollectionTab()
+                    case .history: HistoryTab(history: history)
+                    }
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
-        .frame(width: 520, height: 560)
+        .background(GlassBackground().ignoresSafeArea())
+        .tint(Style.accent)
+    }
+
+    /// Les onglets reprennent la forme des pastilles de la barre plutôt que le
+    /// `TabView` système, dont la barre d'outils grise casse la continuité.
+    private var tabBar: some View {
+        HStack(spacing: 4) {
+            ForEach(Tab.allCases, id: \.self) { item in
+                let active = item == tab
+                Label(item.label, systemImage: item.symbol)
+                    .font(.system(size: 12, weight: active ? .semibold : .medium))
+                    .foregroundStyle(active ? Style.accent : Color.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(active ? Style.accent.opacity(0.18) : .clear))
+                    .contentShape(Rectangle())
+                    .onTapGesture { tab = item }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 18)
+        .padding(.bottom, 12)
     }
 }
 
@@ -69,78 +117,62 @@ private struct EngineTab: View {
     @State private var prefs = Preferences.shared
     @State private var localReady = false
     @State private var localName = "—"
+    @State private var lexiconText = ""
 
     var body: some View {
-        Form {
-            Section("Moteur de transcription") {
-                Picker("Écrire avec", selection: $prefs.engine) {
-                    ForEach(EngineChoice.allCases, id: \.self) { choice in
-                        Text(choice.label).tag(choice)
-                    }
-                }
-                .pickerStyle(.radioGroup)
+        Card(title: "Moteur de transcription") {
+            PillPicker(options: EngineChoice.allCases.map { ($0, $0.label) },
+                       selection: $prefs.engine)
+            Note(prefs.engine.explanation)
 
-                Text(prefs.engine.explanation)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if prefs.engine == .crisperWhisper {
-                    LabeledContent("Service") {
-                        Text(localReady ? localName : "hors ligne")
-                            .foregroundStyle(localReady ? Color.primary : Color.red)
-                    }
-                    if !localReady {
-                        Text("Le modèle n'est pas installé ou le service ne "
-                             + "tourne pas. Lancez `scripts/setup.sh` une fois ; "
-                             + "Sofler démarre et arrête ensuite le service tout seul.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+            if prefs.engine == .crisperWhisper {
+                Divider().opacity(0.3)
+                Row(label: "Service") {
+                    Text(localReady ? localName : "hors ligne")
+                        .font(.system(size: 12))
+                        .foregroundStyle(localReady ? Color.secondary : Color.red)
                 }
-            }
-
-            Section("Vocabulaire technique") {
-                if !prefs.engine.honoursLexicon {
-                    Text("Le moteur de macOS ne tient pas compte d'un "
-                         + "vocabulaire : mesuré sur de vrais enregistrements, "
-                         + "lui fournir la liste ne change pas sa sortie. Ces "
-                         + "réglages ne s'appliquent qu'à CrisperWhisper.")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+                if !localReady {
+                    Note("Le modèle n'est pas installé, ou le service met "
+                         + "quelques secondes à charger. Lancez `scripts/setup.sh` "
+                         + "une fois : Sofler démarre et arrête ensuite le service "
+                         + "tout seul.", warning: true)
                 }
-                LexiconEditor(prefs: $prefs)
             }
         }
-        .formStyle(.grouped)
+
+        Card(title: "Vocabulaire technique") {
+            if !prefs.engine.honoursLexicon {
+                Note("Le moteur de macOS n'en tient pas compte : mesuré sur de "
+                     + "vrais enregistrements, lui fournir la liste ne change "
+                     + "pas sa sortie d'un caractère. Ces réglages ne "
+                     + "s'appliquent qu'à CrisperWhisper.", warning: true)
+            }
+            Toggle("Utiliser la liste intégrée", isOn: $prefs.useDefaultLexicon)
+                .font(.system(size: 13))
+            if !prefs.useDefaultLexicon {
+                TextEditor(text: $lexiconText)
+                    .font(.system(size: 12, design: .monospaced))
+                    .scrollContentBackground(.hidden)
+                    .frame(minHeight: 130)
+                    .padding(8)
+                    .background(RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.black.opacity(0.2)))
+                    .onChange(of: lexiconText) { _, new in
+                        prefs.lexicon = new.split(separator: "\n")
+                            .map { $0.trimmingCharacters(in: .whitespaces) }
+                            .filter { !$0.isEmpty }
+                    }
+                Note("Un terme par ligne. Gardez la liste courte : plus elle est "
+                     + "longue, plus le modèle risque d'y piocher un mot sur un "
+                     + "passage où vous n'avez rien dit.")
+            }
+        }
         .task {
+            lexiconText = prefs.lexicon.joined(separator: "\n")
             let engine = SocketSpeechEngine()
             localReady = await engine.isReady()
-            localName = await engine.displayName
-        }
-    }
-}
-
-private struct LexiconEditor: View {
-    @Binding var prefs: Preferences
-    @State private var text = ""
-
-    var body: some View {
-        Toggle("Utiliser la liste intégrée", isOn: $prefs.useDefaultLexicon)
-        if !prefs.useDefaultLexicon {
-            TextEditor(text: $text)
-                .font(.system(.body, design: .monospaced))
-                .frame(minHeight: 140)
-                .border(Color.secondary.opacity(0.3))
-                .onChange(of: text) { _, new in
-                    prefs.lexicon = new.split(separator: "\n")
-                        .map { $0.trimmingCharacters(in: .whitespaces) }
-                        .filter { !$0.isEmpty }
-                }
-            Text("Un terme par ligne. Gardez la liste courte : plus elle est "
-                 + "longue, plus le modèle risque d'y piocher un mot sur un "
-                 + "passage où vous n'avez rien dit.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if localReady { localName = await engine.displayName }
         }
     }
 }
@@ -153,73 +185,71 @@ private struct DictationTab: View {
     @State private var noteFile: URL? = Preferences.shared.noteFile
 
     var body: some View {
-        Form {
-            Section("Déclencheur") {
-                Toggle("Dicter avec la touche Option seule", isOn: $prefs.triggerEnabled)
-                Picker("Côté", selection: $prefs.triggerSide) {
-                    Text("Option droite").tag(ModifierKeyMonitor.Side.right)
-                    Text("Option gauche").tag(ModifierKeyMonitor.Side.left)
-                }
-                .disabled(!prefs.triggerEnabled)
-                Text("Option reste utilisable normalement : le déclenchement "
-                     + "n'a lieu que si aucune autre touche n'est pressée "
-                     + "entre-temps. \(HotkeyMonitor.Shortcut.dictate.label) "
-                     + "fonctionne toujours, et ne demande pas l'Accessibilité.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        Card(title: "Déclencheur") {
+            Toggle("Dicter avec la touche Option seule", isOn: $prefs.triggerEnabled)
+                .font(.system(size: 13))
+            Row(label: "Côté") {
+                PillPicker(options: [(ModifierKeyMonitor.Side.right, "Droite"),
+                                     (ModifierKeyMonitor.Side.left, "Gauche")],
+                           selection: $prefs.triggerSide,
+                           disabled: !prefs.triggerEnabled)
             }
+            Note("Option reste utilisable normalement : le déclenchement n'a "
+                 + "lieu que si aucune autre touche n'est pressée entre-temps. "
+                 + "\(HotkeyMonitor.Shortcut.dictate.label) fonctionne toujours, "
+                 + "et ne demande pas l'Accessibilité.")
+        }
 
-            Section("Transcription") {
-                Picker("Mode par défaut", selection: $prefs.defaultMode) {
-                    Text("Texte nettoyé").tag(TranscriptionMode.intended)
-                    Text("Mot à mot").tag(TranscriptionMode.verbatim)
-                }
-                .disabled(!prefs.engine.hasModes)
-                Picker("Langue", selection: $prefs.language) {
-                    ForEach(Preferences.languages, id: \.0) { code, name in
-                        Text(name).tag(code)
-                    }
-                }
-                if !prefs.engine.hasModes {
-                    Text("Le moteur de macOS n'a qu'un rendu : le choix du mode "
-                         + "ne s'applique qu'à CrisperWhisper.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+        Card(title: "Transcription") {
+            Row(label: "Mode par défaut") {
+                PillPicker(options: [(TranscriptionMode.intended, "Texte nettoyé"),
+                                     (TranscriptionMode.verbatim, "Mot à mot")],
+                           selection: $prefs.defaultMode,
+                           disabled: !prefs.engine.hasModes)
             }
-
-            Section("Notes") {
-                LabeledContent("Fichier") {
-                    Text(noteFile?.lastPathComponent ?? "aucun")
-                        .foregroundStyle(noteFile == nil ? .secondary : .primary)
-                }
-                HStack {
-                    Button(noteFile == nil ? "Choisir…" : "Changer…") {
-                        if let chosen = TargetWriter.chooseFile() {
-                            prefs.noteFile = chosen
-                            noteFile = chosen
-                        }
-                    }
-                    if let url = noteFile {
-                        Button("Afficher") {
-                            NSWorkspace.shared.activateFileViewerSelecting([url])
-                        }
-                        Button("Oublier") { prefs.noteFile = nil; noteFile = nil }
-                    }
-                }
-                Text("Le bouton « Notes » de la barre écrit dans ce fichier, et "
-                     + "il reste mémorisé quand vous revenez au curseur.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Row(label: "Langue") {
+                PillPicker(options: Preferences.languages.map { ($0.0, $0.1) },
+                           selection: $prefs.language)
             }
-
-            Section("Retour") {
-                Toggle("Aperçu en direct dans la barre", isOn: $prefs.livePreviewEnabled)
-                Toggle("Sons de début et de fin", isOn: $soundsEnabled)
-                    .onChange(of: soundsEnabled) { _, new in Feedback.soundsEnabled = new }
+            if !prefs.engine.hasModes {
+                Note("Le moteur de macOS n'a qu'un rendu : le choix du mode ne "
+                     + "s'applique qu'à CrisperWhisper.")
             }
         }
-        .formStyle(.grouped)
+
+        Card(title: "Notes") {
+            Row(label: "Fichier") {
+                Text(noteFile?.lastPathComponent ?? "aucun")
+                    .font(.system(size: 12))
+                    .foregroundStyle(noteFile == nil ? .tertiary : .secondary)
+            }
+            HStack(spacing: 8) {
+                Button(noteFile == nil ? "Choisir…" : "Changer…") {
+                    if let chosen = TargetWriter.chooseFile() {
+                        prefs.noteFile = chosen
+                        noteFile = chosen
+                    }
+                }
+                if let url = noteFile {
+                    Button("Afficher") {
+                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                    }
+                    Button("Oublier") { prefs.noteFile = nil; noteFile = nil }
+                }
+            }
+            .controlSize(.small)
+            Note("Le bouton « Notes » de la barre écrit dans ce fichier, et il "
+                 + "reste mémorisé quand vous revenez au curseur — y retourner "
+                 + "ne coûte qu'un clic, même en pleine dictée.")
+        }
+
+        Card(title: "Retour") {
+            Toggle("Aperçu en direct dans la barre", isOn: $prefs.livePreviewEnabled)
+                .font(.system(size: 13))
+            Toggle("Sons de début et de fin", isOn: $soundsEnabled)
+                .font(.system(size: 13))
+                .onChange(of: soundsEnabled) { _, new in Feedback.soundsEnabled = new }
+        }
         .onAppear { noteFile = prefs.noteFile }
     }
 }
@@ -231,56 +261,55 @@ private struct CollectionTab: View {
     @State private var stats = Corpus.Statistics()
 
     var body: some View {
-        Form {
-            Section("Collecte") {
-                Toggle("Archiver les dictées pour comparer les moteurs",
-                       isOn: $prefs.corpusEnabled)
-                Toggle("Conserver aussi l'audio", isOn: $prefs.corpusKeepsAudio)
-                    .disabled(!prefs.corpusEnabled)
-                Text("L'audio coûte environ 2 Mo la minute, contre quelques "
-                     + "kilo-octets de texte — d'où la case séparée. Sans lui, "
-                     + "impossible de rejouer une dictée pour arbitrer un "
-                     + "désaccord entre moteurs.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+        Card(title: "Collecte") {
+            Toggle("Archiver les dictées pour comparer les moteurs",
+                   isOn: $prefs.corpusEnabled)
+                .font(.system(size: 13))
+            Toggle("Conserver aussi l'audio", isOn: $prefs.corpusKeepsAudio)
+                .font(.system(size: 13))
+                .disabled(!prefs.corpusEnabled)
+            Note("L'audio coûte environ 2 Mo la minute, contre quelques "
+                 + "kilo-octets de texte — d'où la case séparée. Sans lui, "
+                 + "impossible de rejouer une dictée pour arbitrer un désaccord "
+                 + "entre moteurs.")
+        }
 
-            Section("Transcrire aussi avec") {
-                ForEach(EngineChoice.allCases, id: \.self) { choice in
-                    Toggle(choice.label, isOn: Binding(
-                        get: { prefs.corpusEngines.contains(choice) },
-                        set: { on in
-                            if on { prefs.corpusEngines.insert(choice) }
-                            else { prefs.corpusEngines.remove(choice) }
-                        }))
+        Card(title: "Transcrire aussi avec") {
+            ForEach(EngineChoice.allCases, id: \.self) { choice in
+                Toggle(choice.label, isOn: Binding(
+                    get: { prefs.corpusEngines.contains(choice) },
+                    set: { on in
+                        if on { prefs.corpusEngines.insert(choice) }
+                        else { prefs.corpusEngines.remove(choice) }
+                    }))
+                    .font(.system(size: 13))
                     .disabled(!prefs.corpusEnabled || choice == prefs.engine)
-                }
-                Text("En plus du moteur qui écrit, et **après** insertion : "
-                     + "la latence de dictée n'est jamais échangée contre de "
-                     + "la collecte. Un moteur non coché n'est jamais chargé.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if prefs.needsLocalEngine {
-                    Label("Le service CrisperWhisper tourne — environ 3 Go en mémoire.",
-                          systemImage: "memorychip")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
             }
-
-            Section("Corpus") {
-                LabeledContent("État") { Text(stats.summary) }
-                HStack {
-                    Button("Afficher dans le Finder") { Corpus.shared.reveal() }
-                    Button("Tout effacer") {
-                        Corpus.shared.clear()
-                        stats = Corpus.shared.statistics()
-                    }
-                    .disabled(stats.count == 0)
-                }
+            Note("En plus du moteur qui écrit, et **après** insertion : la "
+                 + "latence de dictée n'est jamais échangée contre de la "
+                 + "collecte. Un moteur non coché n'est jamais chargé.")
+            if prefs.needsLocalEngine {
+                Label("Le service CrisperWhisper tourne — environ 3 Go en mémoire.",
+                      systemImage: "memorychip")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Style.collecting)
             }
         }
-        .formStyle(.grouped)
+
+        Card(title: "Corpus") {
+            Row(label: "État") {
+                Text(stats.summary).font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+            HStack(spacing: 8) {
+                Button("Afficher dans le Finder") { Corpus.shared.reveal() }
+                Button("Tout effacer") {
+                    Corpus.shared.clear()
+                    stats = Corpus.shared.statistics()
+                }
+                .disabled(stats.count == 0)
+            }
+            .controlSize(.small)
+        }
         .onAppear { stats = Corpus.shared.statistics() }
     }
 }
@@ -293,55 +322,55 @@ private struct HistoryTab: View {
     @State private var justCopied: UUID?
 
     var body: some View {
-        Form {
-            Section("Transcriptions récentes") {
-                Toggle("Conserver l'historique", isOn: Binding(
-                    get: { history.isEnabled },
-                    set: { history.isEnabled = $0; entries = history.entries }))
+        Card(title: "Transcriptions récentes") {
+            Toggle("Conserver l'historique", isOn: Binding(
+                get: { history.isEnabled },
+                set: { history.isEnabled = $0; entries = history.entries }))
+                .font(.system(size: 13))
 
-                if entries.isEmpty {
-                    Text(history.isEnabled ? "Aucune pour l'instant"
-                                           : "Historique désactivé")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(entries) { entry in
-                        HStack(alignment: .firstTextBaseline) {
-                            // Tronqué à une ligne : la fenêtre doit rester
-                            // lisible d'un coup d'œil, pas devenir une liste
-                            // qu'on fait défiler.
-                            Text(entry.preview)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                .help(entry.text)
-                            Spacer()
-                            Text(entry.relativeAge)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Button {
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(entry.text, forType: .string)
-                                justCopied = entry.id
-                            } label: {
-                                Image(systemName: justCopied == entry.id
-                                      ? "checkmark" : "doc.on.doc")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("Copier le texte entier")
+            if entries.isEmpty {
+                Note(history.isEnabled ? "Aucune pour l'instant"
+                                       : "Historique désactivé")
+            } else {
+                ForEach(entries) { entry in
+                    Divider().opacity(0.25)
+                    HStack(spacing: 10) {
+                        // Tronqué à une ligne : la fenêtre doit rester lisible
+                        // d'un coup d'œil, pas devenir une liste qu'on fait
+                        // défiler.
+                        Text(entry.preview)
+                            .font(.system(size: 12))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .help(entry.text)
+                        Spacer(minLength: 8)
+                        Text(entry.relativeAge)
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                        Button {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(entry.text, forType: .string)
+                            justCopied = entry.id
+                        } label: {
+                            Image(systemName: justCopied == entry.id
+                                  ? "checkmark" : "doc.on.doc")
+                                .foregroundStyle(justCopied == entry.id
+                                                 ? Style.accent : Color.secondary)
                         }
-                    }
-                    Button("Effacer l'historique") {
-                        history.clear()
-                        entries = []
+                        .buttonStyle(.borderless)
+                        .help("Copier le texte entier")
                     }
                 }
-                Text("Le texte complet est copié, pas la version tronquée. "
-                     + "L'historique reste aussi dans le menu de la barre.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Divider().opacity(0.25)
+                Button("Effacer l'historique") {
+                    history.clear()
+                    entries = []
+                }
+                .controlSize(.small)
             }
+            Note("Le texte complet est copié, pas la version tronquée. "
+                 + "L'historique reste aussi dans le menu de la barre.")
         }
-        .formStyle(.grouped)
         .onAppear { entries = history.entries }
     }
 }

@@ -373,11 +373,20 @@ final class DictationController {
             entry.audioFile = Corpus.shared.writeAudio(samples, id: id)
         }
 
+        // Figé ici, et pas à l'archivage : l'archivage a lieu plusieurs
+        // centaines de millisecondes plus tard, et si l'utilisateur réenchaîne
+        // une dictée d'ici là, `applePreviewText` a déjà été réinitialisé puis
+        // rempli par la nouvelle. Constaté dans le corpus — une entrée portait
+        // comme texte Apple le début de la dictée suivante. À ce point-ci la
+        // reconnaissance système est finalisée depuis longtemps : elle l'était
+        // avant même que la transcription ne rende la main.
+        let preview = applePreviewText
         let pending = prefs.enginesToCollect().subtracting([choice])
         secondPassTask = Task { [weak self] in
             await self?.completeAndArchive(entry, samples: samples,
                                            primary: primary, insertedMode: used,
-                                           writer: choice, pending: pending)
+                                           writer: choice, pending: pending,
+                                           preview: preview)
         }
     }
 
@@ -392,7 +401,8 @@ final class DictationController {
                                     primary: TranscriptionResult,
                                     insertedMode: TranscriptionMode,
                                     writer choice: EngineChoice,
-                                    pending: Set<EngineChoice>) async {
+                                    pending: Set<EngineChoice>,
+                                    preview: String) async {
         var entry = entry
         let identity = await (engine(for: choice)?.identity
                               ?? EngineIdentity(engine: choice.rawValue, model: nil))
@@ -414,11 +424,11 @@ final class DictationController {
 
         // L'aperçu a déjà transcrit avec le moteur système : on ne le refait
         // pas tourner pour rien.
-        if !applePreviewText.isEmpty,
+        if !preview.isEmpty,
            let index = remaining.firstIndex(where: { $0.0 == .apple }) {
             entry.transcriptions.append(CorpusTranscription(
                 engine: "apple", model: nil, mode: nil,
-                text: applePreviewText, latencyMs: nil, inserted: false))
+                text: preview, latencyMs: nil, inserted: false))
             remaining.remove(at: index)
         }
 
