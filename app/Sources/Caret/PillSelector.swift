@@ -29,13 +29,22 @@ final class PillSelector: NSView {
         super.init(frame: .zero)
 
         wantsLayer = true
-        layer?.cornerRadius = Self.height / 2
-        // Un fond à peine plus clair que le panneau : il faut que le groupe se
-        // lise comme un ensemble sans devenir un bloc opaque de plus.
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.06).cgColor
-        layer?.borderWidth = 1
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.06).cgColor
         translatesAutoresizingMaskIntoConstraints = false
+
+        // Le groupe flotte au-dessus du panneau principal, donc au-dessus de
+        // n'importe quelle fenêtre : il lui faut son propre verre, sans quoi
+        // un simple fond translucide serait illisible sur du texte clair.
+        let glass = NSVisualEffectView()
+        glass.material = .hudWindow
+        glass.blendingMode = .behindWindow
+        glass.state = .active
+        glass.wantsLayer = true
+        glass.layer?.cornerRadius = Self.height / 2
+        glass.layer?.masksToBounds = true
+        glass.layer?.borderWidth = 1
+        glass.layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
+        glass.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(glass)
 
         let stack = NSStackView()
         stack.orientation = .horizontal
@@ -55,6 +64,10 @@ final class PillSelector: NSView {
 
         NSLayoutConstraint.activate([
             heightAnchor.constraint(equalToConstant: Self.height),
+            glass.leadingAnchor.constraint(equalTo: leadingAnchor),
+            glass.trailingAnchor.constraint(equalTo: trailingAnchor),
+            glass.topAnchor.constraint(equalTo: topAnchor),
+            glass.bottomAnchor.constraint(equalTo: bottomAnchor),
             stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.inset),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.inset),
             stack.topAnchor.constraint(equalTo: topAnchor, constant: Self.inset),

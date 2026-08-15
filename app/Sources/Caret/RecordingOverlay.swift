@@ -1,5 +1,6 @@
 import AppKit
 import AVFoundation
+import QuartzCore
 
 /// Panneau flottant affiché pendant la dictée.
 ///
@@ -63,6 +64,8 @@ final class RecordingOverlay {
     private var recordingRow: NSStackView?
     private var textRow: NSStackView?
     private var previewHeight: NSLayoutConstraint?
+    private var card: NSVisualEffectView?
+    private var cardSheen: CAGradientLayer?
     private var previewLineCount = 1
 
     var levelProvider: (() -> Float)?
@@ -92,14 +95,17 @@ final class RecordingOverlay {
     private static let controlRowHeight: CGFloat = 29
     private static let padding: CGFloat = 10
     private static let rowSpacing: CGFloat = 7
+    /// Vide entre les onglets flottants et la carte. C'est lui qui les fait
+    /// lire comme deux plans distincts.
+    private static let tabGap: CGFloat = 7
     private static let previewLines = 3
     private static let previewFontSize: CGFloat = 13
     private static let previewLineHeight: CGFloat = 18
     private static let minimumWidth: CGFloat = 380
     private static let widthWithPreview: CGFloat = 440
-    /// Au-delà, on ne garde que la fin du texte : ce sont les derniers mots
-    /// prononcés qui intéressent, pas le début de la dictée.
-    private static let previewCharacters = 200
+    /// Borne de sécurité avant mesure : trois lignes n'en contiendront jamais
+    /// autant, et mesurer la dictée entière à chaque mot serait inutile.
+    private static let previewCharacters = 400
 
     init() {
         // Une fenêtre créée sur un écran qui disparaît reste rattachée à
@@ -126,6 +132,7 @@ final class RecordingOverlay {
         startedAt = Date()
         statusLabel.isHidden = true
         container?.isHidden = false
+        textRow?.isHidden = false
         // Une ligne vide laisserait croire que l'aperçu est en panne le temps
         // que les premiers mots arrivent.
         setPreviewNotice(status.previewEnabled ? "en écoute…" : "")
@@ -147,6 +154,7 @@ final class RecordingOverlay {
         guard let panel else { return }
         timer?.invalidate()
         container?.isHidden = true
+        textRow?.isHidden = true
         statusLabel.isHidden = false
         statusLabel.stringValue = "Transcription…"
         panel.setContentSize(NSSize(width: 190, height: 46))
@@ -198,20 +206,80 @@ final class RecordingOverlay {
         resize()
     }
 
-    /// Texte reconnu en direct. Ne redimensionne rien : la géométrie est figée,
-    /// précisément pour que ceci puisse arriver vingt fois par seconde sans
-    /// faire bouger la barre.
+    /// Texte reconnu en direct.
     ///
-    /// La coupe est faite ici, sur la chaîne, plutôt que laissée à
-    /// `.byTruncatingHead` : sur du texte replié, AppKit tronque la fin selon
-    /// les cas, et on se retrouverait à lire le début de la dictée pendant que
-    /// la suite se perd hors du cadre.
+    /// Ne change ni la largeur ni la position : seule la hauteur suit, et
+    /// uniquement quand le nombre de lignes change — deux fois par dictée au
+    /// plus, jamais à chaque mot.
     func setPreviewText(_ text: String) {
         guard status.previewEnabled else { return }
-        previewLabel.stringValue = text.count > Self.previewCharacters
-            ? "… " + text.suffix(Self.previewCharacters)
-            : text
+        let (visible, lines) = visibleTail(of: text)
+        previewLabel.stringValue = visible
+        // Plus lisible que le gris des messages d'état : c'est le seul
+        // contenu de la barre qu'on lit vraiment, en parlant.
         previewLabel.textColor = .secondaryLabelColor
+        setPreviewLines(lines)
+    }
+
+    /// Portion affichable du texte : sa **fin**, repliée sur trois lignes au
+    /// plus, précédée de points de suspension si on a coupé.
+    ///
+    /// Calculée ici plutôt que confiée à `.byTruncatingHead`, et c'est une
+    /// correction : ce mode de coupe force `NSTextField` en ligne unique, donc
+    /// il est incompatible avec le repli. Combinés, on obtenait une seule
+    /// ligne tronquée par la fin — exactement l'inverse de ce qu'il faut, où
+    /// c'est le dernier mot prononcé qui doit rester visible.
+    ///
+    /// On cherche donc le plus long suffixe qui tienne dans la boîte, par
+    /// dichotomie sur la position de départ.
+    private func visibleTail(of text: String) -> (String, Int) {
+        guard let font = previewLabel.font, !text.isEmpty else { return (text, 1) }
+        let width = previewLabel.bounds.width > 0
+            ? previewLabel.bounds.width
+            : (panel?.frame.width ?? Self.widthWithPreview) - 2 * (Self.padding + 5)
+        guard width > 0 else { return (text, 1) }
+
+        let ceiling = CGFloat(Self.previewLines) * Self.previewLineHeight
+        func height(_ candidate: String) -> CGFloat {
+            (candidate as NSString).boundingRect(
+                with: NSSize(width: width, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: [.font: font]).height
+        }
+        func lineCount(_ candidate: String) -> Int {
+            max(1, min(Self.previewLines,
+                       Int((height(candidate) / Self.previewLineHeight).rounded())))
+        }
+
+        // Trois lignes ne contiendront jamais plus de quelques centaines de
+        // caractères : mesurer la dictée entière à chaque mot coûterait cher
+        // pour rien.
+        let bounded = text.count > Self.previewCharacters
+            ? String(text.suffix(Self.previewCharacters))
+            : text
+        if bounded.count == text.count, height(bounded) <= ceiling {
+            return (bounded, lineCount(bounded))
+        }
+
+        let characters = Array(bounded)
+        var low = 0
+        var high = characters.count
+        while low < high {
+            let middle = (low + high) / 2
+            if height("… " + String(characters[middle...])) <= ceiling {
+                high = middle
+            } else {
+                low = middle + 1
+            }
+        }
+        let tail = "… " + String(characters[low...])
+        return (tail, lineCount(tail))
+    }
+
+    private func setPreviewLines(_ lines: Int) {
+        guard lines != previewLineCount else { return }
+        previewLineCount = lines
+        resize()
     }
 
     /// Message sur l'aperçu lui-même — attente, téléchargement, indisponibilité
@@ -219,16 +287,7 @@ final class RecordingOverlay {
     func setPreviewNotice(_ message: String) {
         previewLabel.stringValue = message
         previewLabel.textColor = .tertiaryLabelColor
-        adjustPreviewHeight()
-    }
-
-    /// Ne redimensionne qu'au changement de nombre de lignes — deux fois par
-    /// dictée au plus, jamais à chaque mot reconnu.
-    private func adjustPreviewHeight() {
-        let lines = previewLines(for: previewLabel.stringValue)
-        guard lines != previewLineCount else { return }
-        previewLineCount = lines
-        resize()
+        setPreviewLines(1)
     }
 
     private static let previewExplanation =
@@ -280,36 +339,22 @@ final class RecordingOverlay {
         let ceiling = (NSScreen.main?.visibleFrame.width ?? 1440) - 80
         let width = min(max(floor, needed), max(floor, ceiling))
 
-        var height = Self.padding + Self.rowHeight + Self.rowSpacing
-            + Self.controlRowHeight + Self.padding
+        var height = Self.controlRowHeight + Self.tabGap
+            + Self.padding + Self.rowHeight + Self.padding
         if status.previewEnabled {
             height += Self.rowSpacing + CGFloat(previewLineCount) * Self.previewLineHeight
         }
         previewHeight?.constant = CGFloat(previewLineCount) * Self.previewLineHeight
+        previewLabel.isHidden = !status.previewEnabled
         panel.setContentSize(NSSize(width: width, height: height))
+        // Les couches Core Animation ne suivent pas Auto Layout.
+        cardSheen?.frame = card?.bounds ?? .zero
         position(panel)
-    }
-
-    /// Nombre de lignes qu'occupe le texte courant, plafonné.
-    ///
-    /// Mesuré plutôt que deviné : la police est italique et proportionnelle,
-    /// donc le nombre de caractères ne dit rien de fiable sur le nombre de
-    /// lignes.
-    private func previewLines(for text: String) -> Int {
-        guard !text.isEmpty, let font = previewLabel.font,
-              let width = panel?.contentView?.bounds.width, width > 0 else { return 1 }
-        let usable = width - 2 * (Self.padding + 5)
-        let box = NSSize(width: usable, height: .greatestFiniteMagnitude)
-        let measured = (text as NSString).boundingRect(
-            with: box, options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: font]).height
-        let lines = Int((measured / Self.previewLineHeight).rounded(.up))
-        return max(1, min(Self.previewLines, lines))
     }
 
     private func makePanel() -> NSPanel {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: Self.minimumWidth, height: 78),
+            contentRect: NSRect(x: 0, y: 0, width: Self.minimumWidth, height: 110),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -323,57 +368,86 @@ final class RecordingOverlay {
         // travaillant ailleurs est précisément l'usage.
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
 
-        let blur = NSVisualEffectView()
-        blur.material = .hudWindow
-        blur.blendingMode = .behindWindow
-        blur.state = .active
-        blur.wantsLayer = true
-        blur.layer?.cornerRadius = 18
-        blur.layer?.masksToBounds = true
-        blur.layer?.borderWidth = 1
-        blur.layer?.borderColor = NSColor.white.withAlphaComponent(0.08).cgColor
-        panel.contentView = blur
+        // La fenêtre elle-même ne dessine rien : les onglets doivent flotter
+        // *à côté* de la carte, séparés par du vide, et non dans un même bloc.
+        let root = NSView()
+        panel.contentView = root
+
+        let card = NSVisualEffectView()
+        card.material = .hudWindow
+        card.blendingMode = .behindWindow
+        card.state = .active
+        card.wantsLayer = true
+        card.layer?.cornerRadius = 16
+        card.layer?.masksToBounds = true
+        card.layer?.borderWidth = 1
+        card.layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
+        card.translatesAutoresizingMaskIntoConstraints = false
+        root.addSubview(card)
+
+        // Le reflet du verre : une lumière rasante en haut, qui s'éteint vers
+        // le bas. C'est ce dégradé, plus que la transparence, qui donne
+        // l'impression d'une surface et non d'un rectangle gris.
+        let sheen = CAGradientLayer()
+        sheen.colors = [NSColor.white.withAlphaComponent(0.10).cgColor,
+                        NSColor.white.withAlphaComponent(0.02).cgColor,
+                        NSColor.clear.cgColor]
+        sheen.locations = [0, 0.35, 1]
+        card.layer?.insertSublayer(sheen, at: 0)
+        cardSheen = sheen
+        self.card = card
 
         buildIndicators()
         buildControls()
 
         let recording = makeRow([dot, timeLabel, meter, NSView(),
                                  micButton, corpusBadge, previewButton])
-        let text = makeSpacedRow([modeControl, targetControl])
+        let tabs = makeSpacedRow([modeControl, targetControl])
         recordingRow = recording
-        textRow = text
+        textRow = tabs
 
-        let stack = NSStackView(views: [recording, text, previewLabel])
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = Self.rowSpacing
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        container = stack
+        let inner = NSStackView(views: [recording, previewLabel])
+        inner.orientation = .vertical
+        inner.alignment = .leading
+        inner.spacing = Self.rowSpacing
+        inner.translatesAutoresizingMaskIntoConstraints = false
+        container = inner
 
-        blur.addSubview(stack)
-        blur.addSubview(statusLabel)
+        card.addSubview(inner)
+        root.addSubview(tabs)
+        root.addSubview(statusLabel)
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: blur.leadingAnchor,
-                                           constant: Self.padding + 5),
-            stack.trailingAnchor.constraint(equalTo: blur.trailingAnchor,
-                                            constant: -(Self.padding + 5)),
-            stack.topAnchor.constraint(equalTo: blur.topAnchor, constant: Self.padding),
-
-            recording.heightAnchor.constraint(equalToConstant: Self.rowHeight),
-            recording.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            text.heightAnchor.constraint(equalToConstant: Self.controlRowHeight),
-            text.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            previewLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
-
-            statusLabel.centerXAnchor.constraint(equalTo: blur.centerXAnchor),
-            statusLabel.centerYAnchor.constraint(equalTo: blur.centerYAnchor),
-        ])
         let height = previewLabel.heightAnchor.constraint(
             equalToConstant: Self.previewLineHeight)
         height.isActive = true
         previewHeight = height
+
+        NSLayoutConstraint.activate([
+            tabs.topAnchor.constraint(equalTo: root.topAnchor),
+            tabs.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            tabs.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            tabs.heightAnchor.constraint(equalToConstant: Self.controlRowHeight),
+
+            card.topAnchor.constraint(equalTo: tabs.bottomAnchor,
+                                      constant: Self.tabGap),
+            card.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            card.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            card.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+
+            inner.leadingAnchor.constraint(equalTo: card.leadingAnchor,
+                                           constant: Self.padding + 5),
+            inner.trailingAnchor.constraint(equalTo: card.trailingAnchor,
+                                            constant: -(Self.padding + 5)),
+            inner.topAnchor.constraint(equalTo: card.topAnchor, constant: Self.padding),
+
+            recording.heightAnchor.constraint(equalToConstant: Self.rowHeight),
+            recording.widthAnchor.constraint(equalTo: inner.widthAnchor),
+            previewLabel.widthAnchor.constraint(equalTo: inner.widthAnchor),
+
+            statusLabel.centerXAnchor.constraint(equalTo: card.centerXAnchor),
+            statusLabel.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+        ])
         return panel
     }
 
@@ -434,11 +508,12 @@ final class RecordingOverlay {
         previewLabel.font = NSFontManager.shared.convert(
             .systemFont(ofSize: Self.previewFontSize), toHaveTrait: .italicFontMask)
         previewLabel.textColor = .secondaryLabelColor
-        previewLabel.lineBreakMode = .byTruncatingHead
+        // Repli simple : la coupe est faite en amont, sur la chaîne, donc
+        // AppKit n'a plus qu'à mettre à la ligne.
+        previewLabel.lineBreakMode = .byWordWrapping
         previewLabel.maximumNumberOfLines = Self.previewLines
         previewLabel.usesSingleLineMode = false
         previewLabel.cell?.wraps = true
-        previewLabel.cell?.truncatesLastVisibleLine = true
         // Sans ça, le champ impose sa largeur naturelle au panneau : mesuré,
         // une fenêtre de 1164 px pour un écran de 1728, le texte sortant par
         // la droite. Un libellé doit céder, c'est le panneau qui commande.
@@ -495,6 +570,8 @@ final class RecordingOverlay {
         container = nil
         recordingRow = nil
         textRow = nil
+        card = nil
+        cardSheen = nil
         NSLog("caret: écrans modifiés — panneau reconstruit")
 
         guard wasRecording else { return }

@@ -107,7 +107,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func refreshMenu() async {
-        let engineName = await SocketSpeechEngine().displayName
         let menu = NSMenu()
 
         let status: String = switch controller.state {
@@ -242,45 +241,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menu.addItem(.separator())
 
-        let sounds = NSMenuItem(title: "Retour sonore", action: #selector(toggleSounds),
-                                keyEquivalent: "")
-        sounds.target = self
-        sounds.state = Feedback.soundsEnabled ? .on : .off
-        menu.addItem(sounds)
-
-        let livePreview = NSMenuItem(title: "Aperçu en direct dans la barre",
-                                     action: #selector(togglePreview), keyEquivalent: "")
-        livePreview.target = self
-        livePreview.state = Preferences.shared.livePreviewEnabled ? .on : .off
-        livePreview.toolTip = "Affiche pendant la dictée ce que le moteur de "
-            + "macOS reconnaît. Indicatif : il n'a pas le lexique de Caret, "
-            + "donc le texte inséré ne sera pas exactement celui-là."
-        menu.addItem(livePreview)
-
-        let keepHistory = NSMenuItem(title: "Conserver l'historique",
-                                     action: #selector(toggleHistory), keyEquivalent: "")
-        keepHistory.target = self
-        keepHistory.state = controller.history.isEnabled ? .on : .off
-        menu.addItem(keepHistory)
-        menu.addItem(.separator())
-
-        addCorpusSection(to: menu)
-        menu.addItem(.separator())
-
-        let engineItem = NSMenuItem(title: engineName, action: nil, keyEquivalent: "")
-        engineItem.isEnabled = false
-        menu.addItem(engineItem)
-
-        // Les autorisations restent visibles en permanence : elles sont la
-        // première cause de « ça ne marche pas », et l'utilisateur ne peut pas
-        // deviner laquelle manque.
-        let permsItem = NSMenuItem(
-            title: Permissions.summary(accessibilityGranted: AXIsProcessTrusted()),
-            action: nil, keyEquivalent: "")
-        permsItem.isEnabled = false
-        menu.addItem(permsItem)
-
+        // Le menu s'arrête aux gestes du quotidien. Tout ce qui se règle une
+        // fois puis s'oublie — aperçu, collecte, sons, historique, vocabulaire
+        // — vit dans les Réglages : un menu de barre qu'on doit parcourir pour
+        // retrouver une case à cocher a cessé d'être un menu.
         if !Permissions.allGranted {
+            let permsItem = NSMenuItem(
+                title: Permissions.summary(accessibilityGranted: AXIsProcessTrusted()),
+                action: nil, keyEquivalent: "")
+            permsItem.isEnabled = false
+            menu.addItem(permsItem)
+
             let mic = NSMenuItem(title: "Ouvrir les réglages Micro…",
                                  action: #selector(openMicSettings), keyEquivalent: "")
             mic.target = self
@@ -290,8 +261,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                 action: #selector(openAXSettings), keyEquivalent: "")
             ax.target = self
             menu.addItem(ax)
+            menu.addItem(.separator())
         }
-        menu.addItem(.separator())
 
         let settings = NSMenuItem(title: "Réglages…", action: #selector(openPreferences),
                                   keyEquivalent: ",")
@@ -301,51 +272,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: "Quitter Caret", action: #selector(NSApplication.terminate(_:)),
                                 keyEquivalent: "q"))
         statusItem.menu = menu
-    }
-
-    /// Section « collecte » : ce qu'on enregistre, combien c'est, et comment
-    /// s'en débarrasser.
-    ///
-    /// Les compteurs sont là parce qu'une archive qui grossit sans qu'on voie
-    /// sa taille finit par surprendre — surtout avec l'audio activé.
-    private func addCorpusSection(to menu: NSMenu) {
-        let prefs = Preferences.shared
-
-        let collect = NSMenuItem(title: "Collecter les dictées (comparer les moteurs)",
-                                 action: #selector(toggleCorpus), keyEquivalent: "")
-        collect.target = self
-        collect.state = prefs.corpusEnabled ? .on : .off
-        collect.toolTip = "Archive chaque dictée avec les trois transcriptions\n"
-            + "Une seconde passe du moteur, après insertion"
-        menu.addItem(collect)
-
-        guard prefs.corpusEnabled else { return }
-
-        let audio = NSMenuItem(title: "  Conserver aussi l'audio",
-                               action: #selector(toggleCorpusAudio), keyEquivalent: "")
-        audio.target = self
-        audio.state = prefs.corpusKeepsAudio ? .on : .off
-        audio.toolTip = "Environ 2 Mo par minute de parole"
-        menu.addItem(audio)
-
-        let stats = Corpus.shared.statistics()
-        let summary = NSMenuItem(title: "  \(stats.summary)", action: nil, keyEquivalent: "")
-        summary.isEnabled = false
-        summary.toolTip = "\(stats.withBothEngines) dictées avec les deux modes, "
-            + "\(stats.withApple) avec le texte d'Apple, \(stats.audioFiles) avec l'audio"
-        menu.addItem(summary)
-
-        let reveal = NSMenuItem(title: "  Afficher le corpus dans le Finder",
-                                action: #selector(revealCorpus), keyEquivalent: "")
-        reveal.target = self
-        menu.addItem(reveal)
-
-        if stats.count > 0 {
-            let clear = NSMenuItem(title: "  Effacer le corpus…",
-                                   action: #selector(clearCorpus), keyEquivalent: "")
-            clear.target = self
-            menu.addItem(clear)
-        }
     }
 
     // MARK: - Actions
@@ -444,54 +370,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func clearHistory() {
         controller.history.clear()
-        Task { await refreshMenu() }
-    }
-
-    @objc private func toggleSounds() {
-        Feedback.soundsEnabled.toggle()
-        Task { await refreshMenu() }
-    }
-
-    @objc private func togglePreview() {
-        Preferences.shared.livePreviewEnabled.toggle()
-        Task { await refreshMenu() }
-    }
-
-    @objc private func toggleCorpus() {
-        Preferences.shared.corpusEnabled.toggle()
-        Task { await refreshMenu() }
-    }
-
-    @objc private func toggleCorpusAudio() {
-        Preferences.shared.corpusKeepsAudio.toggle()
-        Task { await refreshMenu() }
-    }
-
-    @objc private func revealCorpus() {
-        Corpus.shared.reveal()
-    }
-
-    /// Effacement confirmé : le corpus est la seule donnée de l'application
-    /// qu'on ne peut pas reconstituer, puisqu'elle vient de la parole.
-    @objc private func clearCorpus() {
-        let stats = Corpus.shared.statistics()
-        NSApp.activate(ignoringOtherApps: true)
-        let alert = NSAlert()
-        alert.messageText = "Effacer le corpus ?"
-        alert.informativeText = "\(stats.count) dictées et "
-            + "\(stats.audioFiles) fichiers audio seront supprimés. "
-            + "Cette donnée vient de votre voix : elle ne peut pas être refaite."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Effacer")
-        alert.addButton(withTitle: "Annuler")
-        if alert.runModal() == .alertFirstButtonReturn {
-            Corpus.shared.clear()
-        }
-        Task { await refreshMenu() }
-    }
-
-    @objc private func toggleHistory() {
-        controller.history.isEnabled.toggle()
         Task { await refreshMenu() }
     }
 
