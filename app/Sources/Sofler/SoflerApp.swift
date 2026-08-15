@@ -34,15 +34,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             side: prefs.triggerSide,
             onTrigger: { [weak self] in self?.controller.toggle() },
             onHold: { [weak self] in self?.openSettingsFromHold() })
-        if prefs.triggerEnabled, !modifierKey.start() {
+        if prefs.triggerKind == .option, !modifierKey.start() {
             NSLog("sofler: tap clavier indisponible — accessibilité accordée ?")
         }
 
-        // Repli clavier, utile si l'accessibilité n'est pas encore accordée
-        // (le tap l'exige, pas Carbon) ou si Option droite sert à autre chose.
+        // L'autre déclencheur possible, exclusif du précédent. Il passe par
+        // Carbon, qui n'exige aucune autorisation, là où le tap réclame
+        // l'accessibilité — c'est la porte de sortie quand Option est déjà
+        // prise, ou quand on refuse ce droit.
+        //
+        // Sous « touche Option » il n'est même pas enregistré : le laisser
+        // actif ferait fonctionner un déclencheur que l'utilisateur a écarté.
         hotkey = HotkeyMonitor { [weak self] in self?.controller.toggle() }
         let shortcut = prefs.dictateShortcut
-        if !hotkey.register(shortcut) {
+        if prefs.triggerKind == .shortcut, !hotkey.register(shortcut) {
             NSLog("sofler: impossible d'enregistrer \(shortcut.label) — raccourci déjà pris ?")
         }
 
@@ -57,7 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // d'accessibilité — c'est le filet de sécurité, à dix secondes près.
         reArmTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                guard Preferences.shared.triggerEnabled else { return }
+                guard Preferences.shared.triggerKind == .option else { return }
                 self?.modifierKey.reArmIfNeeded()
             }
         }
@@ -70,7 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             forName: .soflerAccessibilityGranted, object: nil, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                guard Preferences.shared.triggerEnabled else { return }
+                guard Preferences.shared.triggerKind == .option else { return }
                 self?.modifierKey.reArmIfNeeded()
             }
         }
@@ -186,8 +191,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menu.addItem(.separator())
 
+        // N'annoncer que le déclencheur réellement actif : afficher les deux
+        // laisserait croire qu'ils marchent tous les deux.
+        let prefs = Preferences.shared
+        let trigger = prefs.triggerKind == .option
+            ? prefs.triggerSide.label
+            : prefs.dictateShortcut.label
         let dictate = NSMenuItem(
-            title: "Dicter  ⌥ droite  ·  \(Preferences.shared.dictateShortcut.label)",
+            title: "Dicter  \(trigger)",
             action: #selector(triggerDictation), keyEquivalent: "")
         dictate.target = self
         menu.addItem(dictate)
@@ -418,12 +429,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             side: prefs.triggerSide,
             onTrigger: { [weak self] in self?.controller.toggle() },
             onHold: { [weak self] in self?.openSettingsFromHold() })
-        if prefs.triggerEnabled { modifierKey.start() }
+        if prefs.triggerKind == .option { modifierKey.start() }
 
         // Le raccourci Carbon est enregistré auprès du système : en changer
         // suppose de rendre l'ancien avant de prendre le nouveau.
         hotkey.unregister()
-        if !hotkey.register(prefs.dictateShortcut) {
+        if prefs.triggerKind == .shortcut, !hotkey.register(prefs.dictateShortcut) {
             Log.error("raccourci \(prefs.dictateShortcut.label) refusé — déjà pris ?")
         }
         Task { await refreshMenu() }

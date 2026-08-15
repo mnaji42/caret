@@ -140,29 +140,44 @@ private struct GeneralTab: View {
 
     var body: some View {
         Card(title: "Déclencheur") {
-            FeatureSwitch(title: "Dicter avec la touche Option seule",
-                          isOn: $prefs.triggerEnabled)
-            Row(label: "Côté") {
-                PillPicker(options: [(ModifierKeyMonitor.Side.right, "Droite"),
-                                     (ModifierKeyMonitor.Side.left, "Gauche")],
-                           selection: $prefs.triggerSide,
-                           disabled: !prefs.triggerEnabled)
+            // Un seul déclencheur actif. Les deux coexistaient, et quelqu'un
+            // qui se donnait la peine de choisir ⌘K voyait Option continuer de
+            // déclencher dans son dos.
+            Row(label: "Dicter avec") {
+                PillPicker(options: [(Preferences.TriggerKind.option, "Touche Option"),
+                                     (Preferences.TriggerKind.shortcut, "Raccourci clavier")],
+                           selection: $prefs.triggerKind)
             }
-            Note("Option reste utilisable normalement : le déclenchement n'a "
-                 + "lieu que si aucune autre touche n'est pressée entre-temps.\n\n"
-                 + "**Maintenir Option une seconde** ouvre ces réglages. Si "
-                 + "une dictée était en cours, elle est abandonnée sans être "
-                 + "transcrite.")
 
-            Divider().opacity(0.25)
-            Row(label: "Raccourci clavier") {
-                ShortcutRecorder(shortcut: $prefs.dictateShortcut) { _ in }
-                    .frame(width: 150, height: 26)
+            if prefs.triggerKind == .option {
+                Row(label: "Laquelle") {
+                    // Les libellés viennent de `Side.label` : « Droite » et
+                    // « Gauche » seuls se lisaient comme des touches fléchées,
+                    // ce qui ne se voit plus quand on connaît l'application.
+                    PillPicker(options: ModifierKeyMonitor.Side.allCases.map {
+                                   ($0, $0.label)
+                               },
+                               selection: $prefs.triggerSide)
+                }
+                Note("Tapez la touche seule pour démarrer, à nouveau pour "
+                     + "arrêter. Option reste utilisable normalement : rien ne "
+                     + "se déclenche si une autre touche est pressée "
+                     + "entre-temps.\n\n"
+                     + "**Maintenir Option une seconde** ouvre ces réglages.")
+                Note("Demande l'autorisation d'Accessibilité.")
+            } else {
+                Row(label: "Raccourci") {
+                    ShortcutRecorder(shortcut: $prefs.dictateShortcut) { _ in }
+                        .frame(width: 150, height: 26)
+                }
+                Note("Cliquez puis tapez la combinaison voulue. macOS refuse "
+                     + "les raccourcis sans Contrôle ni Commande.")
+                Note("La touche Option ne déclenche plus rien, et ne maintient "
+                     + "plus l'ouverture des réglages — ils restent "
+                     + "accessibles depuis le menu. En contrepartie, un "
+                     + "raccourci fonctionne **sans l'autorisation "
+                     + "d'Accessibilité**.")
             }
-            Note("Cliquez puis tapez la combinaison voulue. Elle fonctionne "
-                 + "même sans l'autorisation d'Accessibilité, contrairement à la "
-                 + "touche Option seule. macOS refuse les raccourcis sans "
-                 + "Contrôle ni Commande.")
         }
 
         Card(title: "Où va le texte") {

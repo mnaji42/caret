@@ -637,7 +637,7 @@ it offline on the retained audio.
 - [x] **J7** — control bar, note memory, live preview, corpus collection
 - [x] **J8** — app icon, onboarding, DMG, tagged releases, update check
 - [ ] **J8b** — notarization (waiting on an Apple Developer account)
-- [ ] **J9** — Core ML / Neural Engine backend
+- [ ] **J9** — Core ML / Neural Engine backend (unblocks in-app model download)
 - [ ] **J10** — word-level speech detection from the live preview (below)
 - [ ] **J11** — offline Apple pass on retained audio, for a fair comparison
 
@@ -661,6 +661,41 @@ The benchmark that ranks CrisperWhisper #1 measures **disfluency F1**, not word
 error rate: how faithfully a system writes down hesitations actually spoken.
 And those rankings are for the **Pro** weights (96.0 F1), which are gated and
 commercial-licence only; the open weights score 89.9.
+
+### Hallucination on near-silence, and how it is caught
+
+Whisper never returns nothing. Given silence or a fragment, it invents a
+phrase it saw in training. Tapping the key by accident produced this, while
+Apple's engine correctly returned an empty string:
+
+| Engine | Output for the same 4.3 s clip |
+|---|---|
+| macOS | *(empty)* |
+| CrisperWhisper verbatim | `Effects-` |
+| **CrisperWhisper intended** | **`Effects à la finition de la finition de la finition de la finition.`** |
+
+That exact phrase — `Effects à la finition de la…` / `Effects à la fin de la…`
+— was found in **four separate recordings** in the corpus. It is a training
+artifact, the CrisperWhisper equivalent of Whisper's *"Sous-titrage Société
+Radio-Canada"*.
+
+Two decode-time guards already existed and both missed it. They tolerate three
+consecutive repeats, and the vocabulary-collapse check only looks at the last
+32 tokens, so it never arms on a short dictation — which is exactly where the
+model derails. A word-level pass now runs on the final text, with thresholds
+measured across the corpus's 86 dictations:
+
+- **Repeats allowed depend on pattern length.** One or two words repeated three
+  times is French — *"il y a un gros gros gros problème"* comes from the corpus
+  itself. At three words or more, all seven cases found were hallucinations.
+- **Short outputs are checked for vocabulary diversity.** The two
+  hallucinations score 0.29 and 0.38 distinct-words-over-total; the poorest
+  legitimate sentence in the corpus scores 0.56. The threshold sits in that gap
+  at 0.45, and diversity is measured *before* collapsing loops — collapsing
+  first raises it mechanically and hides what the test is looking for.
+
+Replayed over the corpus, this rejects exactly the two hallucinations, trims
+five tail loops, and leaves the other 201 transcriptions untouched.
 
 ### Measured non-results
 

@@ -94,7 +94,18 @@ final class HotkeyMonitor {
             guard status == noErr,
                   hotKeyID.signature == HotkeyMonitor.signature,
                   hotKeyID.id == monitor.registeredID else {
-                return noErr
+                // `eventNotHandledErr`, surtout pas `noErr` : en Carbon, rendre
+                // noErr veut dire « j'ai traité cet événement », et la chaîne
+                // s'arrête là. Ce moniteur réclamait donc les raccourcis des
+                // autres.
+                //
+                // Le symptôme était déroutant. Dès qu'une dictée commençait,
+                // le moniteur d'Échap s'installait — plus récent, donc appelé
+                // en premier — et avalait le raccourci de dictée : on pouvait
+                // démarrer, jamais arrêter. Seule la touche Option arrêtait
+                // encore, parce qu'elle passe par un tap CGEvent et ignore
+                // Carbon.
+                return OSStatus(eventNotHandledErr)
             }
             DispatchQueue.main.async { monitor.onTrigger() }
             return noErr

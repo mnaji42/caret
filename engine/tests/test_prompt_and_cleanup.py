@@ -216,3 +216,54 @@ def test_case_normalisation_never_changes_letters():
     text = "Le futur du framework est incertain"
     result = Engine._normalise_case(text, DEFAULT_LEXICON)
     assert result.lower() == text.lower()
+
+
+class TestWordLevelLoopGuard:
+    """Dernier filet, sur le texte plutôt que sur les tokens.
+
+    Les garde-fous de décodage tolèrent trois répétitions consécutives, ce qui
+    est juste pour un mot isolé et faux pour un groupe de mots ; et le contrôle
+    de diversité ne s'arme qu'au-delà de 32 tokens, donc jamais sur une dictée
+    courte. C'est exactement là que le modèle produisait « Effects à la
+    finition de la finition… » quand on effleurait la touche, alors que le
+    moteur d'Apple ne rendait rien.
+
+    Les seuils viennent du corpus du projet : voir les constantes.
+    """
+
+    def test_rejette_la_boucle_courte_observee(self):
+        """L'hallucination retrouvée telle quelle dans quatre dictées."""
+        text = ("Effects à la finition de la finition de la finition "
+                "de la finition.")
+        assert Engine._guard_loops(text) == ""
+
+    def test_rejette_le_vocabulaire_effondre(self):
+        assert Engine._guard_loops("Une un un un un un un") == ""
+
+    def test_garde_une_repetition_legitime_d_un_mot(self):
+        """« gros gros gros » est du français, et vient du corpus."""
+        text = "il y a un gros gros gros problème avec les hallucinations"
+        assert Engine._guard_loops(text) == text
+
+    def test_garde_une_sortie_tres_courte(self):
+        """Trop court pour que la diversité veuille dire quoi que ce soit."""
+        assert Engine._guard_loops("Effects-") == "Effects-"
+
+    def test_garde_la_phrase_legitime_la_plus_pauvre_du_corpus(self):
+        """Diversité 0,56 — la plus basse mesurée sur de la vraie parole."""
+        text = ("I think I just understand the problem. The problem is "
+                "I don't know why")
+        assert Engine._guard_loops(text) == text
+
+    def test_coupe_une_boucle_de_queue_sans_perdre_le_reste(self):
+        """Une longue dictée qui déraille à la fin garde son contenu."""
+        body = ("donc là je viens de repasser en français et ça fonctionne "
+                "plutôt bien pour le moment on continue comme ça ")
+        text = body + "de la fin de la fin de la fin de la fin"
+        out = Engine._guard_loops(text)
+        assert out.startswith("donc là je viens de repasser")
+        assert out.count("de la fin") <= 2
+
+    def test_une_boucle_majoritaire_fait_tout_rejeter(self):
+        text = "bonjour " + "de la fin " * 8
+        assert Engine._guard_loops(text.strip()) == ""

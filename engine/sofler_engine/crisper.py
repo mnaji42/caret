@@ -98,6 +98,27 @@ LOOP_ESCAPE_CANDIDATES = 5
 LOOP_WINDOW_TOKENS = 32
 MIN_TOKEN_DIVERSITY = 0.25
 
+# --- dernier filet, au niveau des mots -------------------------------------
+# Calibré sur les 86 dictées du corpus. Voir `_guard_loops` pour le pourquoi.
+TOKEN_RE = re.compile(r"\S+")
+WORD_RE = re.compile(r"\w+(?:'\w+)?")
+# Plus long motif dont on surveille la répétition.
+MAX_LOOP_PATTERN_WORDS = 6
+# À partir de combien de mots un motif est-il « long » ? Mesuré : sur tout le
+# corpus, un motif d'un ou deux mots répété trois fois est de la parole réelle
+# (« gros gros gros », « un un ») ; à trois mots ou plus, les 7 cas relevés
+# sont tous des hallucinations.
+LONG_PATTERN_WORDS = 3
+MAX_REPEATS_SHORT_PATTERN = 3
+MAX_REPEATS_LONG_PATTERN = 2
+# Part de mots supprimés au-delà de laquelle il ne restait plus de contenu.
+MAX_LOOP_SHARE = 0.5
+# Diversité minimale d'une sortie courte. Hallucinations mesurées à 0,29 et
+# 0,38 ; la phrase légitime la plus pauvre du corpus est à 0,56.
+SHORT_MIN_WORDS = 6
+SHORT_MAX_WORDS = 40
+MIN_SHORT_DIVERSITY = 0.45
+
 # Marqueurs de disfluence émis en mode verbatim.
 DISFLUENCY_RE = re.compile(
     r"\[(UM|UH|laughter|sniff|throatclearing|cough|sigh|breath|lipsmack|"
@@ -830,4 +851,97 @@ class CrisperWhisperEngine:
         text = PROMPT_ARTIFACT_RE.sub("", text)
         if not keep_disfluencies:
             text = DISFLUENCY_RE.sub("", text)
-        return " ".join(text.split()).strip()
+        text = " ".join(text.split()).strip()
+        return CrisperWhisperEngine._guard_loops(text)
+
+    # --- dernier filet, sur le texte -------------------------------------
+    #
+    # Les garde-fous précédents agissent pendant le décodage, sur des tokens.
+    # Deux choses leur échappent, mesurées sur le corpus du projet :
+    #
+    # 1. Ils tolèrent trois répétitions consécutives, ce qui est juste pour un
+    #    motif d'un ou deux mots — « il y a un gros gros gros problème » est du
+    #    français — mais faux au-delà : sur 86 dictées, *tous* les motifs de
+    #    trois mots ou plus répétés trois fois sont des hallucinations.
+    # 2. `_collapsed` ne regarde que les 32 derniers tokens, donc ne s'arme
+    #    jamais sur une dictée courte. Or c'est précisément là que le modèle
+    #    déraille : appuyer une seconde sur la touche produisait
+    #    « Effects à la finition de la finition de la finition de la
+    #    finition. » — une formule vue à l'entraînement, retrouvée telle quelle
+    #    dans quatre enregistrements distincts, là où le moteur d'Apple ne
+    #    rendait rien du tout.
+    #
+    # Ici on travaille sur des mots, pas des tokens : la tokenisation varie
+    # (« un » et « ␣un » diffèrent), ce qui laisse passer des répétitions
+    # pourtant évidentes à la lecture.
+
+    @staticmethod
+    def _guard_loops(text: str) -> str:
+        # La diversité se mesure sur le texte **brut** : effondrer les boucles
+        # d'abord la ferait remonter mécaniquement, et le test ne verrait plus
+        # rien de ce qu'il cherche.
+        if CrisperWhisperEngine._degenerate_short(text):
+            log.info("transcription rejetée : vocabulaire effondré (%s)", text[:60])
+            return ""
+        cleaned, removed, total = CrisperWhisperEngine._collapse_loops(text)
+        if total and removed / total > MAX_LOOP_SHARE:
+            log.info("transcription rejetée : %d/%d mots en boucle", removed, total)
+            return ""
+        return cleaned
+
+    @staticmethod
+    def _degenerate_short(text: str) -> bool:
+        """Une sortie courte n'est-elle qu'une bouillie de mots répétés ?
+
+        Sous ``SHORT_MIN_WORDS`` la diversité ne veut rien dire : « Effects- »
+        vaut 1,0 et c'est une transcription correcte. Au-dessus de
+        ``SHORT_MAX_WORDS``, les garde-fous de décodage prennent le relais.
+
+        Le seuil vient d'une mesure sur le corpus : les deux hallucinations
+        tombent à 0,29 et 0,38, la plus pauvre des phrases légitimes est à
+        0,56. Le trou est franc, le seuil est posé dedans.
+        """
+        words = WORD_RE.findall(text.lower())
+        if not SHORT_MIN_WORDS <= len(words) <= SHORT_MAX_WORDS:
+            return False
+        return len(set(words)) / len(words) < MIN_SHORT_DIVERSITY
+
+    @staticmethod
+    def _collapse_loops(text: str) -> tuple[str, int, int]:
+        """Coupe les répétitions consécutives au-delà de ce qui est plausible.
+
+        Retourne ``(texte, mots retirés, mots d'origine)``. Les motifs longs
+        sont traités d'abord : sans ça, effacer « la » dans « de la fin de la
+        fin » casserait le motif de trois mots avant qu'on l'ait vu.
+        """
+        parts = TOKEN_RE.findall(text)
+        if not parts:
+            return text, 0, 0
+        norm = [re.sub(r"[^\w']", "", p).lower() for p in parts]
+        keep = [True] * len(parts)
+        removed = 0
+
+        for size in range(MAX_LOOP_PATTERN_WORDS, 0, -1):
+            i = 0
+            while i + size * 2 <= len(parts):
+                if not all(keep[i:i + size]) or not any(norm[i:i + size]):
+                    i += 1
+                    continue
+                pattern = norm[i:i + size]
+                repeats, j = 1, i + size
+                while (j + size <= len(parts) and norm[j:j + size] == pattern
+                       and all(keep[j:j + size])):
+                    repeats += 1
+                    j += size
+                allowed = (MAX_REPEATS_SHORT_PATTERN if size < LONG_PATTERN_WORDS
+                           else MAX_REPEATS_LONG_PATTERN)
+                if repeats > allowed:
+                    for k in range(i + size * allowed, j):
+                        if keep[k]:
+                            keep[k] = False
+                            removed += 1
+                    i = j
+                else:
+                    i += 1
+
+        return " ".join(p for p, k in zip(parts, keep) if k), removed, len(parts)

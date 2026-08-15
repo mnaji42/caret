@@ -103,6 +103,14 @@ private struct OnboardingView: View {
     /// Coché d'avance, appliqué à la fin. Voir la carte « retrouver Sofler ».
     @State private var launchAtLogin = true
 
+    /// Le déclencheur réellement actif — un seul l'est à la fois. Annoncer les
+    /// deux laisserait croire qu'ils fonctionnent tous les deux.
+    private var triggerLabel: String {
+        prefs.triggerKind == .option
+            ? prefs.triggerSide.label
+            : prefs.dictateShortcut.label
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(step.title)
@@ -236,7 +244,7 @@ private struct OnboardingView: View {
 
             Card(title: "essayez maintenant") {
                 Note("Cliquez dans le cadre, tapez "
-                     + "**\(prefs.triggerSide.label)**, dites une phrase, puis "
+                     + "**\(triggerLabel)**, dites une phrase, puis "
                      + "tapez à nouveau. Le texte s'écrira ici — exactement "
                      + "comme il le fera dans vos applications.")
                 TextEditor(text: $trial)
@@ -258,9 +266,9 @@ private struct OnboardingView: View {
             Card(title: "retrouver Sofler") {
                 Note("Il vit dans la barre de menus, en haut à droite : un "
                      + "caret entouré d'ondes pendant qu'il écoute.")
-                Note("Maintenez **⌥** une seconde pour ouvrir les réglages. "
-                     + "Au clavier, sans la touche Option : "
-                     + "**\(prefs.dictateShortcut.label)**.")
+                Note(prefs.triggerKind == .option
+                     ? "Maintenez **⌥** une seconde pour ouvrir les réglages."
+                     : "Les réglages s'ouvrent depuis ce menu.")
 
                 Divider().opacity(0.25)
 

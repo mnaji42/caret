@@ -266,6 +266,15 @@ y compris au framework Evaluations quand il arrivera.
 
 ## 7. Plan de tests ordonné
 
+> **Déjà mesuré, et négatif.** Le README documente un essai de relecture par
+> les Foundation Models de macOS 26 : sommé de corriger un seul mot absurde
+> dans une phrase saine, le modèle répondait à la phrase de façon
+> conversationnelle, mettait du gras au lieu de corriger, et transformait
+> « chunk » en « chanter ». Il est réglé pour assister, pas pour transformer du
+> texte. Le pari de macOS 27 est donc précisément que le modèle **reconstruit**
+> fasse mieux — pas que l'idée n'ait jamais été essayée. Toute mesure doit
+> repartir de cette référence.
+
 ### Phase 0 — maintenant, sans macOS 27
 
 - [ ] **Annoter le corpus.** Ajouter le texte cible à ~200 dictées. Couvrir :

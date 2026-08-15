@@ -547,7 +547,11 @@ final class DictationController {
     /// permanence casserait son usage normal dans toutes les autres apps.
     private func captureEscape() {
         let monitor = HotkeyMonitor { [weak self] in self?.cancel() }
-        _ = monitor.register(.cancel)
+        // Le résultat était jeté : un échec d'enregistrement laissait Échap
+        // sans effet, sans que rien ne le signale nulle part.
+        if !monitor.register(.cancel) {
+            Log.info("Échap indisponible pendant cette dictée — raccourci déjà pris ?")
+        }
         escapeMonitor = monitor
     }
 

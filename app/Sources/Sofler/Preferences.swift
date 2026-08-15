@@ -26,7 +26,8 @@ final class Preferences {
         static let lexicon = "sofler.lexicon"
         static let useDefaultLexicon = "sofler.lexicon.useDefault"
         static let triggerSide = "sofler.trigger.side"
-        static let triggerEnabled = "sofler.trigger.enabled"
+        static let triggerEnabled = "sofler.trigger.enabled"   // hérité, migré vers triggerKind
+        static let triggerKind = "sofler.trigger.kind"
         static let defaultMode = "sofler.mode"
         static let language = "sofler.language"
         static let noteFile = "sofler.notes.file"
@@ -99,12 +100,28 @@ final class Preferences {
 
     // MARK: - Déclencheur
 
+    /// Comment on lance une dictée. **Une seule façon à la fois.**
+    ///
+    /// Les deux coexistaient, et c'était incohérent : quelqu'un qui se donnait
+    /// la peine de choisir ⌘K voyait la touche Option continuer de déclencher
+    /// dans son dos. Choisir un déclencheur, c'est écarter l'autre.
+    ///
+    /// Conséquence assumée : sous « raccourci clavier », maintenir Option
+    /// n'ouvre plus les réglages non plus, puisque le tap n'est pas installé.
+    /// Le menu reste là pour ça.
+    enum TriggerKind: String, CaseIterable, Codable, Sendable {
+        /// La touche Option seule, par un tap clavier. Demande l'accessibilité.
+        case option
+        /// Une combinaison classique, par Carbon. N'exige aucune autorisation.
+        case shortcut
+    }
+
     /// Le déclencheur est le seul réglage qui ne peut pas être simplement lu
     /// au moment de s'en servir : le tap clavier est construit une fois, avec
     /// son côté. Il faut donc prévenir pour qu'il soit reconstruit.
-    var triggerEnabled: Bool {
+    var triggerKind: TriggerKind {
         didSet {
-            defaults.set(triggerEnabled, forKey: Key.triggerEnabled)
+            defaults.set(triggerKind.rawValue, forKey: Key.triggerKind)
             NotificationCenter.default.post(name: .soflerTriggerChanged, object: nil)
         }
     }
@@ -232,7 +249,16 @@ final class Preferences {
     private init() {
         lexicon = defaults.stringArray(forKey: Key.lexicon) ?? Self.starterLexicon
         useDefaultLexicon = defaults.object(forKey: Key.useDefaultLexicon) as? Bool ?? true
-        triggerEnabled = defaults.object(forKey: Key.triggerEnabled) as? Bool ?? true
+        // Migration : l'ancien réglage était un simple interrupteur sur la
+        // touche Option, le raccourci restant actif en parallèle. Le couper
+        // voulait donc dire « je préfère le raccourci ».
+        if let stored = defaults.string(forKey: Key.triggerKind) {
+            triggerKind = TriggerKind(rawValue: stored) ?? .option
+        } else if let legacy = defaults.object(forKey: Key.triggerEnabled) as? Bool {
+            triggerKind = legacy ? .option : .shortcut
+        } else {
+            triggerKind = .option
+        }
         triggerSide = ModifierKeyMonitor.Side(
             rawValue: defaults.string(forKey: Key.triggerSide) ?? "right") ?? .right
         defaultMode = TranscriptionMode(
