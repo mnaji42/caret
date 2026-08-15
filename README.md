@@ -320,6 +320,7 @@ Settings, and each dictation appends one JSON line to
 
 ```json
 {"id": "2026-08-15T13-21-40", "durationSeconds": 80.8, "language": "fr",
+ "engineUsed": "crisperwhisper", "modelUsed": "nyralabs/CrisperWhisper2.0_turbo",
  "modeUsed": "intended", "destination": "curseur",
  "textIntended": "…", "textVerbatim": "…", "textApple": "…",
  "latencyIntendedMs": 5235.6, "latencyVerbatimMs": 6358.8,

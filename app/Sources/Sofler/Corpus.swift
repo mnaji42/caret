@@ -12,6 +12,14 @@ struct CorpusEntry: Codable {
     var date: Date
     var durationSeconds: Double
     var language: String
+    /// Moteur qui a produit le texte réellement inséré, et son modèle.
+    ///
+    /// Indispensable dès lors que le moteur est interchangeable : sans ça,
+    /// comparer deux lignes du corpus revient à comparer deux inconnues. Les
+    /// entrées antérieures à ce champ ont été complétées à la main — elles
+    /// sont toutes de CrisperWhisper turbo, seul moteur disponible alors.
+    var engineUsed: String = "crisperwhisper"
+    var modelUsed: String?
     /// Mode réellement inséré ce jour-là — l'autre a été transcrit après coup.
     var modeUsed: String
     var destination: String
@@ -246,6 +254,7 @@ final class Corpus {
     | `date` | ISO 8601 |
     | `durationSeconds` | durée de parole captée |
     | `language` | langue demandée au moteur |
+    | `engineUsed`, `modelUsed` | moteur et modèle ayant produit le texte inséré |
     | `modeUsed` | mode réellement inséré ce jour-là |
     | `destination` | `curseur` ou `notes` |
     | `lexicon` | termes envoyés au moteur, absent si celui du moteur |

@@ -60,6 +60,10 @@ final class DictationController {
     /// jamais retarder une nouvelle dictée.
     private var secondPassTask: Task<Void, Never>?
 
+    /// Dernière identité connue du moteur, pour ne pas la redemander à chaque
+    /// dictée — elle ne change qu'au redémarrage du service.
+    private var lastIdentity: EngineIdentity?
+
     let history = TranscriptionHistory()
 
     /// Audio d'une dictée dont la transcription a échoué. Conservé en mémoire
@@ -335,6 +339,7 @@ final class DictationController {
         guard Preferences.shared.corpusEnabled else { return }
 
         let id = Corpus.makeIdentifier()
+        let engine = self.engine
         var entry = CorpusEntry(
             id: id,
             date: Date(),
@@ -343,6 +348,8 @@ final class DictationController {
             modeUsed: used.rawValue,
             destination: target.isLocked ? "notes" : "curseur",
             lexicon: lexicon)
+        entry.engineUsed = lastIdentity?.engine ?? "crisperwhisper"
+        entry.modelUsed = lastIdentity?.model
         record(primary.text, latency: primary.latency.wallMs, mode: used, in: &entry)
 
         if Preferences.shared.corpusKeepsAudio {
@@ -377,6 +384,12 @@ final class DictationController {
     private func completeAndArchive(_ entry: CorpusEntry, samples: [Float],
                                     mode other: TranscriptionMode) async {
         var entry = entry
+        // L'identité se demande au moteur, donc hors du chemin de la dictée.
+        let identity = await engine.identity
+        entry.engineUsed = identity.engine
+        entry.modelUsed = identity.model
+        lastIdentity = identity
+
         try? await Task.sleep(for: .milliseconds(400))
 
         if Task.isCancelled || state != .idle {

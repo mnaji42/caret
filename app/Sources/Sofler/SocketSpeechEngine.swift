@@ -20,6 +20,13 @@ actor SocketSpeechEngine: SpeechEngine {
             .path
     }
 
+    var identity: EngineIdentity {
+        get async {
+            let model = try? await send(header: ["op": "ping"])["model"] as? String
+            return EngineIdentity(engine: "crisperwhisper", model: model ?? nil)
+        }
+    }
+
     var displayName: String {
         get async {
             if let cachedName { return cachedName }
