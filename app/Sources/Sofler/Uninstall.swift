@@ -236,8 +236,18 @@ enum Uninstall {
     private static var logsDirectory: URL {
         home.appending(path: "Library/Logs/Sofler")
     }
-    private static var cachesDirectory: URL {
-        home.appending(path: "Library/Caches/sofler")
+    /// Les caches, aux trois endroits où ils atterrissent.
+    ///
+    /// `Library/Caches/sofler` est celui que l'application crée elle-même. Les
+    /// deux autres, macOS les fabrique dans son dos, sous l'identifiant de
+    /// bundle : un dossier de cache dès qu'une API système en demande un, et
+    /// `HTTPStorages` à la première requête réseau — c'est-à-dire dès la
+    /// première vérification de mise à jour. Ni l'un ni l'autre n'était retiré,
+    /// et un balayage après désinstallation les retrouvait tous les deux.
+    private static var cacheDirectories: [URL] {
+        [home.appending(path: "Library/Caches/sofler"),
+         home.appending(path: "Library/Caches/\(bundleIdentifier)"),
+         home.appending(path: "Library/HTTPStorages/\(bundleIdentifier)")]
     }
     private static var launchAgent: URL {
         home.appending(path: "Library/LaunchAgents/\(serviceLabel).plist")
@@ -268,7 +278,7 @@ enum Uninstall {
             }
             return size(of: paths.map(\.url))
         case .logs:
-            return size(of: [logsDirectory, cachesDirectory])
+            return size(of: [logsDirectory] + cacheDirectories)
         case .corpus:
             let stats = Corpus.shared.statistics()
             guard stats.count > 0 else { return "aucune dictée" }
@@ -293,7 +303,7 @@ enum Uninstall {
                 || fm.fileExists(atPath: EngineInstall.descriptorURL.path)
         case .logs:
             return fm.fileExists(atPath: logsDirectory.path)
-                || fm.fileExists(atPath: cachesDirectory.path)
+                || cacheDirectories.contains { fm.fileExists(atPath: $0.path) }
         case .corpus: return Corpus.shared.statistics().count > 0
         case .model: return fm.fileExists(atPath: modelDirectory.path)
         }
@@ -333,7 +343,19 @@ enum Uninstall {
 
         if items.contains(.logs) {
             report.append(trash(logsDirectory, "journaux"))
-            report.append(trash(cachesDirectory, "fichiers temporaires"))
+            // Un seul compte rendu pour les trois emplacements : leur nombre
+            // est un détail d'implémentation de macOS, pas une information
+            // que quelqu'un attend en désinstallant.
+            let manager = FileManager.default
+            let present = cacheDirectories.filter {
+                manager.fileExists(atPath: $0.path)
+            }
+            for cache in present {
+                try? manager.trashItem(at: cache, resultingItemURL: nil)
+            }
+            report.append(present.isEmpty
+                ? "· fichiers temporaires — rien à retirer"
+                : "✓ fichiers temporaires — mis à la corbeille")
         }
 
         if items.contains(.corpus) {
