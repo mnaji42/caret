@@ -87,9 +87,18 @@ final class DictationController {
     let history = TranscriptionHistory()
 
     /// Audio d'une dictée dont la transcription a échoué. Conservé en mémoire
-    /// vive uniquement, jamais écrit sur disque, et libéré dès qu'une
-    /// insertion réussit ou que l'utilisateur y renonce.
+    /// vive uniquement, et libéré dès qu'une insertion réussit ou que
+    /// l'utilisateur y renonce.
     private var pendingAudio: [Float]?
+
+    /// Le fichier déjà archivé pour cet audio-là, s'il y en a un.
+    ///
+    /// Depuis que les échecs entrent dans le corpus, une dictée ratée puis
+    /// relancée produit deux lignes — ce qui est la vérité — mais elles
+    /// décrivent le **même** enregistrement. Sans cette mémoire, « Réessayer »
+    /// écrirait une seconde copie de plusieurs mégaoctets, sur la
+    /// fonctionnalité même qui existe pour ne rien perdre.
+    private var pendingAudioFile: String?
 
     /// Moteur qui écrit réellement, selon le réglage — avec repli sur celui
     /// qui existe si l'autre est indisponible.
@@ -293,17 +302,23 @@ final class DictationController {
                 state = .failed("Le moteur a répondu sans rien transcrire "
                                 + "(\(Preferences.shared.engine.fullLabel)) — "
                                 + "audio conservé, « Réessayer » ci-dessous.")
+                // Archivé comme le reste : c'est l'observation la plus utile
+                // du corpus, et c'était la seule qu'il jetait.
+                collect(samples: samples, primary: result, mode: used,
+                        outcome: .empty)
                 return
             }
             overlay.hide()
             try await deliver(text)
             history.add(text, mode: used)
             pendingAudio = nil
+            pendingAudioFile = nil
             Log.info("transcrit en \(Int(result.latency.wallMs)) ms, \(text.count) caractères")
             state = .idle
             // Après l'insertion, jamais avant : la collecte ne doit rien
             // coûter au temps que l'utilisateur attend.
-            collect(samples: samples, primary: result, mode: used)
+            collect(samples: samples, primary: result, mode: used,
+                    outcome: .inserted)
         } catch {
             pendingAudio = samples
             let minutes = Double(samples.count) / AudioRecorder.targetSampleRate / 60
@@ -314,6 +329,11 @@ final class DictationController {
             // mal pris ».
             overlay.showFailure(Self.shortReason(for: error))
             state = .failed("\(error.localizedDescription) — audio conservé, « Réessayer » dans le menu.")
+            // Les autres moteurs tournent quand même : savoir que macOS a
+            // écrit la phrase pendant que CrisperWhisper échouait est
+            // exactement ce qu'on vient chercher dans le corpus.
+            collect(samples: samples, primary: nil, mode: used,
+                    outcome: .failed, failure: error.localizedDescription)
         }
     }
 
@@ -418,8 +438,16 @@ final class DictationController {
     /// Le texte du moteur système est gratuit quand l'aperçu tournait : il a
     /// été produit pendant que l'utilisateur parlait. Tout le reste demande
     /// une passe supplémentaire, lancée **après** insertion.
-    private func collect(samples: [Float], primary: TranscriptionResult,
-                         mode used: TranscriptionMode) {
+    /// - Parameters:
+    ///   - primary: ce que le moteur d'écriture a rendu, ou `nil` s'il a
+    ///     échoué avant de rendre quoi que ce soit.
+    ///   - outcome: l'issue réelle. Un échec s'archive comme un succès, avec
+    ///     les autres moteurs lancés en seconde passe — c'est précisément là
+    ///     que la comparaison devient tranchante.
+    private func collect(samples: [Float], primary: TranscriptionResult?,
+                         mode used: TranscriptionMode,
+                         outcome: CorpusEntry.Outcome,
+                         failure: String? = nil) {
         let prefs = Preferences.shared
         guard prefs.corpusEnabled else { return }
 
@@ -432,10 +460,22 @@ final class DictationController {
             language: language,
             destination: target.isLocked ? "notes" : "curseur",
             lexicon: choice.honoursLexicon ? lexicon : nil,
-            transcriptions: [])
+            transcriptions: [],
+            storedOutcome: outcome,
+            failure: failure)
 
         if prefs.corpusKeepsAudio {
-            entry.audioFile = Corpus.shared.writeAudio(samples, id: id)
+            // Réutilisé quand l'utilisateur relance la même dictée depuis le
+            // menu : une tentative ratée puis réussie fait deux lignes, ce qui
+            // est la vérité, mais elles décrivent le **même** audio. L'écrire
+            // deux fois coûterait deux mégaoctets par minute pour un doublon
+            // exact, sur la fonctionnalité même qui existe pour ne rien perdre.
+            if let existing = pendingAudioFile {
+                entry.audioFile = existing
+            } else {
+                entry.audioFile = Corpus.shared.writeAudio(samples, id: id)
+                if outcome != .inserted { pendingAudioFile = entry.audioFile }
+            }
         }
 
         // Figé ici, et pas à l'archivage : l'archivage a lieu plusieurs
@@ -469,7 +509,7 @@ final class DictationController {
     /// une transcription manquante ne doit jamais être confondue avec un
     /// moteur qu'on n'avait pas coché.
     private func completeAndArchive(_ entry: CorpusEntry, samples: [Float],
-                                    primary: TranscriptionResult,
+                                    primary: TranscriptionResult?,
                                     insertedMode: TranscriptionMode,
                                     writer choice: EngineChoice,
                                     pending: Set<EngineChoice>,
@@ -479,10 +519,18 @@ final class DictationController {
         let identity = await (engine(for: choice)?.identity
                               ?? EngineIdentity(engine: choice.rawValue, model: nil))
 
-        entry.transcriptions.append(CorpusTranscription(
-            engine: identity.engine, model: identity.model,
-            mode: choice.hasModes ? insertedMode.rawValue : nil,
-            text: primary.text, latencyMs: primary.latency.wallMs, inserted: true))
+        // Rien à consigner quand le moteur a échoué avant de rendre un
+        // résultat : l'entrée n'aura que les transcriptions des autres, et
+        // `failure` dit pourquoi celle-ci manque.
+        if let primary {
+            entry.transcriptions.append(CorpusTranscription(
+                engine: identity.engine, model: identity.model,
+                mode: choice.hasModes ? insertedMode.rawValue : nil,
+                text: primary.text, latencyMs: primary.latency.wallMs,
+                // Une chaîne vide n'a rien inséré, et le prétendre fausserait
+                // toute analyse qui cherche « ce que l'utilisateur a vu ».
+                inserted: entry.outcome == .inserted))
+        }
 
         // Le second mode du moteur qui vient d'écrire, quand il en a deux.
         var remaining: [(EngineChoice, TranscriptionMode?)] = []
@@ -602,6 +650,7 @@ final class DictationController {
     /// Libère l'audio conservé. Appelé quand l'utilisateur renonce.
     func discardPending() {
         pendingAudio = nil
+        pendingAudioFile = nil
         state = .idle
     }
 

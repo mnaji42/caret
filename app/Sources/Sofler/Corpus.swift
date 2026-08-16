@@ -27,6 +27,28 @@ struct CorpusTranscription: Codable {
 /// (`textIntended`, `textApple`), ce qui ne survivait pas au premier moteur
 /// supplémentaire — les entrées d'alors ont été converties.
 struct CorpusEntry: Codable {
+    /// Ce qu'il est advenu de la dictée.
+    ///
+    /// Le corpus n'archivait que les succès : une transcription vide ou en
+    /// échec sortait avant l'archivage. C'était perdre exactement ce qu'on
+    /// cherche. Une dictée où CrisperWhisper ne produit rien pendant que macOS
+    /// écrit la phrase juste est l'observation la plus tranchante qui soit
+    /// pour arbitrer deux moteurs — et c'est la seule qui ne laissait aucune
+    /// trace, y compris quand la panne durait des semaines.
+    ///
+    /// Une dictée **annulée** n'en fait pas partie : appuyer sur Échap dit
+    /// qu'on ne veut pas de ce qu'on vient de dire, et l'archiver contre cet
+    /// avis serait une trahison. Le cas ne se pose d'ailleurs pas : `cancel()`
+    /// n'atteint jamais la transcription.
+    enum Outcome: String, Codable {
+        /// Le texte a été écrit chez l'utilisateur.
+        case inserted
+        /// Le moteur a répondu sans erreur, et sans un mot.
+        case empty
+        /// Le moteur a échoué. La raison est dans `failure`.
+        case failed
+    }
+
     var id: String
     var date: Date
     var durationSeconds: Double
@@ -35,6 +57,26 @@ struct CorpusEntry: Codable {
     /// Lexique envoyé aux moteurs qui en acceptent un ; `nil` = celui du moteur.
     var lexicon: [String]?
     var transcriptions: [CorpusTranscription]
+    /// **Optionnel, et pas une valeur par défaut.** Mesuré : `Codable`
+    /// synthétisé ne se rabat pas sur la valeur par défaut d'une propriété
+    /// quand la clé manque, il lève `keyNotFound`. Déclarer
+    /// `var outcome: Outcome = .inserted` rendait donc illisible **toute**
+    /// ligne écrite avant ce champ — et comme la relecture avale ses erreurs
+    /// avec un `try?`, le corpus aurait simplement paru se vider.
+    ///
+    /// Lire par `outcome`, jamais par ce champ : une ligne d'avant ne pouvait
+    /// décrire qu'une insertion réussie, seule issue archivée à l'époque.
+    var storedOutcome: Outcome?
+    /// Le message d'échec, quand il y en a un.
+    var failure: String?
+
+    var outcome: Outcome { storedOutcome ?? .inserted }
+
+    enum CodingKeys: String, CodingKey {
+        case id, date, durationSeconds, language, destination, lexicon
+        case transcriptions, failure, skipped, audioFile
+        case storedOutcome = "outcome"
+    }
     /// Ce qui était demandé mais n'a pas été produit, et pourquoi. Sans cette
     /// trace, une transcription manquante serait indistinguable d'un moteur
     /// qu'on n'avait pas coché.
@@ -275,6 +317,27 @@ final class Corpus {
     | `transcriptions[].latencyMs` | temps mur, absent pour un texte capté en flux |
     | `skipped[]` | moteurs demandés mais non exécutés, avec la raison |
     | `audioFile` | nom dans `audio/`, absent si l'audio n'est pas conservé |
+    | `outcome` | `inserted`, `empty` ou `failed` |
+    | `failure` | message d'échec, présent seulement si `outcome` vaut `failed` |
+
+    ## Les dictées qui n'ont rien écrit
+
+    `outcome` vaut `inserted` quand le texte est parti chez vous, `empty` quand
+    le moteur a répondu sans un mot, `failed` quand il a échoué — la raison
+    étant alors dans `failure`. Les deux derniers cas n'étaient pas archivés du
+    tout, ce qui revenait à jeter l'observation la plus tranchante du corpus :
+    une dictée où un moteur ne produit rien pendant qu'un autre écrit la phrase
+    juste.
+
+    Les autres moteurs tournent aussi dans ces cas-là. Une entrée `failed` peut
+    donc être vide de la transcription du moteur d'écriture et porter celles
+    des autres.
+
+    Une dictée **annulée** (Échap) n'apparaît jamais : renoncer à ce qu'on vient
+    de dire n'est pas un résultat à mesurer.
+
+    Deux lignes peuvent partager le même `audioFile` : c'est une dictée relancée
+    depuis le menu après un échec. Le même enregistrement, deux tentatives.
 
     ## Les trois moteurs
 
