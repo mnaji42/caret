@@ -395,12 +395,41 @@ final class EngineBootstrap {
     /// La sortie d'erreur est fondue dans la sortie standard : `uv` et `pip`
     /// écrivent leur avancement sur la seconde, et les séparer ferait perdre
     /// précisément ce qu'on veut montrer.
+    /// L'environnement de toute invocation de `uv`.
+    ///
+    /// Une seule variable, et elle évite un téléchargement de **19 Go**.
+    ///
+    /// `uv venv --python 3.12` cherche un interpréteur qui convienne, et pour
+    /// connaître la version d'un candidat il l'exécute. `/usr/bin/python3` est
+    /// sur le chemin de toute machine, mais sur un Mac neuf ce n'est pas Python :
+    /// c'est une amorce qui ouvre « Des outils de ligne de commande sont
+    /// nécessaires pour la commande python3 ». Soit près de 19 Go d'outils de
+    /// développement Xcode, réclamés à quelqu'un qui voulait dicter — et la
+    /// fenêtre s'ouvre **derrière** l'accueil, donc sans rien pour l'expliquer.
+    ///
+    /// `UV_MANAGED_PYTHON` restreint la recherche aux interpréteurs que `uv`
+    /// gère lui-même : il en récupère un de 25 Mo dans son propre cache et ne
+    /// touche jamais à celui du système. C'est aussi ce que Sofler voulait
+    /// depuis le début — cf. `createEnvironment` : « il n'installe rien dans le
+    /// système et ne touche pas au Python que la machine possède éventuellement
+    /// déjà ». La règle était écrite, elle n'était pas appliquée.
+    ///
+    /// Une variable et non un drapeau : `uv` est téléchargé à sa dernière
+    /// version, donc une variable qu'il ne connaîtrait pas serait ignorée, là
+    /// où un drapeau inconnu ferait échouer l'installation entière.
+    private static var toolEnvironment: [String: String] {
+        var environment = ProcessInfo.processInfo.environment
+        environment["UV_MANAGED_PYTHON"] = "1"
+        return environment
+    }
+
     private func run(_ tool: URL, _ arguments: [String], in directory: URL,
                      onLine: @escaping @MainActor (String) -> Void) async throws {
         let process = Process()
         process.executableURL = tool
         process.arguments = arguments
         process.currentDirectoryURL = directory
+        process.environment = Self.toolEnvironment
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = pipe

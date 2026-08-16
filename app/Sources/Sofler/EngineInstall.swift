@@ -112,6 +112,12 @@ enum EngineInstall {
                 "--model", model.identifier,
             ],
             "WorkingDirectory": d.project,
+            // `uv run` refait la recherche d'interpréteur à chaque démarrage du
+            // service, donc il peut déclencher l'amorce `/usr/bin/python3` et
+            // ses 19 Go d'outils Xcode exactement comme l'installation. Le
+            // dialogue apparaîtrait alors sans qu'aucune fenêtre de Sofler soit
+            // ouverte pour l'expliquer. Cf. EngineBootstrap.toolEnvironment.
+            "EnvironmentVariables": ["UV_MANAGED_PYTHON": "1"],
             "RunAtLoad": true,
             // On relance s'il tombe, sans insister en boucle quand le
             // démarrage échoue vraiment : le modèle occupe plusieurs

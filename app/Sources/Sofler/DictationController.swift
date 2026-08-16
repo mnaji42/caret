@@ -265,18 +265,29 @@ final class DictationController {
                                      language: language, lexicon: lexicon))
 
             let text = result.text
-            overlay.hide()
             guard !text.isEmpty else {
-                // Cas silencieux à l'usage : rien n'est inséré, rien n'entre
-                // dans l'historique, et sans trace on ne peut pas distinguer
-                // « le moteur n'a rien entendu » d'une panne.
+                // Le dernier chemin réellement muet de l'application : le
+                // moteur répond, sans erreur, avec une chaîne vide. Rien n'est
+                // inséré, la barre disparaît, et il ne reste **aucun** indice —
+                // ni message, ni entrée d'historique. Vu de l'utilisateur,
+                // c'est indiscernable d'un raccourci qui n'aurait rien
+                // déclenché, et c'est ce qui a fait chercher une panne de
+                // dictée là où le moteur disait simplement n'avoir rien
+                // entendu. La trace existait, mais dans un journal que
+                // personne n'a de raison d'ouvrir.
                 Log.error("le moteur a rendu un texte vide "
                           + "(\(Preferences.shared.engine.rawValue), "
                           + "\(Int(result.latency.wallMs)) ms)")
-                pendingAudio = nil
+                overlay.showFailure("Rien n'a été entendu — « Réessayer » dans le menu")
+                // L'audio est conservé, contrairement à avant. Un moteur mal
+                // configuré rend le vide aussi sûrement qu'un micro coupé, et
+                // dans ce cas jeter la dictée oblige à tout redire — ce que
+                // cette application s'interdit partout ailleurs.
+                pendingAudio = samples
                 state = .idle
                 return
             }
+            overlay.hide()
             try await deliver(text)
             history.add(text, mode: used)
             pendingAudio = nil
