@@ -155,6 +155,25 @@ final class SpeechAssets {
             states[language] = .ready
             await reserveQuietly(locale)
         } catch {
+            // Un système qui ne propose **aucune** langue ne pourra jamais
+            // fournir ce modèle : ce n'est pas un échec dont on se relève en
+            // réessayant, c'est une machine où ce moteur n'existe pas. Le
+            // classer en échec bloquait « Continuer » et enfermait dans une
+            // page dont rien ne sortait — alors que CrisperWhisper, lui,
+            // s'installe deux écrans plus loin et n'a besoin de rien de tout ça.
+            if await SpeechTranscriber.supportedLocales.isEmpty {
+                Log.error("assets: le système ne propose aucune langue — "
+                          + "moteur macOS indisponible sur cette machine")
+                states[language] = .unsupported(
+                    "macOS ne propose aucune langue de reconnaissance sur "
+                    + "cette machine : son moteur de dictée n'y est pas "
+                    + "approvisionné. Cela arrive sur une machine virtuelle, "
+                    + "ou sur un Mac dont la dictée n'a jamais été activée. "
+                    + "CrisperWhisper ne dépend pas de ce moteur et "
+                    + "fonctionnera normalement.")
+                return
+            }
+
             // Le diagnostic va à l'écran, pas seulement au journal : ces
             // essais ont lieu dans une machine virtuelle où lire la Console
             // suppose de retaper une commande à la main — ce qui a déjà coûté

@@ -475,7 +475,7 @@ struct SpeechModelRow: View {
             case .unsupported(let why):
                 StatusRow(ok: false, label: label, detail: "indisponible",
                           warningOnly: true)
-                Note(why, warning: true)
+                Note(why + "\n\nVous pouvez continuer.", warning: true)
 
             case .failed(let message):
                 StatusRow(ok: false, label: label, detail: "échec",
