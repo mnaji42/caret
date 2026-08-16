@@ -189,9 +189,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let failure = NSAlert()
             failure.alertStyle = .warning
             failure.messageText = "L'installation n'a pas pu se faire"
+            // L'image ne contient plus de raccourci vers Applications : le
+            // repli passe donc par la barre latérale du Finder, seul endroit
+            // où la cible reste visible.
             failure.informativeText = "\(error.localizedDescription)\n\nGlissez "
-                + "Sofler dans Applications depuis la fenêtre de l'image "
-                + "disque, éjectez l'image, puis ouvrez-le depuis Applications."
+                + "Sofler sur « Applications » dans la barre latérale du "
+                + "Finder, éjectez l'image, puis ouvrez-le depuis Applications."
             failure.runModal()
         }
     }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Fabrique le .dmg de distribution : Sofler.app à côté d'un raccourci vers
-# /Applications, la disposition attendue sous macOS.
+# Fabrique le .dmg de distribution : Sofler.app, seule dans la fenêtre.
+# Une seule icône, donc un seul geste possible : double-cliquer.
 #
 # Le fichier s'appelle toujours Sofler.dmg, sans numéro de version. C'est ce
 # qui rend l'URL de téléchargement stable — la landing page pointe une fois
@@ -26,7 +26,24 @@ trap 'rm -rf "$STAGE"' EXIT
 
 echo "▸ préparation de l'image"
 cp -R "$ROOT/app/build/$APP_NAME.app" "$STAGE/"
-ln -s /Applications "$STAGE/Applications"
+
+# Pas de raccourci vers /Applications, et c'est le cœur du sujet.
+#
+# La disposition habituelle — l'application à côté d'une flèche vers
+# Applications — pose deux icônes qui se ressemblent à un centimètre l'une de
+# l'autre. On glisse la première, elle reste affichée, et c'est celle-là qu'on
+# double-clique ensuite. macOS exécute alors une copie en lecture seule, et
+# tout ce qui suit casse sans jamais se nommer : autorisations attachées à un
+# chemin temporaire, quarantaine impossible à retirer, mise à jour refusée,
+# désinstallation sans rien à retirer. Quatre pannes diagnostiquées une à une
+# avant qu'on remonte à ce double-clic.
+#
+# Depuis que l'application s'installe elle-même au premier lancement — elle se
+# copie dans Applications, retire la quarantaine, éjecte l'image et rouvre la
+# bonne copie — le glisser-déposer ne sert plus à rien. Retirer le raccourci
+# laisse une seule icône dans la fenêtre, donc un seul geste possible, donc
+# plus de mauvais choix à faire. C'est plus sûr qu'une flèche dessinée qui
+# explique quoi faire : il n'y a plus rien à expliquer.
 
 mkdir -p "$ROOT/dist"
 rm -f "$DMG"
