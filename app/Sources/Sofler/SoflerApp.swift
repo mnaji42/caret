@@ -101,6 +101,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             await refreshMenu()
         }
 
+        // Avant tout le reste de l'asynchrone : si l'application tourne depuis
+        // l'image disque, rien de ce qui suit ne tiendra.
+        warnIfNotInstalled()
+
         // Hors du chemin critique : ça ne conditionne rien de ce lancement-ci,
         // seulement le confort des suivants.
         Task.detached { await MainActor.run { Quarantine.clearFromOwnBundle() } }
@@ -110,6 +114,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             await UpdateChecker.shared.checkIfDue()
             if UpdateChecker.shared.newer != nil { await refreshMenu() }
+        }
+    }
+
+    /// Prévient quand Sofler tourne depuis l'image disque.
+    ///
+    /// C'est l'erreur la plus courante de macOS — double-cliquer l'application
+    /// dans la fenêtre du .dmg au lieu de la glisser dans Applications — et
+    /// elle empoisonne tout ce qui suit sans jamais se nommer : macOS exécute
+    /// alors une copie temporaire en lecture seule, les autorisations
+    /// s'attachent à un chemin qui n'existera plus, la mise à jour intégrée
+    /// est impossible, et la désinstallation échoue sur un volume sans
+    /// corbeille. Chacun de ces symptômes a été rencontré et diagnostiqué
+    /// séparément avant qu'on remonte à la cause commune.
+    ///
+    /// Un dialogue au lancement, donc, plutôt que quatre pannes plus tard.
+    private func warnIfNotInstalled() {
+        guard Uninstall.runsFromReadOnlyVolume else { return }
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Sofler n'est pas installé"
+        alert.informativeText = """
+            Vous l'avez ouvert depuis l'image disque. macOS l'exécute alors             depuis une copie temporaire en lecture seule : les autorisations             que vous accorderez seront perdues, la mise à jour ne pourra pas             s'installer, et la désinstallation n'aura rien à retirer.
+
+            Glissez Sofler dans Applications, éjectez l'image, puis ouvrez-le             depuis Applications.
+            """
+        alert.addButton(withTitle: "Ouvrir Applications")
+        alert.addButton(withTitle: "Continuer quand même")
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            NSWorkspace.shared.activateFileViewerSelecting(
+                [URL(fileURLWithPath: "/Applications")])
+            NSApp.terminate(nil)
         }
     }
 

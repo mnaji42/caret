@@ -161,6 +161,19 @@ enum Uninstall {
             .first { FileManager.default.fileExists(atPath: $0.path) }
     }
 
+    /// Sofler tourne-t-il depuis un support en lecture seule ?
+    ///
+    /// C'est le cas quand on double-clique l'application **dans la fenêtre de
+    /// l'image disque** au lieu de la glisser dans Applications d'abord — de
+    /// loin l'erreur la plus fréquente sur macOS, et vérifiée trois fois ici.
+    /// Rien n'est alors installé : le désinstalleur n'a pas échoué, il n'avait
+    /// rien à retirer. Le message « le volume n'a pas de corbeille » décrivait
+    /// la conséquence, jamais la cause.
+    static var runsFromReadOnlyVolume: Bool {
+        let values = try? appBundle.resourceValues(forKeys: [.volumeIsReadOnlyKey])
+        return values?.volumeIsReadOnly ?? false
+    }
+
     private static var preferencesFile: URL {
         home.appending(path: "Library/Preferences/\(bundleIdentifier).plist")
     }
@@ -429,7 +442,12 @@ enum Uninstall {
 
         // En dernier : le code qui s'exécute vit dedans. Il reste chargé en
         // mémoire, donc la fenêtre survit assez pour afficher ce compte rendu.
-        report.append(trash(appBundle, "application"))
+        if runsFromReadOnlyVolume {
+            report.append("· application — rien à retirer : elle tourne depuis "
+                          + "l'image disque, elle n'a jamais été installée")
+        } else {
+            report.append(trash(appBundle, "application"))
+        }
         return report
     }
 
