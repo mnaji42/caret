@@ -284,7 +284,15 @@ final class DictationController {
                 // dans ce cas jeter la dictée oblige à tout redire — ce que
                 // cette application s'interdit partout ailleurs.
                 pendingAudio = samples
-                state = .idle
+                // `.failed` et non `.idle` : la barre renvoyait au menu, et le
+                // menu affichait « Prêt ». Envoyer quelqu'un chercher une
+                // explication à un endroit qui n'en porte aucune est pire que
+                // de se taire — c'est lui faire douter de ce qu'il vient de
+                // lire. Le menu porte donc la même raison que sur un échec du
+                // moteur, puisque c'en est un du point de vue de l'utilisateur.
+                state = .failed("Le moteur a répondu sans rien transcrire "
+                                + "(\(Preferences.shared.engine.fullLabel)) — "
+                                + "audio conservé, « Réessayer » ci-dessous.")
                 return
             }
             overlay.hide()

@@ -33,17 +33,51 @@ MEL_FRAMES_PER_S = 100          # le feature extractor produit un hop de 10 ms
 MAX_WINDOW_S = 30.0             # limite architecturale de Whisper
 
 
+def mps_computes(dtype: torch.dtype = torch.float16) -> bool:
+    """Metal répond présent — mais calcule-t-il **juste** ?
+
+    ``torch.backends.mps.is_available()`` affirme qu'un backend existe, pas
+    qu'il rende des résultats corrects, et la différence n'a rien de théorique.
+    Mesuré sur un Mac virtualisé : Metal est bien là, le modèle s'y charge en
+    7,8 s sans la moindre erreur, et la transcription ne rend que du vide. Pas
+    d'exception, pas de trace, rien dans aucun journal — l'encodeur produit des
+    valeurs inexploitables, le décodeur émet une fin de séquence au premier
+    jeton, et l'utilisateur voit une dictée qui n'écrit pas.
+
+    D'où une vérification qui mesure au lieu de croire. 128 uns multipliés par
+    128 uns valent exactement 128, valeur représentable sans perte en
+    demi-flottant : aucune tolérance à régler, aucune dérive numérique à
+    interpréter. Ça coûte une milliseconde, une fois, au démarrage du service.
+    """
+    n = 128
+    try:
+        probe = torch.ones((n, n), device="mps", dtype=dtype)
+        product = probe @ probe
+        if not bool(torch.isfinite(product).all()):
+            log.warning("Metal rend des valeurs non finies sur un produit trivial")
+            return False
+        got = float(product[0, 0].item())
+        if abs(got - n) > 0.5:
+            log.warning("Metal rend %s là où %s est attendu — calcul faux", got, n)
+            return False
+        return True
+    except Exception as exc:                       # noqa: BLE001 — on veut tout
+        log.warning("Metal a refusé le calcul de vérification : %s", exc)
+        return False
+
+
 def resolve_device(requested: str = "auto") -> str:
     """L'accélérateur à employer, **mesuré** plutôt que supposé.
 
     ``mps`` était écrit en dur. Sur un Mac c'est le bon choix, et c'est
-    précisément ce qui a caché le problème : une machine virtuelle macOS a bien
-    un GPU paravirtualisé, mais pas Metal pour le calcul. ``torch`` y répond
-    donc non, ``.to("mps")`` lève dès le chargement du modèle, le service meurt
-    avant d'ouvrir son socket, et launchd le relance toutes les trente
-    secondes. Vue de l'application, cette panne définitive était indiscernable
-    d'un démarrage en cours : elle affichait « le modèle charge, réessayez dans
-    un instant » indéfiniment.
+    précisément ce qui a caché deux problèmes distincts : Metal peut être
+    absent, et — plus vicieux — il peut être présent et faux. Le second ne se
+    voit nulle part : le service démarre, annonce « Prêt », répond à chaque
+    requête, et rend systématiquement une chaîne vide.
+
+    On demande donc deux choses à la suite, et les deux comptent : que le
+    backend existe, et qu'il calcule. Un repli sur le processeur est lent, mais
+    il écrit ; un accélérateur qui rend du vide n'écrit jamais.
 
     Un nom explicite reste honoré tel quel — c'est ce qui permet de forcer
     ``cpu`` pour comparer, ou d'essayer un backend que cette fonction ne
@@ -51,11 +85,16 @@ def resolve_device(requested: str = "auto") -> str:
     """
     if requested != "auto":
         return requested
-    if torch.backends.mps.is_available():
-        return "mps"
-    log.warning("Metal indisponible ici — repli sur le processeur, "
-                "la transcription sera nettement plus lente")
-    return "cpu"
+    if not torch.backends.mps.is_available():
+        log.warning("Metal indisponible ici — repli sur le processeur, "
+                    "la transcription sera nettement plus lente")
+        return "cpu"
+    if not mps_computes():
+        log.warning("Metal est présent mais ne calcule pas juste sur cette "
+                    "machine — repli sur le processeur, nettement plus lent "
+                    "mais qui écrit")
+        return "cpu"
+    return "mps"
 
 
 def default_dtype(device: str) -> torch.dtype:

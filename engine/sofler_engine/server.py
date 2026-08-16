@@ -29,7 +29,7 @@ import time
 from pathlib import Path
 
 from sofler_engine import protocol
-from sofler_engine.crisper import CrisperWhisperEngine
+from sofler_engine.crisper import SAMPLE_RATE, CrisperWhisperEngine
 
 log = logging.getLogger("sofler.server")
 
@@ -104,6 +104,13 @@ class EngineServer:
 
             audio = protocol.pcm16_to_float32(payload)
             if audio.size == 0:
+                # Tracé, désormais. Ce chemin répondait « texte vide » sans
+                # rien écrire nulle part : vu de l'application, une charge
+                # audio perdue en route était indiscernable d'un modèle qui
+                # n'a rien reconnu, et le journal ne permettait pas de
+                # trancher entre les deux.
+                log.warning("charge audio vide reçue (%d octets d'entête) — "
+                            "rien à transcrire", len(payload))
                 protocol.write_message(conn, {"text": "", "empty": True})
                 continue
 
@@ -117,8 +124,12 @@ class EngineServer:
             )
             wall_ms = (time.perf_counter() - t0) * 1000
 
-            log.info("%.0f ms | fenêtre %.0fs | %d tokens | %s",
-                     wall_ms, result.window_s, result.tokens, result.text[:60])
+            # La durée reçue figure dans la ligne : sans elle, une sortie vide
+            # laisse ouvert « le moteur n'a rien reconnu » contre « il n'a rien
+            # reçu », et il faut une seconde machine pour en décider.
+            log.info("%.1fs reçues | %.0f ms | fenêtre %.0fs | %d tokens | %s",
+                     len(audio) / SAMPLE_RATE, wall_ms, result.window_s,
+                     result.tokens, result.text[:60])
 
             protocol.write_message(conn, {
                 "text": result.text,
