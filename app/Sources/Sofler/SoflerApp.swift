@@ -117,36 +117,89 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Prévient quand Sofler tourne depuis l'image disque.
+    /// Sofler tourne depuis l'image disque : on ne l'explique pas, on le règle.
     ///
-    /// C'est l'erreur la plus courante de macOS — double-cliquer l'application
-    /// dans la fenêtre du .dmg au lieu de la glisser dans Applications — et
-    /// elle empoisonne tout ce qui suit sans jamais se nommer : macOS exécute
-    /// alors une copie temporaire en lecture seule, les autorisations
-    /// s'attachent à un chemin qui n'existera plus, la mise à jour intégrée
-    /// est impossible, et la désinstallation échoue sur un volume sans
-    /// corbeille. Chacun de ces symptômes a été rencontré et diagnostiqué
-    /// séparément avant qu'on remonte à la cause commune.
+    /// La disposition d'un .dmg est un piège que macOS n'a jamais corrigé. On
+    /// glisse l'application dans Applications, et elle reste affichée juste à
+    /// côté dans la fenêtre de l'image — donc c'est *elle* qu'on double-clique,
+    /// parce qu'elle est là. Rien ne distingue les deux icônes.
     ///
-    /// Un dialogue au lancement, donc, plutôt que quatre pannes plus tard.
+    /// La copie ainsi lancée est en lecture seule, et tout ce qui suit s'en
+    /// trouve empoisonné sans jamais se nommer : autorisations attachées à un
+    /// chemin temporaire, quarantaine impossible à retirer, mise à jour
+    /// intégrée refusée, désinstallation sans rien à retirer. Quatre pannes
+    /// diagnostiquées séparément avant qu'on remonte à ce double-clic.
+    ///
+    /// D'où un dialogue qui *agit* au lieu d'instruire : ouvrir la copie déjà
+    /// installée, ou installer et ouvrir s'il n'y en a pas. Un clic, et le
+    /// problème n'a plus lieu d'être expliqué.
     private func warnIfNotInstalled() {
         guard Uninstall.runsFromReadOnlyVolume else { return }
+        let destination = URL(fileURLWithPath: "/Applications/Sofler.app")
+        let installed = FileManager.default.fileExists(atPath: destination.path)
 
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Sofler n'est pas installé"
-        alert.informativeText = """
-            Vous l'avez ouvert depuis l'image disque. macOS l'exécute alors             depuis une copie temporaire en lecture seule : les autorisations             que vous accorderez seront perdues, la mise à jour ne pourra pas             s'installer, et la désinstallation n'aura rien à retirer.
+        alert.messageText = installed
+            ? "Ce n'est pas la copie installée"
+            : "Sofler n'est pas encore installé"
+        alert.informativeText = installed
+            ? """
+              Sofler est bien dans Applications, mais c'est la copie restée               dans l'image disque qui vient de s'ouvrir — les deux icônes se               ressemblent, et celle de l'image est la plus proche.
 
-            Glissez Sofler dans Applications, éjectez l'image, puis ouvrez-le             depuis Applications.
-            """
-        alert.addButton(withTitle: "Ouvrir Applications")
+              Cette copie-ci est en lecture seule : les autorisations que vous               lui accorderez seront perdues, et les mises à jour ne               s'installeront pas. Ouvrez celle d'Applications.
+              """
+            : """
+              Il est ouvert depuis l'image disque, en lecture seule : les               autorisations accordées seraient perdues et les mises à jour               impossibles.
+
+              Sofler peut s'installer dans Applications et s'y rouvrir tout               seul.
+              """
+        alert.addButton(withTitle: installed
+                        ? "Ouvrir la copie installée"
+                        : "Installer et ouvrir")
         alert.addButton(withTitle: "Continuer quand même")
 
-        if alert.runModal() == .alertFirstButtonReturn {
-            NSWorkspace.shared.activateFileViewerSelecting(
-                [URL(fileURLWithPath: "/Applications")])
-            NSApp.terminate(nil)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        if installed {
+            relaunch(from: destination)
+        } else {
+            install(to: destination)
+        }
+    }
+
+    /// Recopie l'application dans Applications, puis s'y rouvre.
+    private func install(to destination: URL) {
+        let fm = FileManager.default
+        do {
+            try? fm.removeItem(at: destination)
+            try fm.copyItem(at: Bundle.main.bundleURL, to: destination)
+            // Recopiée depuis une image téléchargée, elle hérite de la
+            // quarantaine. La retirer ici évite que la copie fraîchement
+            // installée redemande l'autorisation à chaque ouverture.
+            let strip = Process()
+            strip.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+            strip.arguments = ["-dr", "com.apple.quarantine", destination.path]
+            try? strip.run()
+            strip.waitUntilExit()
+            relaunch(from: destination)
+        } catch {
+            let failure = NSAlert()
+            failure.alertStyle = .warning
+            failure.messageText = "L'installation n'a pas pu se faire"
+            failure.informativeText = "\(error.localizedDescription)\n\nGlissez "
+                + "Sofler dans Applications depuis la fenêtre de l'image "
+                + "disque, éjectez l'image, puis ouvrez-le depuis Applications."
+            failure.runModal()
+        }
+    }
+
+    /// Ouvre la copie installée et se retire.
+    private func relaunch(from bundle: URL) {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(at: bundle,
+                                           configuration: configuration) { _, _ in
+            Task { @MainActor in NSApp.terminate(nil) }
         }
     }
 
