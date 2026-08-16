@@ -103,10 +103,56 @@ enum Uninstall {
     static let bundleIdentifier = "fr.lyriastudio.sofler"
     private static let serviceLabel = "fr.lyriastudio.sofler.engine"
 
-    /// Le bundle, trouvé par lui-même et non à un chemin écrit en dur : il
-    /// peut avoir été installé dans ~/Applications, ce qui est justement le
-    /// cas quand on éprouve l'installation depuis une autre session.
-    static var appBundle: URL { Bundle.main.bundleURL }
+    /// Le bundle à retirer : celui qui est installé, pas la copie fantôme.
+    ///
+    /// Trouvé par l'application elle-même et non à un chemin écrit en dur —
+    /// elle peut vivre dans ~/Applications. Mais `Bundle.main.bundleURL` ne
+    /// suffit pas : tant qu'une application est en quarantaine, macOS
+    /// l'exécute depuis une copie temporaire montée en lecture seule, et
+    /// c'est *elle* que cette propriété désigne.
+    ///
+    /// Le symptôme observé est sans ambiguïté :
+    ///
+    ///     « Sofler » couldn't be moved to the trash because the volume
+    ///     « BBBD2386-… » doesn't have one.
+    ///
+    /// Ce volume-là n'a effectivement pas de corbeille. Et même s'il en avait
+    /// eu une, on aurait jeté le fantôme : l'application réellement installée
+    /// serait restée en place pendant que la fenêtre annonçait « Sofler est
+    /// désinstallé ». Un désinstalleur qui ment est pire qu'absent.
+    static var appBundle: URL {
+        let running = Bundle.main.bundleURL
+        guard running.path.contains("/AppTranslocation/") else { return running }
+        return original(of: running) ?? running
+    }
+
+    /// Remonte d'une copie translocalisée vers l'application d'origine.
+    private static func original(of translocated: URL) -> URL? {
+        // `SecTranslocateCreateOriginalPathForURL` existe depuis macOS 10.12
+        // mais n'apparaît pas dans la surcouche Swift du framework Security.
+        // On va la chercher au chargement plutôt que de deviner : elle rend le
+        // chemin exact, y compris pour une application lancée depuis les
+        // Téléchargements ou une clé USB, là où une liste d'emplacements
+        // probables se tromperait.
+        typealias Resolve = @convention(c)
+            (CFURL, UnsafeMutablePointer<Unmanaged<CFError>?>?) -> Unmanaged<CFURL>?
+        if let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2),
+                              "SecTranslocateCreateOriginalPathForURL") {
+            let resolve = unsafeBitCast(symbol, to: Resolve.self)
+            if let url = resolve(translocated as CFURL, nil)?
+                .takeRetainedValue() as URL?,
+               url.path != translocated.path,
+               FileManager.default.fileExists(atPath: url.path) {
+                return url
+            }
+        }
+        // Repli, si le symbole venait à disparaître d'une version de macOS :
+        // les deux seuls endroits où une application s'installe.
+        let name = translocated.lastPathComponent
+        return [URL(fileURLWithPath: "/Applications/\(name)"),
+                home.appending(path: "Applications/\(name)")]
+            .first { FileManager.default.fileExists(atPath: $0.path) }
+    }
 
     private static var preferencesFile: URL {
         home.appending(path: "Library/Preferences/\(bundleIdentifier).plist")
