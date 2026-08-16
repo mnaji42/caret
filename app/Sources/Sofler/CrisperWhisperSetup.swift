@@ -89,10 +89,20 @@ struct CrisperWhisperSetup: View {
                 StatusRow(ok: false, label: "Poids de \(missing.label)",
                           detail: "à télécharger — \(missing.downloadSize)",
                           warningOnly: true)
-                Note("Le moteur est installé, mais pas ces poids-là. Relancez "
-                     + "la commande d'installation avec ce modèle :")
-                CommandBox(command: "~/.sofler/scripts/setup-engine.sh --model "
-                           + missing.rawValue)
+                // Le chemin vient du descripteur, jamais d'une supposition :
+                // cf. EngineInstall.setupScript.
+                if let command = EngineInstall.modelCommand(for: missing) {
+                    Note("Le moteur est installé, mais pas ces poids-là. "
+                         + "Relancez son script d'installation avec ce "
+                         + "modèle :")
+                    CommandBox(command: command)
+                } else {
+                    Note("Le moteur est déclaré installé, mais son script "
+                         + "d'installation est introuvable — le dossier a été "
+                         + "déplacé ou vidé depuis. Reprenez l'installation "
+                         + "depuis le début :", warning: true)
+                    CommandBox(command: EngineInstall.bootstrapCommand)
+                }
                 Button("Vérifier à nouveau") { refresh() }
 
             case .serviceMissing:

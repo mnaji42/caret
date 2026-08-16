@@ -169,4 +169,54 @@ enum EngineInstall {
     static let bootstrapCommand =
         "git clone --depth 1 https://github.com/mnaji42/sofler.git ~/.sofler "
         + "&& ~/.sofler/scripts/setup-engine.sh"
+
+    // MARK: - Retour au script, après coup
+
+    /// Le script d'installation, là où il se trouve **réellement**.
+    ///
+    /// `~/.sofler/scripts/setup-engine.sh` n'est vrai que pour quelqu'un qui a
+    /// suivi `bootstrapCommand` à la lettre. Écrit en dur, ce chemin envoie
+    /// tous les autres — celui qui a cloné ailleurs, celui qui travaille
+    /// depuis le dépôt — sur un `no such file or directory` au beau milieu de
+    /// l'accueil, avec pour seule issue de deviner où le projet est parti.
+    ///
+    /// Le descripteur, lui, sait où le moteur s'est installé : `project` est
+    /// le dossier Python, le script est dans le `scripts/` voisin. Il n'y a
+    /// aucune raison de deviner ce qu'on a noté.
+    static var setupScript: URL? {
+        guard let d = descriptor else { return nil }
+        let url = URL(fileURLWithPath: d.project)
+            .deletingLastPathComponent()
+            .appending(path: "scripts/setup-engine.sh")
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// Ce qu'il faut taper pour récupérer les poids d'un modèle quand le
+    /// moteur, lui, est déjà en place.
+    ///
+    /// `nil` si le script est introuvable : le dossier a été déplacé ou vidé
+    /// depuis l'installation. Mieux vaut alors renvoyer à une installation
+    /// complète que d'afficher un chemin mort, qui est exactement la panne
+    /// qu'on corrige ici.
+    static func modelCommand(for model: CrisperWhisperModel) -> String? {
+        guard let script = setupScript else { return nil }
+        return "\(shellPath(script.path)) --model \(model.rawValue)"
+    }
+
+    /// Un chemin prêt à être collé dans un terminal.
+    ///
+    /// Deux exigences qui se gênent : lisible — donc `~/…` plutôt que le
+    /// `/Users/prénom/…` complet — et exécutable tel quel, donc protégé si le
+    /// chemin contient une espace. Le tilde ne survit pas aux guillemets, zsh
+    /// ne le développe pas entre quotes. On tranche : sans caractère gênant,
+    /// le tilde ; sinon le chemin entier entre apostrophes.
+    private static func shellPath(_ path: String) -> String {
+        let plain = CharacterSet(charactersIn:
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./_-")
+        guard path.unicodeScalars.allSatisfy(plain.contains) else {
+            return "'" + path.replacingOccurrences(of: "'", with: #"'\''"#) + "'"
+        }
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        return path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
+    }
 }
