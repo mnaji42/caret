@@ -305,18 +305,35 @@ final class EngineBootstrap {
     private func downloadModel(uv: URL, model: CrisperWhisperModel) async throws {
         guard !model.isDownloaded else { return }
         phase = .downloadingModel(0)
+        reportedBytes = 0
 
-        // L'avancement est mesuré sur le disque plutôt que lu dans la sortie
-        // de la bibliothèque : `huggingface_hub` dessine des barres tqdm à
-        // coups de retour chariot, une par fichier, et en tirer un pourcentage
-        // global demanderait d'en analyser le texte. La taille du dossier de
-        // cache, elle, est un fait.
+        // ## Pourquoi deux mesures
+        //
+        // La première version ne regardait que la taille du dossier de cache.
+        // Elle mentait, et de façon spectaculaire : 0 % pendant quinze
+        // secondes, 16 % pendant trente, 21 % pendant trente encore, puis 63 %
+        // et fini. Ce n'était pas une question de fréquence de sondage — c'est
+        // que les octets n'atterrissaient pas là où on les cherchait.
+        //
+        // `huggingface_hub` 1.x utilise le stockage Xet : les morceaux
+        // descendent dans `~/.cache/huggingface/xet`, puis les fichiers sont
+        // matérialisés d'un coup dans `hub/models--…`. Le dossier surveillé ne
+        // bougeait donc que par à-coups, à chaque fichier terminé.
+        //
+        // La bibliothèque sait, elle, combien d'octets sont arrivés : elle les
+        // compte pour dessiner ses barres. `tqdm_class` permet de lui greffer
+        // un compteur qui les annonce sur une ligne lisible par un programme.
+        // Le sondage disque est conservé comme plancher — les deux sont des
+        // minorants honnêtes, et si la greffe cessait de fonctionner sur une
+        // version future, l'avancement redeviendrait saccadé au lieu de
+        // s'arrêter.
         let watcher = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
-                let done = Double(model.downloadedBytes)
+                guard let self else { continue }
                 let total = Double(model.downloadBytes)
-                guard total > 0, let self else { continue }
+                guard total > 0 else { continue }
+                let done = max(Double(model.downloadedBytes), Double(self.reportedBytes))
                 if case .downloadingModel = self.phase {
                     self.phase = .downloadingModel(min(done / total, 0.99))
                 }
@@ -325,13 +342,51 @@ final class EngineBootstrap {
         defer { watcher.cancel() }
 
         let script = """
+            import sys
             from huggingface_hub import snapshot_download
-            snapshot_download("\(model.identifier)")
+
+            # Greffé sur les barres de progression de la bibliothèque. Seules
+            # celles qui comptent des octets nous intéressent : snapshot_download
+            # en ouvre aussi une qui compte des fichiers, et l'additionner
+            # fausserait tout.
+            options = {}
+            try:
+                from tqdm.auto import tqdm as _tqdm
+
+                class Progress(_tqdm):
+                    done = 0
+
+                    def __init__(self, *args, **kwargs):
+                        super().__init__(*args, **kwargs)
+                        self._bytes = kwargs.get("unit") == "B"
+
+                    def update(self, n=1):
+                        super().update(n)
+                        if self._bytes and n:
+                            Progress.done += n
+                            print("SOFLER_PROGRESS %d" % Progress.done,
+                                  file=sys.stderr, flush=True)
+
+                options["tqdm_class"] = Progress
+            except Exception:
+                pass
+
+            snapshot_download("\(model.identifier)", **options)
             """
         try await run(uv, ["run", "--project", Self.engineDirectory.path,
                            "python", "-c", script],
-                      in: Self.engineDirectory) { _ in }
+                      in: Self.engineDirectory) { [weak self] line in
+            guard line.hasPrefix(Self.progressMarker),
+                  let done = Int64(line.dropFirst(Self.progressMarker.count))
+            else { return }
+            self?.reportedBytes = done
+        }
     }
+
+    private static let progressMarker = "SOFLER_PROGRESS "
+    /// Octets annoncés par la bibliothèque. Lu par le surveillant, qui en fait
+    /// le maximum avec ce qu'il voit sur le disque.
+    private var reportedBytes: Int64 = 0
 
     // MARK: - Exécution d'un outil, avec sa sortie
 
