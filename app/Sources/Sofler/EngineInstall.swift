@@ -159,6 +159,41 @@ enum EngineInstall {
         save(Descriptor(project: project, uv: uv, model: model))
     }
 
+    /// Retire les poids d'un modèle, à la corbeille.
+    ///
+    /// Si c'est celui qui tourne, le service s'arrête et l'écriture retombe
+    /// sur le moteur de macOS. Sans ce repli, la dictée suivante échouerait
+    /// sur un modèle absent — et rien n'est plus déroutant qu'une application
+    /// qui cesse d'écrire après une suppression dont on ne voit pas le
+    /// rapport. Le repli est la conséquence annoncée du bouton, pas un effet
+    /// de bord.
+    @discardableResult
+    static func remove(model: CrisperWhisperModel) -> Bool {
+        guard FileManager.default.fileExists(atPath: model.cacheDirectory.path)
+        else { return false }
+
+        if selectedModel == model {
+            _ = launchctl(["bootout", "gui/\(getuid())/\(EngineService.label)"])
+            if Preferences.shared.engine == .crisperWhisper {
+                Preferences.shared.engine = .apple
+            }
+        }
+        do {
+            try FileManager.default.trashItem(at: model.cacheDirectory,
+                                              resultingItemURL: nil)
+            Log.info("modèle retiré : \(model.rawValue)")
+            return true
+        } catch {
+            Log.error("retrait du modèle \(model.rawValue) : \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Les modèles présents sur la machine, hors celui passé en argument.
+    static func otherDownloaded(than model: CrisperWhisperModel) -> [CrisperWhisperModel] {
+        CrisperWhisperModel.allCases.filter { $0 != model && $0.isDownloaded }
+    }
+
     private static func save(_ d: Descriptor) {
         try? FileManager.default.createDirectory(
             at: descriptorURL.deletingLastPathComponent(),

@@ -11,7 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controller: DictationController!
     private let preferences = PreferencesWindowController()
     private let onboarding = OnboardingWindowController()
-    private let uninstaller = UninstallWindowController()
+    private let uninstaller = UninstallWindowController.shared
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let engine = SocketSpeechEngine()

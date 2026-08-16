@@ -7,19 +7,34 @@ import SwiftUI
 /// hasard, et on ne doit pas tomber dessus en cherchant autre chose.
 @MainActor
 final class UninstallWindowController {
-    private var window: NSWindow?
+    /// Partagé, parce que deux surfaces l'ouvrent désormais : le menu de la
+    /// barre pour la désinstallation complète, et les Réglages pour le retrait
+    /// de CrisperWhisper seul. Deux instances laisseraient deux fenêtres
+    /// ouvertes sur la même suppression.
+    static let shared = UninstallWindowController()
 
-    func show() {
-        if let window {
+    private var window: NSWindow?
+    private var scope: UninstallScope = .everything
+
+    /// - Parameter scope: tout, ou CrisperWhisper seul. La seconde portée est
+    ///   ouverte depuis les Réglages ; elle emprunte cette fenêtre plutôt
+    ///   qu'une copie, pour que le retrait passe par le code déjà éprouvé.
+    func show(scope: UninstallScope = .everything) {
+        if let window, self.scope == scope {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
             return
         }
 
+        // Une portée différente demande une fenêtre neuve : la sélection
+        // initiale se calcule à l'apparition.
+        close()
+        self.scope = scope
         let hosting = NSHostingController(
-            rootView: UninstallView(onCancel: { [weak self] in self?.close() }))
+            rootView: UninstallView(onCancel: { [weak self] in self?.close() },
+                                    scope: scope))
         let window = NSWindow(contentViewController: hosting)
-        window.title = "Désinstaller Sofler"
+        window.title = scope.removesApp ? "Désinstaller Sofler" : "Retirer CrisperWhisper"
         window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         window.backgroundColor = .clear
@@ -46,14 +61,32 @@ final class UninstallWindowController {
 
 private struct UninstallView: View {
     let onCancel: () -> Void
+    /// Ce que cette fenêtre a le droit de proposer.
+    ///
+    /// La désinstallation complète les présente tous ; le retrait de
+    /// CrisperWhisper depuis les Réglages n'en montre que deux. Une portée
+    /// plutôt qu'une seconde fenêtre : ce sont les mêmes fonctions qui
+    /// effacent, et deux chemins vers un `rm` de plusieurs gigaoctets
+    /// finiraient par diverger — c'est exactement le défaut qu'on vient de
+    /// corriger entre l'accueil et les Réglages.
+    var scope: UninstallScope = .everything
 
-    @State private var selected: Set<Uninstall.Item> = Set(
-        Uninstall.Item.allCases.filter(\.checkedByDefault))
+    @State private var selected: Set<Uninstall.Item> = []
     @State private var report: [String]?
+    @State private var initialised = false
+
+    private var title: String {
+        switch (scope, report == nil) {
+        case (.everything, true): "Désinstaller Sofler"
+        case (.everything, false): "Sofler est désinstallé"
+        case (.crisperWhisper, true): "Retirer CrisperWhisper"
+        case (.crisperWhisper, false): "CrisperWhisper est retiré"
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(report == nil ? "Désinstaller Sofler" : "Sofler est désinstallé")
+            Text(title)
                 .font(.system(size: 22, weight: .semibold))
                 .padding(.top, 28)
                 .padding(.horizontal, 28)
@@ -72,19 +105,30 @@ private struct UninstallView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(GlassBackground().ignoresSafeArea())
+        // La sélection dépend de la portée, qui n'est pas connue à
+        // l'initialisation d'un @State. Le drapeau évite de recocher ce que
+        // l'utilisateur vient de décocher si la vue réapparaît.
+        .onAppear {
+            guard !initialised else { return }
+            initialised = true
+            selected = Set(scope.items.filter(scope.isCheckedByDefault))
+        }
     }
 
     // MARK: Choix
 
     private var chooser: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("L'application part dans tous les cas. Choisissez ce qui "
-                 + "s'en va avec elle.")
+            Text(scope.removesApp
+                 ? "L'application part dans tous les cas. Choisissez ce qui "
+                   + "s'en va avec elle."
+                 : "Sofler reste installé et continue de dicter avec le "
+                   + "moteur de macOS. Seul CrisperWhisper s'en va.")
                 .font(.system(size: 13))
                 .fixedSize(horizontal: false, vertical: true)
 
             Card(title: "à retirer aussi") {
-                ForEach(Uninstall.Item.allCases) { item in
+                ForEach(scope.items) { item in
                     let present = Uninstall.isPresent(item)
                     VStack(alignment: .leading, spacing: 3) {
                         OptionCheck(title: item.label, isOn: Binding(
@@ -106,7 +150,7 @@ private struct UninstallView: View {
                     }
                     .opacity(present ? 1 : 0.45)
 
-                    if item != Uninstall.Item.allCases.last {
+                    if item != scope.items.last {
                         Divider().opacity(0.25)
                     }
                 }
@@ -166,17 +210,56 @@ private struct UninstallView: View {
             if report == nil {
                 Button("Annuler", action: onCancel)
                     .keyboardShortcut(.cancelAction)
-                Button("Désinstaller") { report = Uninstall.perform(selected) }
+                Button(scope.removesApp ? "Désinstaller" : "Retirer") {
+                    report = Uninstall.perform(selected, removingApp: scope.removesApp)
+                }
                     .buttonStyle(.borderedProminent)
                     .tint(Style.collecting)
             } else {
-                Button("Quitter Sofler") { NSApp.terminate(nil) }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Style.accent)
-                    .keyboardShortcut(.defaultAction)
+                // Quitter n'a de sens que si l'application vient de partir.
+                Button(scope.removesApp ? "Quitter Sofler" : "Fermer") {
+                    if scope.removesApp { NSApp.terminate(nil) } else { onCancel() }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Style.accent)
+                .keyboardShortcut(.defaultAction)
             }
         }
         .padding(.horizontal, 28)
         .padding(.vertical, 18)
     }
+}
+
+/// Ce qu'une fenêtre de retrait a le droit de proposer.
+///
+/// Une portée plutôt qu'une seconde fenêtre : ce sont les mêmes fonctions qui
+/// effacent, et deux chemins vers la suppression de plusieurs gigaoctets
+/// finiraient par diverger — c'est exactement le défaut qu'on vient de
+/// corriger entre l'accueil et les Réglages.
+enum UninstallScope: Equatable {
+    case everything
+    /// CrisperWhisper seul : l'application reste, et rien de ce qui touche aux
+    /// réglages, au corpus ou aux autorisations n'est même proposé — donc rien
+    /// d'irréversible ne peut être coché par mégarde.
+    case crisperWhisper
+
+    var items: [Uninstall.Item] {
+        switch self {
+        case .everything: Uninstall.Item.allCases
+        case .crisperWhisper: [.model, .service, .engine]
+        }
+    }
+
+    /// Cochés d'avance. Pour un retrait ciblé, les poids et le service oui —
+    /// c'est ce qu'on est venu retirer. L'environnement Python non : c'est ce
+    /// qui coûte le plus à reconstruire, et son nom inquiète même quand il ne
+    /// désigne que le nôtre.
+    func isCheckedByDefault(_ item: Uninstall.Item) -> Bool {
+        switch self {
+        case .everything: item.checkedByDefault
+        case .crisperWhisper: item != .engine
+        }
+    }
+
+    var removesApp: Bool { self == .everything }
 }

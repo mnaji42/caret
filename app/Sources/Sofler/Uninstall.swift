@@ -59,10 +59,16 @@ enum Uninstall {
                 "Le service qui charge le modèle à l'ouverture de session. "
                     + "Il ne sert à rien sans l'application."
             case .engine:
-                "Python, torch et transformers — les bibliothèques installées "
-                    + "depuis le Terminal, et la déclaration qui dit à Sofler "
-                    + "où elles sont. **Les garder permet de réinstaller sans "
-                    + "retoucher au Terminal**, un bouton suffira ; les "
+                // La formulation précédente parlait d'une installation « depuis
+                // le Terminal », ce qui n'est plus vrai depuis que l'application
+                // installe elle-même. Et « Python » inquiète à juste titre :
+                // il faut dire lequel part, et surtout lesquels ne partent pas.
+                "L'environnement Python de Sofler — torch, transformers et "
+                    + "l'outil `uv`, installés **dans le dossier de Sofler** et "
+                    + "nulle part ailleurs. Ni le Python de votre système, ni "
+                    + "celui de Homebrew, ni les versions que `uv` garde pour "
+                    + "vos autres projets ne sont touchés. Le garder permet de "
+                    + "réinstaller CrisperWhisper sans rien retélécharger ; le "
                     + "retirer libère plus d'un gigaoctet."
             case .logs:
                 "Sans valeur une fois l'application partie."
@@ -71,8 +77,9 @@ enum Uninstall {
                     + "reconstituer.** Décochez si vous comptez réinstaller, "
                     + "ou si vous voulez les garder pour vous."
             case .model:
-                "Les poids téléchargés depuis Hugging Face. Les retirer "
-                    + "impose de les retélécharger en cas de réinstallation."
+                "Les poids téléchargés depuis Hugging Face, pour **tous** les "
+                    + "modèles présents. Les retirer impose de les "
+                    + "retélécharger pour s'en resservir."
             }
         }
 
@@ -255,8 +262,16 @@ enum Uninstall {
     /// Uniquement le modèle de Sofler. Le cache Hugging Face est partagé avec
     /// tout autre projet qui utilise la bibliothèque : l'effacer en entier
     /// ferait retélécharger des gigaoctets qui ne nous appartiennent pas.
-    private static var modelDirectory: URL {
-        home.appending(path: ".cache/huggingface/hub/models--nyralabs--CrisperWhisper2.0_turbo")
+    /// Les poids présents, quel que soit le modèle.
+    ///
+    /// Le chemin était écrit en dur sur `turbo`. Quelqu'un qui avait
+    /// téléchargé `large` — trois gigaoctets — le gardait après une
+    /// désinstallation où il avait pourtant coché « Modèle CrisperWhisper »,
+    /// et rien ne le lui disait. Depuis qu'on peut changer de modèle depuis
+    /// l'application, le cas n'a plus rien de théorique.
+    private static var modelDirectories: [URL] {
+        CrisperWhisperModel.allCases.map(\.cacheDirectory)
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
     }
 
     /// Ce que l'élément occupe, prêt à afficher. Vide s'il n'y a rien.
@@ -284,8 +299,11 @@ enum Uninstall {
             guard stats.count > 0 else { return "aucune dictée" }
             return "\(stats.count) dictées · \(size(of: [corpusDirectory]))"
         case .model:
-            let s = size(of: [modelDirectory])
-            return s.isEmpty ? "non téléchargé" : s
+            let present = modelDirectories
+            guard !present.isEmpty else { return "non téléchargé" }
+            let names = CrisperWhisperModel.allCases.filter(\.isDownloaded)
+                .map(\.label).joined(separator: ", ")
+            return "\(names) · \(size(of: present))"
         }
     }
 
@@ -305,7 +323,7 @@ enum Uninstall {
             return fm.fileExists(atPath: logsDirectory.path)
                 || cacheDirectories.contains { fm.fileExists(atPath: $0.path) }
         case .corpus: return Corpus.shared.statistics().count > 0
-        case .model: return fm.fileExists(atPath: modelDirectory.path)
+        case .model: return !modelDirectories.isEmpty
         }
     }
 
@@ -316,7 +334,12 @@ enum Uninstall {
     /// - Returns: le compte rendu, ligne par ligne. Affiché avant de quitter :
     ///   quelqu'un qui désinstalle veut la preuve que c'est fait, pas une
     ///   fenêtre qui disparaît.
-    static func perform(_ items: Set<Item>) -> [String] {
+    /// - Parameter removingApp: faux pour un retrait ciblé — retirer
+    ///   CrisperWhisper depuis les Réglages emploie exactement les mêmes
+    ///   fonctions que la désinstallation, mais laisse l'application en place.
+    ///   Deux chemins qui effacent des gigaoctets finiraient par diverger ;
+    ///   celui-ci est le même, avec une case en moins.
+    static func perform(_ items: Set<Item>, removingApp: Bool = true) -> [String] {
         var report: [String] = []
 
         // Le service tient le socket et se relancerait tout seul : il part en
@@ -363,7 +386,9 @@ enum Uninstall {
         }
 
         if items.contains(.model) {
-            report.append(trash(modelDirectory, "modèle CrisperWhisper"))
+            for model in CrisperWhisperModel.allCases where model.isDownloaded {
+                report.append(trash(model.cacheDirectory, "modèle \(model.label)"))
+            }
         }
 
         // Après le corpus : les réglages disent où il se trouvait.
@@ -389,6 +414,8 @@ enum Uninstall {
         if isEffectivelyEmpty(supportDirectory) {
             report.append(trash(supportDirectory, "dossier de Sofler"))
         }
+
+        guard removingApp else { return report }
 
         // Jamais optionnel. Laissé en place, macOS tenterait de lancer une
         // application supprimée à chaque ouverture de session, et se

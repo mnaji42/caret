@@ -21,6 +21,11 @@ struct CrisperWhisperSetup: View {
     /// Le service met une dizaine de secondes à charger le modèle. Sans un
     /// mot pendant ce temps, le bouton paraît sans effet et on le reclique.
     @State private var progress: String?
+    /// Le modèle dont on vient de demander le retrait. Une confirmation
+    /// s'impose : c'est un giga et demi, et si c'est le modèle actif la
+    /// dictée bascule sur macOS — deux conséquences qu'un clic ne devrait pas
+    /// déclencher sans le dire.
+    @State private var pendingRemoval: CrisperWhisperModel?
 
     private let ticker = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
@@ -39,6 +44,8 @@ struct CrisperWhisperSetup: View {
             state
             Subsection("Licence")
             licence
+            Subsection("Retirer")
+            removal
         }
         .onAppear { refresh() }
         // Pas pendant une installation : l'état bascule d'étape en étape au
@@ -60,7 +67,7 @@ struct CrisperWhisperSetup: View {
     private var models: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(CrisperWhisperModel.allCases, id: \.self) { candidate in
-                ModelRow(model: candidate, selected: candidate == model) {
+                ModelRow(model: candidate, selected: candidate == model, select: {
                     model = candidate
                     // Écrit tout de suite, et redémarre le service s'il
                     // tourne : le choix doit pouvoir s'essayer dans la
@@ -73,7 +80,7 @@ struct CrisperWhisperSetup: View {
                         progress = nil
                         refresh()
                     }
-                }
+                }, remove: { pendingRemoval = candidate })
                 if candidate != CrisperWhisperModel.allCases.last {
                     Divider().opacity(0.2)
                 }
@@ -171,6 +178,40 @@ struct CrisperWhisperSetup: View {
         .buttonStyle(.borderedProminent)
         .tint(Style.accent)
         .disabled(working)
+    }
+
+    // MARK: Retrait
+
+    @ViewBuilder
+    private var removal: some View {
+        if let doomed = pendingRemoval {
+            Note("Retirer les poids de **\(doomed.label)** libère "
+                 + "\(doomed.downloadSize)."
+                 + (doomed == model && Preferences.shared.engine == .crisperWhisper
+                    ? " C'est le modèle en cours : le service s'arrête et la "
+                      + "dictée repasse au moteur de macOS."
+                    : "")
+                 + " Les poids partent à la corbeille.", warning: true)
+            ButtonRow {
+                Button("Retirer \(doomed.label)") {
+                    EngineInstall.remove(model: doomed)
+                    pendingRemoval = nil
+                    refresh()
+                }
+                Button("Annuler") { pendingRemoval = nil }
+            }
+        } else {
+            Note("Chaque modèle se retire séparément, avec le bouton de sa "
+                 + "ligne. Pour retirer CrisperWhisper en entier — les poids, "
+                 + "le service et l'environnement Python — passez par la "
+                 + "fenêtre dédiée : elle ne propose que ce qui le concerne, "
+                 + "et laisse Sofler installé.")
+            ButtonRow {
+                Button("Retirer CrisperWhisper…") {
+                    UninstallWindowController.shared.show(scope: .crisperWhisper)
+                }
+            }
+        }
     }
 
     // MARK: Licence
@@ -336,6 +377,9 @@ private struct ModelRow: View {
     let model: CrisperWhisperModel
     let selected: Bool
     let select: () -> Void
+    /// `nil` quand le modèle n'est pas sur le disque : proposer de retirer ce
+    /// qui n'existe pas est un bouton qui ne peut rien faire.
+    var remove: (() -> Void)?
 
     var body: some View {
         Button(action: select) {
@@ -373,6 +417,11 @@ private struct ModelRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
+                if let remove, model.isDownloaded {
+                    Button("Retirer", action: remove)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                }
             }
             .contentShape(Rectangle())
         }
