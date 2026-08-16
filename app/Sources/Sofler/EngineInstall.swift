@@ -138,6 +138,17 @@ enum EngineInstall {
         return installService(model: model)
     }
 
+    /// Écrit le descripteur de toutes pièces.
+    ///
+    /// C'était `setup-engine.sh` qui le déposait, en fin de course. Depuis que
+    /// l'installation se fait dans l'application, c'est elle qui le remplit —
+    /// mais le format ne change pas d'un octet : une installation faite au
+    /// Terminal du temps où c'était la seule voie reste lisible, et continue
+    /// de fonctionner sans rien réinstaller.
+    static func write(project: String, uv: String, model: CrisperWhisperModel) {
+        save(Descriptor(project: project, uv: uv, model: model))
+    }
+
     private static func save(_ d: Descriptor) {
         try? FileManager.default.createDirectory(
             at: descriptorURL.deletingLastPathComponent(),

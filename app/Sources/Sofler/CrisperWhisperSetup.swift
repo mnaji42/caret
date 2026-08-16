@@ -31,7 +31,13 @@ struct CrisperWhisperSetup: View {
             licence
         }
         .onAppear { refresh() }
-        .onReceive(ticker) { _ in if !working { refresh() } }
+        // Pas pendant une installation : l'état bascule d'étape en étape au
+        // fur et à mesure — l'environnement apparaît, puis les poids — et
+        // rafraîchir remplacerait la vue qui affiche l'avancement par celle de
+        // l'étape suivante, à mi-parcours.
+        .onReceive(ticker) { _ in
+            if !working, !EngineBootstrap.shared.isBusy { refresh() }
+        }
     }
 
     private func refresh() {
@@ -74,38 +80,13 @@ struct CrisperWhisperSetup: View {
             case .engineMissing:
                 StatusRow(ok: false, label: "Moteur Python", detail: "pas installé",
                           warningOnly: true)
-                Note("CrisperWhisper a besoin de Python, torch et transformers "
-                     + "— environ 1,2 Go de bibliothèques. C'est trop pour "
-                     + "être embarqué dans l'application, et c'est la seule "
-                     + "étape qui demande le Terminal. **Une seule fois** : "
-                     + "ensuite tout se pilote d'ici.")
-                // Commande et explication vont ensemble : elles dépendent
-                // toutes deux de ce qui est déjà sur la machine.
-                // Cf. EngineInstall.bootstrap.
-                let bootstrap = EngineInstall.bootstrap
-                Note(bootstrap.explanation)
-                CommandBox(command: bootstrap.command)
-                Button("Vérifier à nouveau") { refresh() }
+                Installer(model: model, weightsOnly: false, onFinish: refresh)
 
             case .modelMissing(let missing):
                 StatusRow(ok: false, label: "Poids de \(missing.label)",
                           detail: "à télécharger — \(missing.downloadSize)",
                           warningOnly: true)
-                // Le chemin vient du descripteur, jamais d'une supposition :
-                // cf. EngineInstall.setupScript.
-                if let command = EngineInstall.modelCommand(for: missing) {
-                    Note("Le moteur est installé, mais pas ces poids-là. "
-                         + "Relancez son script d'installation avec ce "
-                         + "modèle :")
-                    CommandBox(command: command)
-                } else {
-                    Note("Le moteur est déclaré installé, mais son script "
-                         + "d'installation est introuvable — le dossier a été "
-                         + "déplacé ou vidé depuis. Reprenez l'installation "
-                         + "depuis le début :", warning: true)
-                    CommandBox(command: EngineInstall.bootstrap.command)
-                }
-                Button("Vérifier à nouveau") { refresh() }
+                Installer(model: missing, weightsOnly: true, onFinish: refresh)
 
             case .serviceMissing:
                 StatusRow(ok: false, label: "Service", detail: "pas encore en place",
@@ -177,6 +158,144 @@ struct CrisperWhisperSetup: View {
                 NSWorkspace.shared.open(URL(string:
                     "https://huggingface.co/\(model.identifier)/blob/main/LICENSE.md")!)
             }
+        }
+    }
+}
+
+/// Le bouton qui installe tout, et ce qu'il devient pendant qu'il travaille.
+///
+/// Il remplace une commande à coller dans un terminal. Ce n'était pas
+/// seulement inélégant : la commande cassait au deuxième essai, elle nommait
+/// un chemin différent sur chaque machine, et elle posait la question de la
+/// licence dans une invite où la touche Entrée répondait non.
+///
+/// Chaque étape est nommée pendant qu'elle dure, et les longues portent une
+/// barre. L'installation prend plusieurs minutes et descend près de trois
+/// gigaoctets : un bouton muet pendant ce temps se reclique, puis se maudit.
+private struct Installer: View {
+    let model: CrisperWhisperModel
+    /// Le moteur est déjà là et seuls les poids manquent. La phrase à dire
+    /// n'est alors pas la même, et le volume annoncé non plus.
+    let weightsOnly: Bool
+    let onFinish: () -> Void
+
+    @State private var bootstrap = EngineBootstrap.shared
+    @State private var licenceAccepted = false
+
+    var body: some View {
+        switch bootstrap.phase {
+        case .idle:
+            ready
+
+        case .fetchingTool(let fraction):
+            step("Récupération de uv, le gestionnaire d'environnements Python",
+                 fraction: fraction)
+
+        case .preparing(let detail):
+            step(detail)
+
+        case .installingDependencies(let line):
+            step("Installation des bibliothèques — environ 1,2 Go",
+                 caption: line)
+
+        case .downloadingModel(let fraction):
+            step("Téléchargement des poids de \(model.label) — \(model.downloadSize)",
+                 fraction: fraction)
+
+        case .startingService:
+            step("Démarrage du service et chargement du modèle")
+
+        case .done:
+            StatusRow(ok: true, label: "Installé", detail: "\(model.label) prêt")
+                .onAppear {
+                    bootstrap.reset()
+                    onFinish()
+                }
+
+        case .failed(let message):
+            Note(message, warning: true)
+            ButtonRow {
+                Button("Réessayer") { bootstrap.reset() }
+            }
+            // L'échappatoire reste offerte. Si l'installation intégrée bute
+            // sur quelque chose qu'on n'a pas prévu, il vaut mieux une
+            // commande que rien du tout.
+            Note("Si le problème persiste, l'installation manuelle reste "
+                 + "possible depuis un terminal :")
+            CommandBox(command: EngineInstall.bootstrap.command)
+        }
+    }
+
+    @ViewBuilder
+    private var ready: some View {
+        if let obstacle = EngineBootstrap.obstacle {
+            Note(obstacle, warning: true)
+        } else {
+            Note(weightsOnly
+                 ? "Le moteur est en place, il manque les poids de "
+                   + "\(model.label) — \(model.downloadSize) à télécharger."
+                 : "CrisperWhisper a besoin de Python et de ses bibliothèques "
+                   + "— environ 1,2 Go — puis des poids du modèle, "
+                   + "\(model.downloadSize). **Tout s'installe d'ici**, dans "
+                   + "le dossier de Sofler : ni Homebrew, ni le Python de "
+                   + "votre système, ni quoi que ce soit hors de ce dossier "
+                   + "n'est touché.")
+
+            // La licence se coche, elle ne se devine pas. L'invite du script
+            // demandait « [o/N] » : appuyer sur Entrée refusait, et
+            // l'installation s'arrêtait sans que la raison soit claire.
+            OptionCheck(title: "J'accepte la licence de recherche non "
+                        + "commerciale des poids", isOn: $licenceAccepted)
+
+            HStack(spacing: 8) {
+                Button(weightsOnly ? "Télécharger les poids"
+                                   : "Installer CrisperWhisper") {
+                    Task {
+                        await bootstrap.install(model: model,
+                                                licenceAccepted: licenceAccepted)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Style.accent)
+                .disabled(!licenceAccepted)
+
+                Button("Lire la licence") {
+                    NSWorkspace.shared.open(URL(string:
+                        "https://huggingface.co/\(model.identifier)/blob/main/LICENSE.md")!)
+                }
+                .buttonStyle(.bordered)
+            }
+            .controlSize(.small)
+        }
+    }
+
+    /// Une étape en cours : ce qu'elle fait, et où elle en est quand c'est
+    /// mesurable.
+    @ViewBuilder
+    private func step(_ label: String, fraction: Double? = nil,
+                      caption: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                if fraction == nil { ProgressView().controlSize(.small) }
+                Text(fraction.map { "\(label) — \(Int($0 * 100)) %" } ?? label)
+                    .font(.system(size: 12))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let fraction {
+                ProgressView(value: fraction)
+                    .progressViewStyle(.linear)
+                    .tint(Style.accent)
+            }
+            if let caption, !caption.isEmpty {
+                Text(caption)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            Button("Annuler") { bootstrap.cancel() }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
         }
     }
 }

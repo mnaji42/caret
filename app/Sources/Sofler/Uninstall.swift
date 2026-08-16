@@ -140,29 +140,52 @@ enum Uninstall {
     /// en remonter d'un cran et le jeter effacerait le code source et tout ce
     /// qui n'y est pas encore commité. Dans ce cas seul l'environnement
     /// Python s'en va — c'est lui qui pèse, et lui seul se régénère.
-    private static var enginePaths: (bulk: URL?, label: String) {
+    private static var enginePaths: [(url: URL, label: String)] {
         let fm = FileManager.default
-        guard let project = EngineInstall.descriptor?.project else {
-            return (nil, "")
-        }
-        let projectURL = URL(fileURLWithPath: project).standardizedFileURL
-        let clone = projectURL.deletingLastPathComponent()
-        let canonical = home.appending(path: ".sofler").standardizedFileURL
+        var found: [(URL, String)] = []
 
-        // Comparés par leur `path`, jamais comme deux `URL`. Elles ne sont pas
-        // égales ici : `deletingLastPathComponent()` rend « …/.sofler/ » quand
+        // L'outil, quand c'est Sofler qui l'a récupéré. Celui de Homebrew
+        // n'est jamais touché : il n'appartient pas à cette application, et
+        // d'autres projets s'en servent.
+        let tool = supportDirectory.appending(path: "tools")
+        if fm.fileExists(atPath: tool.path) { found.append((tool, "uv")) }
+
+        guard let project = EngineInstall.descriptor?.project else { return found }
+        let projectURL = URL(fileURLWithPath: project).standardizedFileURL
+
+        // Installation faite depuis l'application : tout tient dans un dossier
+        // qui n'appartient qu'à Sofler, code et environnement compris.
+        let own = EngineBootstrap.engineDirectory.standardizedFileURL
+        if projectURL.path == own.path, fm.fileExists(atPath: own.path) {
+            found.append((own, "moteur Python"))
+            return found
+        }
+
+        // Installation faite au Terminal, du temps où c'était la seule voie.
+        // Le dépôt cloné ne part que s'il est exactement là où la commande le
+        // mettait — comparé par `path`, jamais comme deux `URL` :
+        // `deletingLastPathComponent()` rend « …/.sofler/ » quand
         // `appending(path:)` rend « …/.sofler », et l'égalité d'URL porte sur
         // la chaîne entière, barre oblique comprise. Le test échouait donc
-        // toujours, et le dépôt cloné d'un utilisateur survivait à la case
-        // qui promettait de le retirer.
+        // toujours, et le dépôt d'un utilisateur survivait à la case qui
+        // promettait de le retirer.
+        let clone = projectURL.deletingLastPathComponent()
+        let canonical = home.appending(path: ".sofler").standardizedFileURL
         if clone.path == canonical.path, fm.fileExists(atPath: clone.path) {
-            return (clone, "moteur Python")
+            found.append((clone, "moteur Python"))
+            return found
         }
+
+        // Dépôt de travail d'un développeur : seul l'environnement s'en va.
+        // Remonter d'un cran et jeter le dossier parent effacerait le code
+        // source et tout ce qui n'y est pas commité — et depuis que le moteur
+        // peut s'installer dans « Application Support », ce parent-là serait
+        // le dossier qui contient le corpus.
         let venv = projectURL.appending(path: ".venv")
         if fm.fileExists(atPath: venv.path) {
-            return (venv, "bibliothèques Python du moteur")
+            found.append((venv, "bibliothèques Python du moteur"))
         }
-        return (nil, "")
+        return found
     }
     private static var logsDirectory: URL {
         home.appending(path: "Library/Logs/Sofler")
@@ -192,11 +215,12 @@ enum Uninstall {
             return FileManager.default.fileExists(atPath: launchAgent.path)
                 ? "installé" : "non installé"
         case .engine:
-            guard let bulk = enginePaths.bulk else {
+            let paths = enginePaths
+            guard !paths.isEmpty else {
                 return EngineInstall.descriptor == nil
                     ? "non installé" : "déclaration seule"
             }
-            return size(of: [bulk])
+            return size(of: paths.map(\.url))
         case .logs:
             return size(of: [logsDirectory, cachesDirectory])
         case .corpus:
@@ -219,7 +243,7 @@ enum Uninstall {
         case .permissions: return true
         case .service: return fm.fileExists(atPath: launchAgent.path)
         case .engine:
-            return enginePaths.bulk != nil
+            return !enginePaths.isEmpty
                 || fm.fileExists(atPath: EngineInstall.descriptorURL.path)
         case .logs:
             return fm.fileExists(atPath: logsDirectory.path)
@@ -250,8 +274,8 @@ enum Uninstall {
         // Après le service, qui s'exécutait depuis cet environnement Python :
         // le sortir d'abord évite de retirer le sol sous un processus vivant.
         if items.contains(.engine) {
-            if let bulk = enginePaths.bulk {
-                report.append(trash(bulk, enginePaths.label))
+            for path in enginePaths {
+                report.append(trash(path.url, path.label))
             }
             // Le descripteur part avec le moteur qu'il décrit. Il était rangé
             // avec les dictées archivées, donc il survivait à toute

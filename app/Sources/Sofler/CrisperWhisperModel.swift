@@ -90,10 +90,8 @@ enum CrisperWhisperModel: String, CaseIterable, Codable, Sendable {
     /// l'annoncer « installé » enverrait l'utilisateur vers un service qui
     /// échouerait au chargement sans qu'il comprenne pourquoi.
     var isDownloaded: Bool {
-        let directory = FileManager.default.homeDirectoryForCurrentUser
-            .appending(path: ".cache/huggingface/hub/\(cacheDirectoryName)")
         guard let walker = FileManager.default.enumerator(
-            at: directory, includingPropertiesForKeys: [.totalFileAllocatedSizeKey])
+            at: cacheDirectory, includingPropertiesForKeys: [.totalFileAllocatedSizeKey])
         else { return false }
         var total: Int64 = 0
         for case let file as URL in walker {
@@ -103,6 +101,31 @@ enum CrisperWhisperModel: String, CaseIterable, Codable, Sendable {
             if total > downloadBytes / 2 { return true }
         }
         return false
+    }
+
+    var cacheDirectory: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appending(path: ".cache/huggingface/hub/\(cacheDirectoryName)")
+    }
+
+    /// Ce qui est déjà descendu, en octets.
+    ///
+    /// Distinct de `isDownloaded`, qui s'arrête à la moitié dès qu'il a de
+    /// quoi trancher. Ici il faut le total exact : c'est ce qui fait avancer
+    /// la barre pendant le téléchargement. Le compte inclut les fichiers
+    /// partiels que `huggingface_hub` laisse dans `blobs` en cours de route,
+    /// donc la progression ne reste pas à zéro pendant qu'un gros fichier
+    /// descend.
+    var downloadedBytes: Int64 {
+        guard let walker = FileManager.default.enumerator(
+            at: cacheDirectory, includingPropertiesForKeys: [.totalFileAllocatedSizeKey])
+        else { return 0 }
+        var total: Int64 = 0
+        for case let file as URL in walker {
+            let values = try? file.resourceValues(forKeys: [.totalFileAllocatedSizeKey])
+            total += Int64(values?.totalFileAllocatedSize ?? 0)
+        }
+        return total
     }
 
     static var downloaded: [CrisperWhisperModel] { allCases.filter(\.isDownloaded) }
