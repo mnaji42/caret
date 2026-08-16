@@ -101,6 +101,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             await refreshMenu()
         }
 
+        // Hors du chemin critique : ça ne conditionne rien de ce lancement-ci,
+        // seulement le confort des suivants.
+        Task.detached { await MainActor.run { Quarantine.clearFromOwnBundle() } }
+
         // Après le reste : rien ici ne conditionne l'usage de l'application,
         // et le résultat n'arrive qu'une fois le réseau revenu.
         Task {
