@@ -19,13 +19,15 @@ import Speech
 /// machine vierge, sans que rien ne le prépare. L'état est donc suivi langue
 /// par langue, et la bascule sait ce qu'elle coûte.
 ///
-/// ## Réserver avant de demander
+/// ## Ce qu'on ne sait pas encore
 ///
-/// L'inventaire refuse de répondre sur une langue à laquelle l'application n'a
-/// pas souscrit — « is not subscribed to transcription.fr ». Souscrire, c'est
-/// `AssetInventory.reserve`. Toute question sur les actifs passe donc après
-/// elle ; l'ordre inverse produit une erreur qu'aucun « Réessayer » ne lève,
-/// puisque le second essai repose la même question mal posée.
+/// Sur une machine vierge, le téléchargement échoue avec « is not subscribed
+/// to transcription.fr ». J'ai supposé qu'il fallait réserver la langue avant
+/// d'interroger ses actifs : c'était une conjecture, elle était fausse,
+/// l'erreur est revenue identique. L'ordre est donc revenu à celui de la
+/// documentation d'Apple, et chaque étape journalise son résultat — la
+/// prochaine hypothèse attendra d'avoir lu ce que la machine répond, plutôt
+/// que d'être la troisième tentée à l'aveugle.
 @MainActor
 @Observable
 final class SpeechAssets {
@@ -81,32 +83,57 @@ final class SpeechAssets {
     }
 
     /// Récupère le modèle de cette langue.
+    ///
+    /// ## L'ordre, et pourquoi il a changé deux fois
+    ///
+    /// Devant l'erreur « is not subscribed to transcription.fr », j'ai supposé
+    /// qu'il fallait réserver la langue avant d'interroger ses actifs. C'était
+    /// une conjecture, et elle était fausse : l'erreur persiste à l'identique.
+    ///
+    /// L'ordre retenu est maintenant celui de la documentation d'Apple —
+    /// vérifier ce qui est installé, demander l'installation, et seulement
+    /// ensuite réserver. La réservation sert à *garder* une langue disponible,
+    /// elle n'est pas un préalable au téléchargement, et son échec n'empêche
+    /// rien : elle est donc tentée sans conditionner la suite.
+    ///
+    /// Chaque étape est journalisée avec son résultat. Deux hypothèses ont
+    /// déjà été essayées à l'aveugle ; la troisième attendra de savoir.
     func install(_ language: String) async {
         guard #available(macOS 26.0, *) else { return }
         if case .installing = state(of: language) { return }
 
         guard let locale = await Self.locale(for: language) else {
+            let supported = await SpeechTranscriber.supportedLocales
+            Log.error("assets: \(language) non supportée — le système propose "
+                      + supported.map(\.identifier).joined(separator: ", "))
             states[language] = .unsupported("macOS ne reconnaît pas cette langue.")
             return
         }
+
+        let installed = await SpeechTranscriber.installedLocales
+        Log.info("assets: \(locale.identifier) — installées : "
+                 + (installed.map(\.identifier).joined(separator: ", ")
+                    .isEmpty ? "aucune" : installed.map(\.identifier).joined(separator: ", ")))
+        if installed.contains(where: { $0.identifier == locale.identifier }) {
+            states[language] = .ready
+            await reserveQuietly(locale)
+            return
+        }
+
         let transcriber = SpeechTranscriber(locale: locale,
                                             transcriptionOptions: [],
                                             reportingOptions: [],
                                             attributeOptions: [])
         states[language] = .installing(0)
         do {
-            // Réserver d'abord. Cf. l'en-tête.
-            try await LivePreview.reserve(locale)
-
             guard let request = try await AssetInventory
                 .assetInstallationRequest(supporting: [transcriber]) else {
+                Log.info("assets: \(locale.identifier) — rien à installer")
                 states[language] = .ready
+                await reserveQuietly(locale)
                 return
             }
 
-            // L'avancement est publié sur un `Progress` : relu à intervalle
-            // plutôt qu'observé, la valeur suffit et un observateur KVO pour
-            // une minute de téléchargement coûterait plus qu'il ne rapporte.
             let progress = request.progress
             let watcher = Task { [weak self] in
                 while !Task.isCancelled {
@@ -118,13 +145,26 @@ final class SpeechAssets {
             }
             defer { watcher.cancel() }
 
-            Log.info("assets macOS : téléchargement \(locale.identifier)")
+            Log.info("assets: téléchargement de \(locale.identifier)…")
             try await request.downloadAndInstall()
+            Log.info("assets: \(locale.identifier) installé")
             states[language] = .ready
-            Log.info("assets macOS : \(locale.identifier) installé")
+            await reserveQuietly(locale)
         } catch {
-            Log.error("assets macOS \(language) : \(error.localizedDescription)")
+            Log.error("assets: échec sur \(locale.identifier) — \(error)")
             states[language] = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Réserve la langue sans en faire dépendre quoi que ce soit.
+    ///
+    /// Elle garde la langue disponible pour l'application ; son échec ne rend
+    /// pas le modèle inutilisable, et le faire remonter transformerait un
+    /// détail en panne.
+    @available(macOS 26.0, *)
+    private func reserveQuietly(_ locale: Locale) async {
+        do { try await LivePreview.reserve(locale) } catch {
+            Log.error("assets: réservation de \(locale.identifier) — \(error)")
         }
     }
 

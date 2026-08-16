@@ -268,7 +268,15 @@ private struct OnboardingView: View {
                 }
             }
         }
-        .task(id: prefs.language) { await assets.ensure(prefs.language) }
+        // On regarde, on ne télécharge pas. La langue affichée est un défaut,
+        // pas un choix : lancer plusieurs centaines de mégaoctets sur une
+        // préférence que personne n'a encore touchée, c'est décider à la place
+        // de quelqu'un qui n'a pas eu le temps de lire la question.
+        .task { await assets.check(prefs.language) }
+        // Là, en revanche, c'est un geste : la langue vient d'être choisie.
+        .onChange(of: prefs.language) { _, chosen in
+            Task { await assets.ensure(chosen) }
+        }
     }
 
     // MARK: 3 — Moteur, puis essai
