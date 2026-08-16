@@ -87,6 +87,8 @@ final class AppleSpeechEngine: SpeechEngine, @unchecked Sendable {
                                             transcriptionOptions: [],
                                             reportingOptions: [],
                                             attributeOptions: [])
+        // Réservation avant installation : l'inventaire ne répond pas sur une
+        // langue non réservée. Cf. SpeechAssets.
         try await LivePreview.reserve(locale)
         try await Self.installAssets(for: transcriber)
 

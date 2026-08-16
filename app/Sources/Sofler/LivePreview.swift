@@ -107,10 +107,13 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
             attributeOptions: [])
 
         do {
-            // Le modèle de dictée n'est pas forcément présent pour cette
-            // langue : téléchargement unique, géré et stocké par le système —
-            // rien n'est embarqué dans l'application.
-            //
+            // Réserver d'abord, interroger ensuite. L'inventaire refuse de
+            // répondre sur une langue à laquelle l'application n'a pas
+            // souscrit — « is not subscribed to transcription.fr » — et la
+            // séquence inverse produisait cette erreur avant même d'avoir pu
+            // constater ce qui manquait.
+            try await Self.reserve(locale)
+
             // On se fie à `installedLocales`, pas à l'existence d'une requête
             // d'installation : mesuré ici, `assetInstallationRequest` renvoie
             // une requête pour `fr_FR` alors que le modèle est déjà installé
@@ -121,17 +124,6 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
             if !installed.contains(where: { $0.identifier == locale.identifier }) {
                 await report("aperçu : téléchargement du modèle \(locale.identifier)…")
                 NSLog("sofler: téléchargement du modèle d'aperçu (%@)…", locale.identifier)
-                if let request = try await AssetInventory.assetInstallationRequest(
-                    supporting: [transcriber]) {
-                    try await request.downloadAndInstall()
-                }
-            }
-            try await Self.reserve(locale)
-            // Premier lancement sur une machine neuve : le modèle n'est pas
-            // là. Le dire, sinon l'aperçu reste vide sans raison visible.
-            if try await AssetInventory
-                .assetInstallationRequest(supporting: [transcriber]) != nil {
-                await report("téléchargement du modèle de macOS…")
                 try await AppleSpeechEngine.installAssets(for: transcriber)
             }
 

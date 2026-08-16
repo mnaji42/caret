@@ -71,6 +71,23 @@ final class SpeechAssets {
                                             reportingOptions: [],
                                             attributeOptions: [])
         do {
+            // Réserver la langue **avant** de demander quoi que ce soit sur
+            // ses actifs. C'est l'étape qui manquait, et le système le disait
+            // en toutes lettres sans qu'on l'entende :
+            //
+            //     Cannot check the download status, fr.lyriastudio.sofler
+            //     is not subscribed to transcription.fr
+            //
+            // « Souscrire » à une langue, c'est `AssetInventory.reserve`. Sans
+            // elle, l'inventaire refuse même de dire si le modèle est présent
+            // — d'où une erreur que « Réessayer » ne pouvait pas lever, puisque
+            // le second essai reposait la même question mal posée.
+            //
+            // `AppleSpeechEngine.transcribe` réservait déjà, ce qui explique
+            // que le défaut soit resté invisible sur une machine où les actifs
+            // étaient là : la réservation y était sans objet.
+            try await LivePreview.reserve(locale)
+
             guard let request = try await AssetInventory
                 .assetInstallationRequest(supporting: [transcriber]) else {
                 state = .ready
