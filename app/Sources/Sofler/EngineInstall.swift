@@ -117,7 +117,16 @@ enum EngineInstall {
             // ses 19 Go d'outils Xcode exactement comme l'installation. Le
             // dialogue apparaîtrait alors sans qu'aucune fenêtre de Sofler soit
             // ouverte pour l'expliquer. Cf. EngineBootstrap.toolEnvironment.
-            "EnvironmentVariables": ["UV_MANAGED_PYTHON": "1"],
+            // Le `PATH` reprend celui d'un agent launchd, précédé du dossier
+            // des leurres : `uv run` réinstallerait un Python si celui-ci
+            // venait à manquer, et déclencherait alors l'amorce Xcode sans
+            // qu'aucune fenêtre de Sofler soit ouverte pour l'expliquer.
+            // Cf. EngineBootstrap.prepareShims.
+            "EnvironmentVariables": [
+                "UV_MANAGED_PYTHON": "1",
+                "PATH": "\(EngineBootstrap.shimDirectory.path)"
+                    + ":/usr/bin:/bin:/usr/sbin:/sbin",
+            ],
             "RunAtLoad": true,
             // On relance s'il tombe, sans insister en boucle quand le
             // démarrage échoue vraiment : le modèle occupe plusieurs

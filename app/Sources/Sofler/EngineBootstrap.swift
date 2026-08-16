@@ -234,6 +234,10 @@ final class EngineBootstrap {
     // MARK: - 1. L'outil
 
     private func resolveTool() async throws -> URL {
+        // Avant tout appel à uv, y compris quand l'outil est déjà là : c'est
+        // `uv python install` qui déclenche l'amorce Xcode, pas le
+        // téléchargement de uv lui-même.
+        try Self.prepareShims()
         if let existing = Self.locateTool() { return existing }
 
         phase = .fetchingTool(0)
@@ -420,7 +424,54 @@ final class EngineBootstrap {
     private static var toolEnvironment: [String: String] {
         var environment = ProcessInfo.processInfo.environment
         environment["UV_MANAGED_PYTHON"] = "1"
+        // Le dossier des leurres passe **devant** : c'est ce qui fait que
+        // `/usr/bin/install_name_tool` n'est jamais exécuté. Cf. `prepareShims`.
+        let chemin = environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
+        environment["PATH"] = "\(shimDirectory.path):\(chemin)"
         return environment
+    }
+
+    /// Dossier des leurres, à côté de `uv` — donc retiré avec lui.
+    static var shimDirectory: URL {
+        toolsDirectory.appending(path: "shims")
+    }
+
+    /// Pose un `install_name_tool` qui échoue en silence.
+    ///
+    /// Deuxième fenêtre « Des outils de ligne de commande sont nécessaires »,
+    /// après celle de `python3` : `uv python install` exécute
+    /// `install_name_tool -id …/libpython3.12.dylib` pour corriger le nom
+    /// d'installation de la bibliothèque. Sur un Mac neuf ce chemin n'est pas
+    /// l'outil, c'est l'amorce qui propose 19 Go d'outils Xcode — et elle
+    /// s'ouvre **derrière** l'accueil, sans rien pour l'expliquer.
+    ///
+    /// Mesuré sur une machine sans ces outils : quand l'appel échoue, `uv`
+    /// écrit « Failed to patch the install name of the dynamic library » et
+    /// **poursuit**. L'installation aboutit, l'environnement fonctionne, le
+    /// moteur transcrit. C'est exactement ce que produit un clic sur
+    /// « Annuler », que quelqu'un a fait avant d'y penser.
+    ///
+    /// Le leurre sort donc en **échec**, pas en succès. La nuance compte : uv
+    /// sait déjà composer avec le refus — c'est le chemin éprouvé — alors
+    /// qu'un faux succès lui ferait croire la bibliothèque corrigée et
+    /// déplacerait la panne ailleurs, sans trace.
+    ///
+    /// Mesuré aussi : sur une installation complète — environnement, torch,
+    /// transformers — c'est le **seul** outil Xcode sollicité. Onze leurres
+    /// posés en observation, un seul appel.
+    private static func prepareShims() throws {
+        let manager = FileManager.default
+        try manager.createDirectory(at: shimDirectory, withIntermediateDirectories: true)
+        let leurre = shimDirectory.appending(path: "install_name_tool")
+        let script = """
+        #!/bin/sh
+        # Posé par Sofler — cf. EngineBootstrap.prepareShims.
+        # Échoue comme le ferait un clic sur « Annuler », sans la fenêtre.
+        exit 1
+
+        """
+        try script.write(to: leurre, atomically: true, encoding: .utf8)
+        try manager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: leurre.path)
     }
 
     private func run(_ tool: URL, _ arguments: [String], in directory: URL,
