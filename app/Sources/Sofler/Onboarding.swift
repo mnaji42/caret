@@ -459,14 +459,15 @@ struct SpeechModelRow: View {
                     }
                 }
 
-            case .installing(let fraction):
-                Text(fraction > 0
-                     ? "\(label) — téléchargement \(Int(fraction * 100)) %"
-                     : "\(label) — téléchargement…")
-                    .font(.system(size: 12))
-                ProgressView(value: max(fraction, 0.02))
-                    .progressViewStyle(.linear)
-                    .tint(Style.accent)
+            // Indéterminé, faute de pouvoir mesurer sans casser ce qu'on
+            // mesure. Cf. SpeechAssets : lire l'avancement faisait échouer le
+            // téléchargement.
+            case .installing:
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("\(label) — téléchargement en cours…")
+                        .font(.system(size: 12))
+                }
 
             case .ready:
                 StatusRow(ok: true, label: label, detail: "installé")
@@ -479,7 +480,11 @@ struct SpeechModelRow: View {
             case .failed(let message):
                 StatusRow(ok: false, label: label, detail: "échec",
                           warningOnly: true)
-                Note(message, warning: true)
+                Text(message)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(Style.collecting)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
                 ButtonRow {
                     Button("Réessayer") { Task { await assets.install(language) } }
                 }

@@ -19,15 +19,19 @@ import Speech
 /// machine vierge, sans que rien ne le prépare. L'état est donc suivi langue
 /// par langue, et la bascule sait ce qu'elle coûte.
 ///
-/// ## Ce qu'on ne sait pas encore
+/// ## Ne pas mesurer ce qui n'a pas commencé
 ///
-/// Sur une machine vierge, le téléchargement échoue avec « is not subscribed
-/// to transcription.fr ». J'ai supposé qu'il fallait réserver la langue avant
-/// d'interroger ses actifs : c'était une conjecture, elle était fausse,
-/// l'erreur est revenue identique. L'ordre est donc revenu à celui de la
-/// documentation d'Apple, et chaque étape journalise son résultat — la
-/// prochaine hypothèse attendra d'avoir lu ce que la machine répond, plutôt
-/// que d'être la troisième tentée à l'aveugle.
+/// Le téléchargement échouait sur « Cannot check the download status,
+/// fr.lyriastudio.sofler is not subscribed to transcription.fr ». Deux
+/// hypothèses ont été tentées à l'aveugle avant qu'on lise l'évidence : la
+/// phrase décrit exactement ce que faisait la barre de progression, et
+/// l'erreur est apparue au commit qui l'a introduite. Interroger l'avancement
+/// d'une requête que le système n'a pas encore acceptée le fait répondre que
+/// l'application n'est pas souscrite — et cette réponse remontait comme
+/// l'échec du téléchargement lui-même.
+///
+/// La leçon vaut d'être écrite : le message nommait la cause depuis le début,
+/// et deux corrections ont été livrées avant qu'on le prenne au mot.
 @MainActor
 @Observable
 final class SpeechAssets {
@@ -134,25 +138,38 @@ final class SpeechAssets {
                 return
             }
 
-            let progress = request.progress
-            let watcher = Task { [weak self] in
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .milliseconds(400))
-                    guard let self,
-                          case .installing = self.state(of: language) else { continue }
-                    self.states[language] = .installing(progress.fractionCompleted)
-                }
-            }
-            defer { watcher.cancel() }
-
+            // Pas de guetteur sur `request.progress`, et c'est lui le coupable.
+            //
+            // L'erreur dit mot pour mot ce que ce guetteur faisait : « Cannot
+            // check the download **status** ». Elle est apparue avec lui — le
+            // même commit — et pas avant. Lire l'avancement d'une requête que
+            // le système n'a pas encore acceptée le fait répondre que
+            // l'application n'est pas souscrite à l'actif, et cette réponse
+            // remonte comme l'échec de toute l'opération.
+            //
+            // Une barre qui avance valait mieux qu'un tourniquet ; elle ne vaut
+            // pas de casser le téléchargement qu'elle prétend mesurer.
             Log.info("assets: téléchargement de \(locale.identifier)…")
             try await request.downloadAndInstall()
             Log.info("assets: \(locale.identifier) installé")
             states[language] = .ready
             await reserveQuietly(locale)
         } catch {
+            // Le diagnostic va à l'écran, pas seulement au journal : ces
+            // essais ont lieu dans une machine virtuelle où lire la Console
+            // suppose de retaper une commande à la main — ce qui a déjà coûté
+            // un aller-retour pour une apostrophe.
+            let supported = await SpeechTranscriber.supportedLocales
+                .map(\.identifier).joined(separator: ", ")
+            let present = await SpeechTranscriber.installedLocales
+                .map(\.identifier).joined(separator: ", ")
             Log.error("assets: échec sur \(locale.identifier) — \(error)")
-            states[language] = .failed(error.localizedDescription)
+            states[language] = .failed("""
+                \(error.localizedDescription)
+
+                Proposées par le système : \(supported.isEmpty ? "aucune" : supported)
+                Déjà installées : \(present.isEmpty ? "aucune" : present)
+                """)
         }
     }
 
