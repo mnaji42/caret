@@ -182,11 +182,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // se faire ignorer, puis détester. Le menu s'ouvre de toute façon
         // souvent — c'est par lui qu'on atteint l'historique et les réglages.
         if let update = UpdateChecker.shared.newer {
-            let item = NSMenuItem(title: "↑  Version \(update.version) disponible",
-                                  action: #selector(openUpdatePage), keyEquivalent: "")
+            let item = NSMenuItem(title: "↑  Installer la version \(update.version)",
+                                  action: #selector(openUpdate), keyEquivalent: "")
             item.target = self
             item.toolTip = "Vous utilisez la \(UpdateChecker.currentVersion). "
-                + "Ouvre la page de téléchargement."
+                + "Ouvre les Réglages, où un bouton fait tout le reste."
             menu.addItem(item)
         }
         menu.addItem(.separator())
@@ -376,9 +376,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller.toggle()
     }
 
-    @objc private func openUpdatePage() {
-        guard let update = UpdateChecker.shared.newer else { return }
-        NSWorkspace.shared.open(update.page)
+    /// Mène au bouton, pas au navigateur.
+    ///
+    /// L'installation vit dans les Réglages plutôt que dans ce menu : elle
+    /// dure une minute, elle a des étapes, elle peut échouer pour une raison
+    /// qui demande une phrase entière. Un élément de menu ne sait rien montrer
+    /// de tout ça, et la barre se referme au premier clic.
+    @objc private func openUpdate() {
+        openPreferences()
     }
 
     @objc private func openOnboarding() {

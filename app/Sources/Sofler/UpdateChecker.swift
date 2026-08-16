@@ -4,11 +4,16 @@ import SoflerCore
 
 /// Regarde s'il existe une version plus récente, sur les releases GitHub.
 ///
-/// Sofler n'est pas notarisé et ne passe par aucun magasin d'applications : il
-/// s'installe en glissant un bundle depuis une image disque. Rien ne le mettra
-/// donc à jour tout seul, et une correction de bug ne parviendrait jamais à
-/// quelqu'un qui a installé une fois et n'y pense plus. Cette vérification est
-/// le seul canal qui reste.
+/// Sofler ne passe par aucun magasin d'applications : rien d'extérieur ne le
+/// tiendra à jour, et une correction de bug ne parviendrait jamais à quelqu'un
+/// qui a installé une fois et n'y pense plus. Cette vérification est le seul
+/// canal qui reste.
+///
+/// Elle ne fait que *constater*. L'installation appartient à
+/// `UpdateInstaller`, qui prend le relais depuis les Réglages — la séparation
+/// tient à ce que constater est anodin et installer ne l'est pas : le premier
+/// a le droit de se déclencher tout seul une fois par jour, le second exige
+/// un clic.
 ///
 /// Elle compare des **releases**, pas des commits. Une branche `main` bouge
 /// plusieurs fois par jour, souvent pour des travaux en cours ; prévenir à
@@ -28,6 +33,20 @@ final class UpdateChecker {
         let version: String
         let page: URL
         let notes: String
+        /// L'image disque attachée à la release, quand il y en a une.
+        ///
+        /// Facultative, et c'est voulu : une release publiée à la main, ou
+        /// dont le build a échoué, n'en a pas. Dans ce cas la mise à jour
+        /// intégrée est simplement indisponible et la page reste offerte —
+        /// plutôt qu'un bouton qui promet une installation impossible.
+        let asset: Asset?
+
+        struct Asset: Equatable {
+            let url: URL
+            /// Annoncée par GitHub, sert à détecter un téléchargement tronqué
+            /// et à afficher un avancement qui veut dire quelque chose.
+            let size: Int64
+        }
     }
 
     /// Renseigné seulement si la version distante est **strictement**
@@ -127,8 +146,21 @@ final class UpdateChecker {
                 newer = nil
                 return
             }
+
+            // On retient l'URL que l'API donne pour *cette* release-ci, pas
+            // l'adresse `releases/latest/download` : entre le moment où on
+            // annonce une version et celui où l'utilisateur clique, une autre
+            // peut être publiée, et il installerait alors autre chose que ce
+            // qui lui a été présenté.
+            let dmg = payload.assets.first { $0.name == UpdateInstaller.assetName }
+            let asset = dmg.flatMap { file in
+                URL(string: file.browserDownloadUrl).map {
+                    Release.Asset(url: $0, size: file.size)
+                }
+            }
+
             newer = Release(version: remote, page: page,
-                            notes: payload.body ?? "")
+                            notes: payload.body ?? "", asset: asset)
         } catch {
             lastError = error.localizedDescription
         }
@@ -140,11 +172,36 @@ final class UpdateChecker {
         let tagName: String
         let htmlUrl: String
         let body: String?
+        /// Absent d'une release sans pièce jointe : `decodeIfPresent` plutôt
+        /// qu'un champ obligatoire, sinon le décodage échoue en entier et
+        /// l'application se croit à jour.
+        let assets: [Asset]
+
+        struct Asset: Decodable {
+            let name: String
+            let browserDownloadUrl: String
+            let size: Int64
+
+            enum CodingKeys: String, CodingKey {
+                case name
+                case browserDownloadUrl = "browser_download_url"
+                case size
+            }
+        }
 
         enum CodingKeys: String, CodingKey {
             case tagName = "tag_name"
             case htmlUrl = "html_url"
             case body
+            case assets
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            tagName = try c.decode(String.self, forKey: .tagName)
+            htmlUrl = try c.decode(String.self, forKey: .htmlUrl)
+            body = try c.decodeIfPresent(String.self, forKey: .body)
+            assets = try c.decodeIfPresent([Asset].self, forKey: .assets) ?? []
         }
     }
 

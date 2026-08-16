@@ -309,12 +309,12 @@ private struct LoginItemCard: View {
 
 /// Version installée, et mise à jour.
 ///
-/// Sofler s'installe en glissant un bundle depuis une image disque : rien ne
-/// le met à jour, et rien n'indique la version qu'on utilise. C'est le premier
+/// Rien n'indique par ailleurs la version qu'on utilise : c'est le premier
 /// renseignement que demande quiconque reçoit un rapport de bug.
 private struct VersionCard: View {
     @State private var prefs = Preferences.shared
     @State private var checker = UpdateChecker.shared
+    @State private var installer = UpdateInstaller.shared
 
     var body: some View {
         Card(title: "Version") {
@@ -334,9 +334,7 @@ private struct VersionCard: View {
 
             if let update = checker.newer {
                 Note("**La version \(update.version) est disponible.**")
-                Button("Ouvrir la page de téléchargement") {
-                    NSWorkspace.shared.open(update.page)
-                }
+                UpdateAction(update: update, installer: installer)
             }
 
             FeatureSwitch(title: "Vérifier automatiquement, une fois par jour",
@@ -364,6 +362,111 @@ private struct VersionCard: View {
                         .foregroundStyle(.secondary)
                 }
             }
+        }
+    }
+}
+
+/// Le bouton « Mettre à jour », et ce qu'il devient pendant qu'il travaille.
+///
+/// Un seul bouton, qui va jusqu'au bout : télécharger, vérifier, remplacer,
+/// relancer. La page GitHub reste offerte à côté, mais elle n'est plus le
+/// chemin — c'est là qu'on va pour *lire* ce qui change, pas pour installer.
+///
+/// Chaque étape est nommée pendant qu'elle dure. Une barre de progression
+/// muette, sur une opération qui remplace l'application qu'on est en train
+/// d'utiliser, invite surtout à cliquer ailleurs pour voir.
+private struct UpdateAction: View {
+    let update: UpdateChecker.Release
+    @Bindable var installer: UpdateInstaller
+
+    var body: some View {
+        switch installer.phase {
+        case .idle:
+            ready
+
+        case .downloading(let fraction):
+            step("Téléchargement… \(Int(fraction * 100)) %") {
+                ProgressView(value: fraction)
+                    .progressViewStyle(.linear)
+                    .tint(Style.accent)
+            }
+
+        case .verifying:
+            step("Vérification de la signature…")
+
+        case .installing:
+            step("Installation…")
+
+        case .relaunching:
+            step("Mise à jour posée. Sofler redémarre…")
+
+        case .failed(let message):
+            Note(message, warning: true)
+            ButtonRow {
+                Button("Réessayer") { installer.reset() }
+                Button("Ouvrir la page de téléchargement") {
+                    NSWorkspace.shared.open(update.page)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var ready: some View {
+        // L'obstacle est consulté avant d'offrir le bouton, jamais après le
+        // clic : un dossier non inscriptible ou une copie signée ad hoc ne
+        // s'arrangeront pas d'un second essai.
+        if let obstacle = UpdateInstaller.obstacle {
+            ButtonRow {
+                Button("Ouvrir la page de téléchargement") {
+                    NSWorkspace.shared.open(update.page)
+                }
+            }
+            Note(obstacle, warning: true)
+        } else if update.asset == nil {
+            ButtonRow {
+                Button("Ouvrir la page de téléchargement") {
+                    NSWorkspace.shared.open(update.page)
+                }
+            }
+            Note("Cette release n'attache pas d'image disque : l'installation "
+                 + "depuis l'application n'est pas possible pour celle-ci.",
+                 warning: true)
+        } else {
+            HStack(spacing: 8) {
+                Button("Mettre à jour") {
+                    Task { await installer.install(update) }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Style.accent)
+                .controlSize(.small)
+
+                Button("Voir ce qui change") {
+                    NSWorkspace.shared.open(update.page)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            Note("Tout se passe ici : le téléchargement, la vérification que "
+                 + "la nouvelle version porte bien la même signature que "
+                 + "celle-ci, le remplacement et le redémarrage. Vos réglages, "
+                 + "votre corpus, le modèle et les autorisations restent en "
+                 + "place — seule l'application est remplacée, en entier, sans "
+                 + "rien laisser de l'ancienne.")
+        }
+    }
+
+    /// Une étape en cours : ce qu'elle fait, dit en toutes lettres.
+    @ViewBuilder
+    private func step<Extra: View>(
+        _ label: String, @ViewBuilder extra: () -> Extra = { EmptyView() }
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text(label).font(.system(size: 12))
+            }
+            extra()
         }
     }
 }
