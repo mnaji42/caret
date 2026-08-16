@@ -91,6 +91,7 @@ private struct OnboardingView: View {
 
     @State private var step: Step = .presentation
     @State private var monitor = PermissionsMonitor.shared
+    @State private var assets = SpeechAssets.shared
     @State private var prefs = Preferences.shared
     /// Ce que la dictée d'essai vient écrire. Le champ n'est pas rempli par le
     /// code : le texte y arrive par le même chemin que dans n'importe quelle
@@ -126,6 +127,14 @@ private struct OnboardingView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(GlassBackground().ignoresSafeArea())
+        .task { startAssetCheck() }
+    }
+
+    /// Lancé à l'ouverture de la fenêtre, pas à l'arrivée sur la page : le
+    /// téléchargement se fait pendant qu'on lit la présentation et qu'on
+    /// accorde les autorisations, au lieu d'ajouter son attente à la leur.
+    private func startAssetCheck() {
+        Task { await assets.ensure(language: prefs.language) }
     }
 
     @ViewBuilder
@@ -205,6 +214,7 @@ private struct OnboardingView: View {
                             string: "x-apple.systempreferences:com.apple.preferences.softwareupdate")!)
                     }
                 }
+                if EngineChoice.systemEngineAvailable { speechModel }
             }
 
             Card(title: "ce que Sofler doit pouvoir faire") {
@@ -214,6 +224,58 @@ private struct OnboardingView: View {
             if !monitor.allGranted {
                 Note("« Continuer » s'activera dès que les deux seront "
                      + "accordées.")
+            }
+        }
+    }
+
+    /// Le modèle de reconnaissance de macOS, vérifié et récupéré ici.
+    ///
+    /// Ici et pas à la première dictée : quelqu'un qui vient d'appuyer sur une
+    /// touche pour voir si ça marche ne doit pas attendre un téléchargement.
+    /// Et sans choix à faire — ce modèle sert à l'aperçu en direct quel que
+    /// soit le moteur retenu, donc il est un prérequis, pas une option.
+    @ViewBuilder
+    private var speechModel: some View {
+        switch assets.state {
+        case .unknown, .checking:
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Vérification du modèle de reconnaissance…")
+                    .font(.system(size: 12))
+            }
+
+        case .installing(let fraction):
+            VStack(alignment: .leading, spacing: 6) {
+                Text(fraction > 0
+                     ? "Téléchargement du modèle de reconnaissance — "
+                       + "\(Int(fraction * 100)) %"
+                     : "Téléchargement du modèle de reconnaissance…")
+                    .font(.system(size: 12))
+                ProgressView(value: max(fraction, 0.02))
+                    .progressViewStyle(.linear)
+                    .tint(Style.accent)
+                Text("macOS le fournit mais ne l'embarque pas : sur une "
+                     + "installation neuve il faut aller le chercher, une "
+                     + "seule fois.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+        case .ready:
+            StatusRow(ok: true, label: "Modèle de reconnaissance",
+                      detail: "prêt")
+
+        case .unsupported(let why):
+            Note(why, warning: true)
+
+        case .failed(let message):
+            Note("Le modèle de reconnaissance de macOS n'a pas pu être "
+                 + "téléchargé : \(message) Vous pouvez continuer — "
+                 + "CrisperWhisper s'installe à l'écran suivant et ne dépend "
+                 + "pas de celui-ci.", warning: true)
+            Button("Réessayer") {
+                Task { await assets.retry(language: prefs.language) }
             }
         }
     }
@@ -303,8 +365,16 @@ private struct OnboardingView: View {
 
     /// Bloqué tant que le micro et l'accessibilité manquent — mais seulement
     /// sur l'écran qui les présente. Bloquer ailleurs punirait sans expliquer.
+    /// Attendre la fin du téléchargement, pas son succès.
+    ///
+    /// Laisser passer pendant qu'il descend mènerait à la page d'essai avec un
+    /// moteur qui n'écrit rien — précisément la confusion qu'on cherche à
+    /// supprimer. Mais bloquer sur un échec enfermerait quelqu'un dans un
+    /// écran dont rien ne le sort : un réseau coupé n'est pas une raison de
+    /// perdre l'accueil, et CrisperWhisper reste installable à l'écran suivant.
     private var canContinue: Bool {
-        step != .permissions || monitor.allGranted
+        guard step == .permissions else { return true }
+        return monitor.allGranted && (assets.isSettled || !EngineChoice.systemEngineAvailable)
     }
 
     private var footer: some View {
