@@ -35,7 +35,6 @@ struct TranscriptionSettings: View {
     var systemEngineAvailable: Bool = true
 
     @State private var prefs = Preferences.shared
-    @State private var lexiconText = ""
 
     var body: some View {
         Card(title: "Langue") {
@@ -73,7 +72,6 @@ struct TranscriptionSettings: View {
                  + "moment, ici ou depuis les Réglages, et Sofler arrête le "
                  + "service dès que vous repassez à macOS.")
         }
-        .task { lexiconText = prefs.lexicon.joined(separator: "\n") }
     }
 
     // MARK: - Ce qui n'existe que sous CrisperWhisper
@@ -130,29 +128,9 @@ struct TranscriptionSettings: View {
             presentation: installedModel == nil ? .full : .compact,
             isActiveEngine: prefs.engine == .crisperWhisper)
 
-        Subsection("Vocabulaire technique")
-        OptionCheck(title: "Utiliser la liste intégrée",
-                    isOn: $prefs.useDefaultLexicon)
-        if !prefs.useDefaultLexicon {
-            TextEditor(text: $lexiconText)
-                .font(.system(size: 12, design: .monospaced))
-                .scrollContentBackground(.hidden)
-                .frame(minHeight: 120)
-                .padding(8)
-                .background(RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.black.opacity(0.2)))
-                .onChange(of: lexiconText) { _, new in
-                    prefs.lexicon = new.split(separator: "\n")
-                        .map { $0.trimmingCharacters(in: .whitespaces) }
-                        .filter { !$0.isEmpty }
-                }
-            Note("Un terme par ligne. Gardez la liste courte : plus elle est "
-                 + "longue, plus le modèle risque d'y piocher un mot sur un "
-                 + "passage où vous n'avez rien dit.")
-        }
-        Note("Le mode et le vocabulaire n'apparaissent que sous CrisperWhisper "
-             + "parce qu'ils n'existent que là : le moteur de macOS n'a qu'un "
-             + "rendu, et mesuré sur de vrais enregistrements, lui fournir un "
-             + "vocabulaire ne change pas sa sortie d'un caractère.")
+        Note("Le mode n'apparaît que sous CrisperWhisper parce qu'il "
+             + "n'existe que là : le moteur de macOS n'a qu'un rendu. Votre "
+             + "vocabulaire, lui, a son propre onglet — il ne dépend d'aucun "
+             + "moteur.")
     }
 }

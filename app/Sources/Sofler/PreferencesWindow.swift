@@ -56,12 +56,13 @@ private struct PreferencesView: View {
     /// obligeait à choisir la langue sur une page et le moteur sur une autre
     /// alors que l'une ne sert qu'à l'autre.
     enum Tab: String, CaseIterable {
-        case general, transcription, collection, history
+        case general, transcription, vocabulary, collection, history
 
         var label: String {
             switch self {
             case .general: "Général"
             case .transcription: "Transcription"
+            case .vocabulary: "Vocabulaire"
             case .collection: "Collecte"
             case .history: "Historique"
             }
@@ -71,6 +72,7 @@ private struct PreferencesView: View {
             switch self {
             case .general: "slider.horizontal.3"
             case .transcription: "waveform"
+            case .vocabulary: "text.book.closed"
             case .collection: "tray.full"
             case .history: "clock"
             }
@@ -85,6 +87,7 @@ private struct PreferencesView: View {
                     switch tab {
                     case .general: GeneralTab()
                     case .transcription: TranscriptionTab()
+                    case .vocabulary: VocabularySettings()
                     case .collection: CollectionTab()
                     case .history: HistoryTab(history: history)
                     }
