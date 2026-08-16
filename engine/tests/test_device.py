@@ -19,16 +19,14 @@ from sofler_engine import crisper
 from sofler_engine.crisper import CrisperWhisperEngine, default_dtype, resolve_device
 
 
-def _metal(monkeypatch, *, present: bool, correct: bool = True):
+def _metal(monkeypatch, *, present: bool):
     """Décrit la machine qu'on simule.
 
-    Les deux axes sont indépendants, et c'est tout le sujet : une machine peut
-    avoir Metal et calculer faux. Les tests ne doivent dépendre d'aucun GPU
-    réel, sinon ils passeraient ici et nulle part ailleurs — soit exactement la
+    Les tests ne doivent dépendre d'aucun GPU réel, sinon ils passeraient sur
+    la machine de développement et nulle part ailleurs — soit exactement la
     cécité qu'ils existent pour corriger.
     """
     monkeypatch.setattr(torch.backends.mps, "is_available", lambda: present)
-    monkeypatch.setattr(crisper, "mps_computes", lambda *_, **__: correct)
 
 
 def test_auto_suit_ce_que_torch_repond(monkeypatch):
@@ -37,18 +35,6 @@ def test_auto_suit_ce_que_torch_repond(monkeypatch):
 
     _metal(monkeypatch, present=True)
     assert resolve_device("auto") == "mps"
-
-
-def test_metal_present_mais_faux_repli_sur_le_processeur(monkeypatch):
-    """Le cas qui n'a l'air de rien et ne se voit nulle part.
-
-    Le backend existe, le modèle se charge, le service annonce « Prêt » et
-    répond à chaque requête — avec une chaîne vide, toujours. Aucune exception,
-    aucune trace. Un accélérateur qui rend du vide n'écrit jamais ; le
-    processeur est lent, mais il écrit.
-    """
-    _metal(monkeypatch, present=True, correct=False)
-    assert resolve_device("auto") == "cpu"
 
 
 def test_un_device_nomme_est_honore(monkeypatch):
@@ -74,11 +60,51 @@ def test_le_moteur_resout_les_deux_a_la_construction(monkeypatch):
     assert engine.dtype is torch.float32
 
 
-def test_la_verification_ne_leve_jamais(monkeypatch):
-    """Elle tourne au démarrage du service : une exception y coûterait le
+def test_la_sonde_ne_leve_jamais(monkeypatch):
+    """Elle tourne au chargement du modèle : une exception y coûterait le
     service entier, c'est-à-dire précisément la panne qu'elle prévient."""
-    def explode(*_, **__):
+    def explose(*_, **__):
         raise RuntimeError("Metal a disparu")
 
-    monkeypatch.setattr(torch, "ones", explode)
-    assert crisper.mps_computes() is False
+    monkeypatch.setattr(torch, "randn", explose)
+    assert crisper.mps_linear_is_broken() is False
+
+
+def test_le_defusionnement_ne_touche_que_metal_avec_biais():
+    """Le contournement est un remplacement global de `F.linear` : il doit
+    rendre exactement le noyau d'origine partout ailleurs, sinon on corrigerait
+    une machine virtuelle en dégradant tous les vrais Mac."""
+    import torch.nn.functional as F
+    origine = F.linear
+    try:
+        crisper._linear_defusionne = False
+        crisper.defuse_mps_linear()
+        assert F.linear is not origine, "le remplaçant n'a pas été posé"
+
+        g = torch.Generator().manual_seed(0)
+        x = torch.randn(1, 8, 16, generator=g)
+        poids = torch.randn(16, 16, generator=g)
+        biais = torch.randn(16, generator=g)
+        # Sur processeur, avec ou sans biais, le résultat doit être au bit près
+        # celui du noyau d'origine.
+        assert torch.equal(F.linear(x, poids, biais), origine(x, poids, biais))
+        assert torch.equal(F.linear(x, poids, None), origine(x, poids, None))
+    finally:
+        F.linear = origine
+        crisper._linear_defusionne = False
+
+
+def test_le_defusionnement_est_idempotent():
+    """La sonde peut être appelée à chaque chargement : empiler les remplaçants
+    ajouterait une indirection par appel de couche, sur des millions d'appels."""
+    import torch.nn.functional as F
+    origine = F.linear
+    try:
+        crisper._linear_defusionne = False
+        crisper.defuse_mps_linear()
+        pose = F.linear
+        crisper.defuse_mps_linear()
+        assert F.linear is pose
+    finally:
+        F.linear = origine
+        crisper._linear_defusionne = False

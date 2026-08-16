@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from sofler_engine import prompt as prompt_mod
 
@@ -33,51 +34,94 @@ MEL_FRAMES_PER_S = 100          # le feature extractor produit un hop de 10 ms
 MAX_WINDOW_S = 30.0             # limite architecturale de Whisper
 
 
-def mps_computes(dtype: torch.dtype = torch.float16) -> bool:
-    """Metal répond présent — mais calcule-t-il **juste** ?
+# La référence, capturée avant tout correctif : `mps_linear_is_broken` doit
+# interroger le noyau d'origine, pas notre remplaçant — sinon elle se compare à
+# elle-même et conclut toujours que tout va bien.
+_linear_origine = F.linear
+_linear_defusionne = False
 
-    ``torch.backends.mps.is_available()`` affirme qu'un backend existe, pas
-    qu'il rende des résultats corrects, et la différence n'a rien de théorique.
-    Mesuré sur un Mac virtualisé : Metal est bien là, le modèle s'y charge en
-    7,8 s sans la moindre erreur, et la transcription ne rend que du vide. Pas
-    d'exception, pas de trace, rien dans aucun journal — l'encodeur produit des
-    valeurs inexploitables, le décodeur émet une fin de séquence au premier
-    jeton, et l'utilisateur voit une dictée qui n'écrit pas.
 
-    D'où une vérification qui mesure au lieu de croire. 128 uns multipliés par
-    128 uns valent exactement 128, valeur représentable sans perte en
-    demi-flottant : aucune tolérance à régler, aucune dérive numérique à
-    interpréter. Ça coûte une milliseconde, une fois, au démarrage du service.
+def mps_linear_is_broken() -> bool:
+    """Le Metal de cette machine calcule-t-il faux les couches linéaires ?
+
+    Diagnostiqué sur un Mac virtualisé, et il a fallu descendre loin. Metal y
+    est disponible, le modèle s'y charge, chaque opération prise isolément est
+    exacte — produit de matrices, convolution, normalisation, attention, aux
+    tailles réelles de Whisper — et pourtant la transcription ne rend que du
+    vide. La bissection couche par couche a montré que `k_proj` sortait juste
+    quand `q_proj` et `v_proj` sortaient faux, alors que ce sont la **même**
+    opération sur la **même** entrée. Leur seule différence : dans Whisper,
+    `k_proj` est le seul `Linear` sans biais.
+
+    Le noyau fautif est donc celui qui **fusionne** le produit et l'ajout du
+    biais sur une entrée à trois dimensions. Sans biais il est exact ; en
+    séparant `matmul` puis `+ biais`, il est exact. L'erreur est de l'ordre de
+    2 % par couche — assez peu pour que les valeurs restent finies et d'allure
+    plausible, assez pour qu'après trente-deux couches l'encodeur soit à 75 %
+    de la vérité et que le décodeur n'y reconnaisse rien.
+
+    D'où cette sonde, qui n'a besoin ni de modèle ni de référence sur
+    processeur : les deux chemins tournent sur Metal, et sur une machine saine
+    ils donnent le même résultat au bit près. Mesuré : 0,00000 sur un Mac réel,
+    0,054 sur la machine virtuelle. Elle coûte des millisecondes.
     """
-    n = 128
     try:
-        probe = torch.ones((n, n), device="mps", dtype=dtype)
-        product = probe @ probe
-        if not bool(torch.isfinite(product).all()):
-            log.warning("Metal rend des valeurs non finies sur un produit trivial")
-            return False
-        got = float(product[0, 0].item())
-        if abs(got - n) > 0.5:
-            log.warning("Metal rend %s là où %s est attendu — calcul faux", got, n)
-            return False
-        return True
-    except Exception as exc:                       # noqa: BLE001 — on veut tout
-        log.warning("Metal a refusé le calcul de vérification : %s", exc)
+        g = torch.Generator().manual_seed(0)
+        x = torch.randn(1, 64, 256, generator=g).to("mps")
+        poids = torch.randn(256, 256, generator=g).to("mps")
+        biais = torch.randn(256, generator=g).to("mps")
+        fusionne = _linear_origine(x, poids, biais)
+        separe = torch.matmul(x, poids.t()) + biais
+        amplitude = separe.abs().max().clamp(min=1e-9)
+        ecart = float((fusionne - separe).abs().max() / amplitude)
+        if ecart > 0.01:
+            log.warning("Metal calcule faux les couches linéaires ici "
+                        "(écart %.4f entre le noyau fusionné et le calcul "
+                        "séparé)", ecart)
+            return True
         return False
+    except Exception as exc:                       # noqa: BLE001 — on veut tout
+        log.warning("Metal a refusé la sonde des couches linéaires : %s", exc)
+        return False
+
+
+def defuse_mps_linear() -> None:
+    """Remplace le noyau fusionné par les deux opérations qu'il fusionne.
+
+    Le repli sur le processeur marcherait aussi, mais il coûte un facteur trois
+    à cinq sur une machine déjà lente. Ici on garde le GPU : seule la couche
+    linéaire avec biais change de chemin, et uniquement sur Metal. Mesuré sur
+    la machine virtuelle — transcription juste, même temps de chargement.
+
+    Idempotent : la sonde peut être appelée plusieurs fois sans empiler les
+    remplaçants.
+    """
+    global _linear_defusionne
+    if _linear_defusionne:
+        return
+
+    def linear(entree, poids, biais=None):
+        # Strictement limité au cas mesuré comme faux. Tout le reste — le CPU,
+        # les couches sans biais, un poids de rang inattendu — repasse par le
+        # noyau d'origine, qui est plus rapide et qui, lui, n'a jamais menti.
+        if (biais is not None and entree.device.type == "mps"
+                and poids.dim() == 2):
+            return torch.matmul(entree, poids.t()) + biais
+        return _linear_origine(entree, poids, biais)
+
+    F.linear = linear
+    _linear_defusionne = True
+    log.warning("couches linéaires défusionnées sur Metal — contournement du "
+                "noyau fautif, le GPU reste utilisé")
 
 
 def resolve_device(requested: str = "auto") -> str:
     """L'accélérateur à employer, **mesuré** plutôt que supposé.
 
-    ``mps`` était écrit en dur. Sur un Mac c'est le bon choix, et c'est
-    précisément ce qui a caché deux problèmes distincts : Metal peut être
-    absent, et — plus vicieux — il peut être présent et faux. Le second ne se
-    voit nulle part : le service démarre, annonce « Prêt », répond à chaque
-    requête, et rend systématiquement une chaîne vide.
-
-    On demande donc deux choses à la suite, et les deux comptent : que le
-    backend existe, et qu'il calcule. Un repli sur le processeur est lent, mais
-    il écrit ; un accélérateur qui rend du vide n'écrit jamais.
+    ``mps`` était écrit en dur, ce qui tuait le service là où Metal n'existe
+    pas. Ce n'est plus qu'une question de présence : la **justesse** de Metal
+    est une autre question, traitée au chargement du modèle par
+    `mps_linear_is_broken`, parce qu'elle se corrige au lieu d'imposer un repli.
 
     Un nom explicite reste honoré tel quel — c'est ce qui permet de forcer
     ``cpu`` pour comparer, ou d'essayer un backend que cette fonction ne
@@ -88,11 +132,6 @@ def resolve_device(requested: str = "auto") -> str:
     if not torch.backends.mps.is_available():
         log.warning("Metal indisponible ici — repli sur le processeur, "
                     "la transcription sera nettement plus lente")
-        return "cpu"
-    if not mps_computes():
-        log.warning("Metal est présent mais ne calcule pas juste sur cette "
-                    "machine — repli sur le processeur, nettement plus lent "
-                    "mais qui écrit")
         return "cpu"
     return "mps"
 
@@ -289,6 +328,13 @@ class CrisperWhisperEngine:
 
     def load(self) -> float:
         from transformers import WhisperForConditionalGeneration, WhisperProcessor
+
+        # Avant de charger quoi que ce soit : sur certaines machines Metal
+        # calcule faux les couches linéaires, sans rien signaler. Cf.
+        # `mps_linear_is_broken` — la panne se voit uniquement à la sortie du
+        # modèle, qui est vide.
+        if self.device == "mps" and mps_linear_is_broken():
+            defuse_mps_linear()
 
         t0 = time.perf_counter()
         self._model = (
