@@ -43,6 +43,20 @@ struct TranscriptionSettings: View {
             Note("Vaut pour tous les moteurs. Un seul choix à la fois : les "
                  + "modèles imposent une langue par passage, et « automatique » "
                  + "se trompe précisément sur les phrases qui en mêlent deux.")
+
+            // Changer de langue, c'est retomber dans le cas de la machine
+            // neuve : le modèle de macOS est fourni par locale, et celui de la
+            // langue qu'on vient de choisir n'est pas forcément là. La même
+            // ligne que l'accueil le dit et propose de le récupérer, plutôt
+            // que de laisser découvrir le manque à la première dictée.
+            if EngineChoice.systemEngineAvailable {
+                Divider().opacity(0.25)
+                SpeechModelRow(language: prefs.language,
+                               label: Preferences.languages
+                                   .first { $0.0 == prefs.language }?.1
+                                   ?? prefs.language)
+                    .id(prefs.language)
+            }
         }
 
         Card(title: "Moteur") {

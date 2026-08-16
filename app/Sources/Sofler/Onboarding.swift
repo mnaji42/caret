@@ -63,11 +63,14 @@ final class OnboardingWindowController {
 // MARK: - Étapes
 
 private enum Step: Int, CaseIterable {
-    case presentation, permissions, tryIt, finish
+    case presentation, language, permissions, tryIt, finish
 
     var title: String {
         switch self {
         case .presentation: "Bienvenue dans Sofler"
+        // Avant tout le reste : c'est elle qui décide du modèle à récupérer,
+        // et ce téléchargement doit être fini avant le premier essai.
+        case .language: "Dans quelle langue dictez-vous ?"
         case .permissions: "Deux autorisations"
         case .tryIt: "Comment Sofler écrit"
         // Séparée de la précédente depuis que celle-ci est exactement l'onglet
@@ -127,20 +130,13 @@ private struct OnboardingView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(GlassBackground().ignoresSafeArea())
-        .task { startAssetCheck() }
-    }
-
-    /// Lancé à l'ouverture de la fenêtre, pas à l'arrivée sur la page : le
-    /// téléchargement se fait pendant qu'on lit la présentation et qu'on
-    /// accorde les autorisations, au lieu d'ajouter son attente à la leur.
-    private func startAssetCheck() {
-        Task { await assets.ensure(language: prefs.language) }
     }
 
     @ViewBuilder
     private var content: some View {
         switch step {
         case .presentation: presentationStep
+        case .language: languageStep
         case .permissions: permissionsStep
         case .tryIt: tryStep
         case .finish: finishStep
@@ -214,7 +210,6 @@ private struct OnboardingView: View {
                             string: "x-apple.systempreferences:com.apple.preferences.softwareupdate")!)
                     }
                 }
-                if EngineChoice.systemEngineAvailable { speechModel }
             }
 
             Card(title: "ce que Sofler doit pouvoir faire") {
@@ -228,56 +223,52 @@ private struct OnboardingView: View {
         }
     }
 
-    /// Le modèle de reconnaissance de macOS, vérifié et récupéré ici.
+    // MARK: 2 — Langue, et le modèle qui va avec
+
+    /// La langue d'abord, parce qu'elle décide de ce qu'il faut télécharger.
     ///
-    /// Ici et pas à la première dictée : quelqu'un qui vient d'appuyer sur une
-    /// touche pour voir si ça marche ne doit pas attendre un téléchargement.
-    /// Et sans choix à faire — ce modèle sert à l'aperçu en direct quel que
-    /// soit le moteur retenu, donc il est un prérequis, pas une option.
-    @ViewBuilder
-    private var speechModel: some View {
-        switch assets.state {
-        case .unknown, .checking:
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text("Vérification du modèle de reconnaissance…")
-                    .font(.system(size: 12))
+    /// Elle arrivait au milieu des réglages de transcription, après les
+    /// autorisations et juste avant le champ d'essai — c'est-à-dire trop tard :
+    /// le modèle de reconnaissance de macOS est fourni par locale, et il faut
+    /// savoir laquelle avant de pouvoir aller le chercher. Poser la question
+    /// ici laisse au téléchargement le temps de se faire pendant qu'on accorde
+    /// le micro et l'accessibilité, au lieu de l'ajouter à la fin.
+    private var languageStep: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Card(title: "langue") {
+                PillPicker(options: Preferences.languages.map { ($0.0, $0.1) },
+                           selection: $prefs.language)
+                Note("Un seul choix à la fois : les modèles imposent une langue "
+                     + "par passage, et « automatique » se trompe précisément "
+                     + "sur les phrases qui en mêlent deux. Vous en changerez "
+                     + "quand vous voudrez — Sofler récupérera l'autre modèle à "
+                     + "ce moment-là.")
             }
 
-        case .installing(let fraction):
-            VStack(alignment: .leading, spacing: 6) {
-                Text(fraction > 0
-                     ? "Téléchargement du modèle de reconnaissance — "
-                       + "\(Int(fraction * 100)) %"
-                     : "Téléchargement du modèle de reconnaissance…")
-                    .font(.system(size: 12))
-                ProgressView(value: max(fraction, 0.02))
-                    .progressViewStyle(.linear)
-                    .tint(Style.accent)
-                Text("macOS le fournit mais ne l'embarque pas : sur une "
-                     + "installation neuve il faut aller le chercher, une "
-                     + "seule fois.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-        case .ready:
-            StatusRow(ok: true, label: "Modèle de reconnaissance",
-                      detail: "prêt")
-
-        case .unsupported(let why):
-            Note(why, warning: true)
-
-        case .failed(let message):
-            Note("Le modèle de reconnaissance de macOS n'a pas pu être "
-                 + "téléchargé : \(message) Vous pouvez continuer — "
-                 + "CrisperWhisper s'installe à l'écran suivant et ne dépend "
-                 + "pas de celui-ci.", warning: true)
-            Button("Réessayer") {
-                Task { await assets.retry(language: prefs.language) }
+            if EngineChoice.systemEngineAvailable {
+                Card(title: "modèle de reconnaissance") {
+                    ForEach(Preferences.languages, id: \.0) { code, label in
+                        SpeechModelRow(language: code, label: label)
+                        if code != Preferences.languages.last?.0 {
+                            Divider().opacity(0.2)
+                        }
+                    }
+                    Note("macOS fournit ces modèles mais ne les embarque pas : "
+                         + "sur une installation neuve il faut aller les "
+                         + "chercher, une fois. Celui de votre langue se "
+                         + "télécharge tout seul ; les autres attendent que "
+                         + "vous en ayez besoin.")
+                }
+            } else {
+                Card(title: "moteur intégré") {
+                    Note("Le moteur de macOS demande macOS 26 — votre version "
+                         + "ne le propose pas. CrisperWhisper s'installe deux "
+                         + "écrans plus loin et fonctionne dès macOS 14.",
+                         warning: true)
+                }
             }
         }
+        .task(id: prefs.language) { await assets.ensure(prefs.language) }
     }
 
     // MARK: 3 — Moteur, puis essai
@@ -372,9 +363,22 @@ private struct OnboardingView: View {
     /// supprimer. Mais bloquer sur un échec enfermerait quelqu'un dans un
     /// écran dont rien ne le sort : un réseau coupé n'est pas une raison de
     /// perdre l'accueil, et CrisperWhisper reste installable à l'écran suivant.
+    /// Chaque étape garde sa propre condition.
+    ///
+    /// La langue bloque tant que son modèle n'est pas là : passer outre
+    /// mènerait à la page d'essai avec un moteur qui n'écrit rien, ce qui est
+    /// la confusion que tout ceci existe pour supprimer. Un système qui ne
+    /// propose pas la langue ne bloque pas — rien ne l'y rendrait disponible,
+    /// et CrisperWhisper reste installable plus loin.
     private var canContinue: Bool {
-        guard step == .permissions else { return true }
-        return monitor.allGranted && (assets.isSettled || !EngineChoice.systemEngineAvailable)
+        switch step {
+        case .language:
+            !EngineChoice.systemEngineAvailable || assets.isSettled(prefs.language)
+        case .permissions:
+            monitor.allGranted
+        default:
+            true
+        }
     }
 
     private var footer: some View {
@@ -417,3 +421,62 @@ private struct OnboardingView: View {
 }
 
 // MARK: - Pièces
+
+/// Une langue, l'état de son modèle, et de quoi le récupérer.
+///
+/// Calquée sur la ligne d'un modèle CrisperWhisper : même lecture, même
+/// promesse. Tant qu'une pastille n'est pas verte, il manque quelque chose, et
+/// le bouton dit quoi faire plutôt que de laisser deviner.
+struct SpeechModelRow: View {
+    let language: String
+    let label: String
+
+    @State private var assets = SpeechAssets.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            switch assets.state(of: language) {
+            case .unknown, .checking:
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("\(label) — vérification…").font(.system(size: 12))
+                }
+
+            case .missing:
+                StatusRow(ok: false, label: label, detail: "à télécharger",
+                          warningOnly: true)
+                ButtonRow {
+                    Button("Télécharger \(label)") {
+                        Task { await assets.install(language) }
+                    }
+                }
+
+            case .installing(let fraction):
+                Text(fraction > 0
+                     ? "\(label) — téléchargement \(Int(fraction * 100)) %"
+                     : "\(label) — téléchargement…")
+                    .font(.system(size: 12))
+                ProgressView(value: max(fraction, 0.02))
+                    .progressViewStyle(.linear)
+                    .tint(Style.accent)
+
+            case .ready:
+                StatusRow(ok: true, label: label, detail: "installé")
+
+            case .unsupported(let why):
+                StatusRow(ok: false, label: label, detail: "indisponible",
+                          warningOnly: true)
+                Note(why, warning: true)
+
+            case .failed(let message):
+                StatusRow(ok: false, label: label, detail: "échec",
+                          warningOnly: true)
+                Note(message, warning: true)
+                ButtonRow {
+                    Button("Réessayer") { Task { await assets.install(language) } }
+                }
+            }
+        }
+        .task { await assets.check(language) }
+    }
+}
