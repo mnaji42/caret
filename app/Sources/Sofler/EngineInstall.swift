@@ -161,14 +161,61 @@ enum EngineInstall {
 
     // MARK: - Installation initiale
 
-    /// La commande à coller dans un terminal, une seule fois.
+    /// La commande à coller dans un terminal, et pourquoi celle-là.
     ///
     /// Elle est donnée en clair, et copiable : demander à quelqu'un d'exécuter
-    /// une commande qu'il ne peut pas lire est une mauvaise habitude, et celle
-    /// -ci récupère du code et installe plus d'un gigaoctet de dépendances.
-    static let bootstrapCommand =
-        "git clone --depth 1 https://github.com/mnaji42/sofler.git ~/.sofler "
-        + "&& ~/.sofler/scripts/setup-engine.sh"
+    /// une commande qu'il ne peut pas lire est une mauvaise habitude, et
+    /// celle-ci récupère du code et installe plus d'un gigaoctet de
+    /// dépendances.
+    ///
+    /// Elle dépend de ce qui est déjà sur la machine, et ce n'est pas un
+    /// raffinement. La forme fixe `git clone … && setup-engine.sh` a un défaut
+    /// qu'on ne rencontre qu'au **deuxième** essai : `git clone` refuse un
+    /// dossier non vide, le `&&` coupe, et l'installateur n'est jamais lancé.
+    /// La commande affichée devient alors définitivement inopérante.
+    ///
+    /// Or le deuxième essai n'est pas un cas rare, c'est le cas courant.
+    /// `setup-engine.sh` s'interrompt de lui-même quand `uv` manque — il ne
+    /// l'installe pas à la place de l'utilisateur, exprès — et il s'interrompt
+    /// aussi quand la licence du modèle n'est pas acceptée, ce qui est la
+    /// réponse par défaut de son invite. Dans les deux cas le dépôt est déjà
+    /// cloné, et l'accueil renvoyait vers une impasse.
+    struct Bootstrap {
+        let command: String
+        let explanation: String
+    }
+
+    static var bootstrap: Bootstrap {
+        let fm = FileManager.default
+        let clone = FileManager.default.homeDirectoryForCurrentUser
+            .appending(path: ".sofler")
+        let script = clone.appending(path: "scripts/setup-engine.sh")
+        let fresh = "git clone --depth 1 https://github.com/mnaji42/sofler.git "
+            + "~/.sofler && ~/.sofler/scripts/setup-engine.sh"
+
+        if fm.fileExists(atPath: script.path) {
+            return Bootstrap(
+                command: "~/.sofler/scripts/setup-engine.sh",
+                explanation: "Le code est déjà récupéré : une installation "
+                    + "précédente s'est arrêtée avant la fin, faute de `uv` ou "
+                    + "parce que la licence du modèle n'a pas été acceptée. Il "
+                    + "ne reste qu'à relancer l'installateur, qui reprend où "
+                    + "il s'était arrêté.")
+        }
+        if fm.fileExists(atPath: clone.path) {
+            return Bootstrap(
+                command: "rm -rf ~/.sofler && " + fresh,
+                explanation: "Le dossier `~/.sofler` existe mais ne contient "
+                    + "pas l'installateur — un téléchargement précédent s'est "
+                    + "interrompu en chemin. La commande remplace ce dossier "
+                    + "avant de reprendre.")
+        }
+        return Bootstrap(
+            command: fresh,
+            explanation: "La commande récupère le code du projet et installe "
+                + "les dépendances. Elle vous demandera d'accepter la licence "
+                + "du modèle avant de télécharger quoi que ce soit.")
+    }
 
     // MARK: - Retour au script, après coup
 

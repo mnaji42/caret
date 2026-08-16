@@ -79,10 +79,12 @@ struct CrisperWhisperSetup: View {
                      + "être embarqué dans l'application, et c'est la seule "
                      + "étape qui demande le Terminal. **Une seule fois** : "
                      + "ensuite tout se pilote d'ici.")
-                Note("La commande récupère le code du projet et installe les "
-                     + "dépendances. Elle vous demandera d'accepter la licence "
-                     + "du modèle avant de télécharger quoi que ce soit.")
-                CommandBox(command: EngineInstall.bootstrapCommand)
+                // Commande et explication vont ensemble : elles dépendent
+                // toutes deux de ce qui est déjà sur la machine.
+                // Cf. EngineInstall.bootstrap.
+                let bootstrap = EngineInstall.bootstrap
+                Note(bootstrap.explanation)
+                CommandBox(command: bootstrap.command)
                 Button("Vérifier à nouveau") { refresh() }
 
             case .modelMissing(let missing):
@@ -101,7 +103,7 @@ struct CrisperWhisperSetup: View {
                          + "d'installation est introuvable — le dossier a été "
                          + "déplacé ou vidé depuis. Reprenez l'installation "
                          + "depuis le début :", warning: true)
-                    CommandBox(command: EngineInstall.bootstrapCommand)
+                    CommandBox(command: EngineInstall.bootstrap.command)
                 }
                 Button("Vérifier à nouveau") { refresh() }
 
