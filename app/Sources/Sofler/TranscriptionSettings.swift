@@ -47,8 +47,7 @@ struct TranscriptionSettings: View {
             // Le modèle par langue ne concerne que le moteur de macOS 26 :
             // celui de la Dictée s'appuie sur les actifs du système, qui sont
             // là dès que la dictée fonctionne.
-            if EngineChoice.apple.isAvailable(for: prefs.language)
-                || EngineChoice.systemEngineAvailable {
+            if EngineChoice.apple.isAvailable(for: prefs.language) {
                 Divider().opacity(0.25)
                 SpeechModelRow(language: prefs.language,
                                label: Preferences.languages

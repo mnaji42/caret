@@ -38,7 +38,7 @@ enum Uninstall {
         var label: String {
             switch self {
             case .settings: "Réglages et historique"
-            case .permissions: "Autorisations micro et accessibilité"
+            case .permissions: "Autorisations micro, accessibilité, dictée"
             case .service: "Service moteur CrisperWhisper"
             case .engine: "Moteur Python et ses bibliothèques"
             case .logs: "Journaux et fichiers temporaires"
@@ -413,7 +413,11 @@ enum Uninstall {
         }
 
         if items.contains(.permissions) {
-            for service in ["Microphone", "Accessibility"] {
+            // « SpeechRecognition » depuis que le moteur de la Dictée existe :
+            // macOS la compte comme un droit distinct du micro, et la laisser
+            // accordée à une application retirée est exactement ce que ce
+            // désinstalleur existe pour éviter.
+            for service in ["Microphone", "Accessibility", "SpeechRecognition"] {
                 runTool("/usr/bin/tccutil", ["reset", service, bundleIdentifier])
             }
             report.append("✓ autorisations révoquées")

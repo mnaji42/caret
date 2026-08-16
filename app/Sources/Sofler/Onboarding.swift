@@ -245,7 +245,12 @@ private struct OnboardingView: View {
                      + "ce moment-là.")
             }
 
-            if EngineChoice.systemEngineAvailable {
+            // Proposer de télécharger un modèle pour un moteur que cette
+            // machine ne peut pas faire tourner n'a aucun sens : le
+            // téléchargement échouera, et l'échec inquiétera pour rien. La
+            // carte n'apparaît que si le moteur de macOS 26 est réellement
+            // disponible ici.
+            if EngineChoice.apple.isAvailable(for: prefs.language) {
                 Card(title: "modèle de reconnaissance") {
                     if EngineChoice.appleLegacy.isAvailable(for: prefs.language) {
                         Note("Sofler peut déjà écrire : la Dictée de macOS est "

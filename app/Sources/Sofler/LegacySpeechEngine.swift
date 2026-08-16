@@ -82,9 +82,32 @@ final class LegacySpeechEngine: SpeechEngine, @unchecked Sendable {
         return found
     }
 
+    /// Le reconnaisseur d'une langue, résolu par la liste du système.
+    ///
+    /// La version précédente concaténait « -FR » quand le code court ne
+    /// suffisait pas — ce qui donnait « en-FR » pour l'anglais, un identifiant
+    /// qui n'existe pas. D'où un moteur nul et un « transcription impossible »
+    /// en anglais pendant que le français marchait : la faute n'était pas dans
+    /// l'accent, elle était dans cette ligne.
+    ///
+    /// La région de la machine passe en premier — un francophone au Canada
+    /// veut `fr-CA` — puis n'importe quelle région de la même langue.
     private static func recognizer(for language: String) -> SFSpeechRecognizer? {
-        SFSpeechRecognizer(locale: Locale(identifier: language))
-            ?? SFSpeechRecognizer(locale: Locale(identifier: language + "-FR"))
+        if let exact = SFSpeechRecognizer(locale: Locale(identifier: language)),
+           exact.isAvailable { return exact }
+
+        let code = Locale(identifier: language).language.languageCode?.identifier
+            ?? language
+        let here = Locale.current.region?.identifier
+        let candidates = SFSpeechRecognizer.supportedLocales()
+            .filter { $0.language.languageCode?.identifier == code }
+            .sorted { a, _ in a.region?.identifier == here }
+        for locale in candidates {
+            if let found = SFSpeechRecognizer(locale: locale), found.isAvailable {
+                return found
+            }
+        }
+        return nil
     }
 
     /// Demande l'autorisation, une fois.

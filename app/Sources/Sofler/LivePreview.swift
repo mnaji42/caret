@@ -86,6 +86,16 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
     }
 
     func start(language: String) async {
+        // L'aperçu en direct n'existe que pour le moteur de macOS 26 :
+        // `SFSpeechRecognizer` sait produire des résultats partiels, mais le
+        // câbler ici est un chantier à part. En attendant, on le dit sans
+        // faire remonter une erreur d'actifs qui parlerait d'un téléchargement
+        // sans rapport avec ce que l'utilisateur observe.
+        guard EngineChoice.apple.isAvailable(for: language) else {
+            await report("aperçu en direct indisponible — le texte s'écrira "
+                         + "à la fin")
+            return
+        }
         guard let locale = await SpeechTranscriber.supportedLocale(
             equivalentTo: Locale(identifier: language)) else {
             await report("aperçu indisponible en \(language)")
