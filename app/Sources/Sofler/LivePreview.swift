@@ -86,16 +86,6 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
     }
 
     func start(language: String) async {
-        // L'aperçu en direct n'existe que pour le moteur de macOS 26 :
-        // `SFSpeechRecognizer` sait produire des résultats partiels, mais le
-        // câbler ici est un chantier à part. En attendant, on le dit sans
-        // faire remonter une erreur d'actifs qui parlerait d'un téléchargement
-        // sans rapport avec ce que l'utilisateur observe.
-        guard EngineChoice.apple.isAvailable(for: language) else {
-            await report("aperçu en direct indisponible — le texte s'écrira "
-                         + "à la fin")
-            return
-        }
         guard let locale = await SpeechTranscriber.supportedLocale(
             equivalentTo: Locale(identifier: language)) else {
             await report("aperçu indisponible en \(language)")
@@ -248,10 +238,28 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
 /// Un seul endroit teste la version : le reste du code ne voit qu'un
 /// `SpeechPreviewing?`.
 enum SpeechPreview {
-    static func make(onText: @escaping @MainActor @Sendable (String) -> Void,
+    /// Choisit l'implémentation selon ce que la machine sait faire.
+    ///
+    /// L'aperçu n'était branché que sur `SpeechTranscriber`, donc il
+    /// s'annonçait indisponible là où la Dictée de macOS affiche pourtant
+    /// chaque mot en direct. Deux implémentations du même protocole règlent
+    /// ça sans que le contrôleur de dictée en sache quoi que ce soit : il
+    /// demande un aperçu, il en reçoit un.
+    ///
+    /// L'ordre suit la finesse attendue : le moteur de macOS 26 quand il est
+    /// réellement disponible — mesuré, pas déduit de la version — celui de la
+    /// Dictée sinon.
+    @MainActor
+    static func make(for language: String,
+                     onText: @escaping @MainActor @Sendable (String) -> Void,
                      onFailure: @escaping @MainActor @Sendable (String) -> Void)
     -> (any SpeechPreviewing)? {
-        guard #available(macOS 26.0, *) else { return nil }
-        return LivePreview(onText: onText, onFailure: onFailure)
+        if EngineChoice.apple.isAvailable(for: language), #available(macOS 26.0, *) {
+            return LivePreview(onText: onText, onFailure: onFailure)
+        }
+        if EngineChoice.appleLegacy.isAvailable(for: language) {
+            return LegacyLivePreview(onText: onText, onFailure: onFailure)
+        }
+        return nil
     }
 }

@@ -92,7 +92,7 @@ final class LegacySpeechEngine: SpeechEngine, @unchecked Sendable {
     ///
     /// La région de la machine passe en premier — un francophone au Canada
     /// veut `fr-CA` — puis n'importe quelle région de la même langue.
-    private static func recognizer(for language: String) -> SFSpeechRecognizer? {
+    static func recognizer(for language: String) -> SFSpeechRecognizer? {
         if let exact = SFSpeechRecognizer(locale: Locale(identifier: language)),
            exact.isAvailable { return exact }
 

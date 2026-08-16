@@ -513,6 +513,7 @@ final class DictationController {
     private func startPreview() {
         guard Preferences.shared.livePreviewEnabled, preview == nil else { return }
         guard let preview = SpeechPreview.make(
+            for: language,
             onText: { [weak self] text in
                 // Retenu pour la collecte : c'est la transcription du moteur
                 // de macOS sur exactement le même audio.
@@ -521,7 +522,7 @@ final class DictationController {
             },
             onFailure: { [weak self] reason in self?.overlay.setPreviewNotice(reason) })
         else {
-            overlay.setPreviewNotice("aperçu : nécessite macOS 26")
+            overlay.setPreviewNotice("aperçu indisponible sur cette machine")
             return
         }
         self.preview = preview
