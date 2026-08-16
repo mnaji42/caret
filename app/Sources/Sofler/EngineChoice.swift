@@ -1,4 +1,5 @@
 import Foundation
+import Speech
 
 /// Les moteurs que Sofler sait utiliser.
 ///
@@ -7,8 +8,13 @@ import Foundation
 /// implémentation. Ce qui varie à l'exécution, c'est leur *disponibilité* —
 /// modèle téléchargé ou non, version de macOS.
 enum EngineChoice: String, CaseIterable, Sendable, Codable {
-    /// Le moteur de macOS. Inclus, instantané, sans lexique.
+    /// Le moteur de macOS 26 : `SpeechTranscriber`, taillé pour la
+    /// transcription longue. Exige Apple Intelligence.
     case apple
+    /// L'autre moteur de macOS : `SFSpeechRecognizer`, celui de la Dictée du
+    /// système, disponible depuis macOS 10.15 et sur toute machine dont la
+    /// dictée fonctionne — Mac Intel compris.
+    case appleLegacy = "apple-legacy"
     /// CrisperWhisper via le service local. Lexique et deux modes, mais
     /// ~3 Go en mémoire et des poids sous licence non commerciale.
     case crisperWhisper = "crisperwhisper"
@@ -16,9 +22,13 @@ enum EngineChoice: String, CaseIterable, Sendable, Codable {
     var label: String {
         switch self {
         case .apple: "macOS"
+        case .appleLegacy: "macOS — Dictée"
         case .crisperWhisper: "CrisperWhisper"
         }
     }
+
+    /// Les deux moteurs fournis par le système.
+    static var systemEngines: [EngineChoice] { [.apple, .appleLegacy] }
 
     /// Le moteur intégré est-il utilisable ici ?
     ///
@@ -37,6 +47,25 @@ enum EngineChoice: String, CaseIterable, Sendable, Codable {
     /// Ce moteur distingue-t-il texte nettoyé et mot à mot ?
     var hasModes: Bool { self == .crisperWhisper }
 
+    /// Ce moteur est-il utilisable ici, **maintenant** ?
+    ///
+    /// Mesuré, jamais déduit d'un numéro de version. Une machine virtuelle en
+    /// macOS 26 dicte parfaitement avec `SFSpeechRecognizer` et n'a aucun
+    /// modèle pour `SpeechTranscriber` : conclure de « macOS 26 » que le
+    /// second fonctionne serait faux, et l'a été.
+    func isAvailable(for language: String) -> Bool {
+        switch self {
+        case .apple:
+            guard EngineChoice.systemEngineAvailable else { return false }
+            if #available(macOS 26.0, *) { return SpeechTranscriber.isAvailable }
+            return false
+        case .appleLegacy:
+            return LegacySpeechEngine.isAvailable(for: language)
+        case .crisperWhisper:
+            return EngineService.isInstalled || EngineService.modelIsDownloaded
+        }
+    }
+
     /// Ce moteur accepte-t-il un lexique qui change quelque chose ?
     ///
     /// Faux pour Apple, et c'est mesuré : `contextualStrings` existe dans son
@@ -52,6 +81,15 @@ enum EngineChoice: String, CaseIterable, Sendable, Codable {
     /// noms propres et les mots étrangers autant que pour le code.
     var explanation: String {
         switch self {
+        case .appleLegacy:
+            "Le moteur de la Dictée de macOS, présent sur toute machine où la "
+                + "dictée du système fonctionne — y compris les Mac Intel et "
+                + "les versions antérieures à macOS 26. Il couvre plus de "
+                + "langues que le moteur récent. **Tout reste sur votre Mac** : "
+                + "Sofler force la reconnaissance hors ligne, et refuse de "
+                + "travailler si la machine ne sait pas le faire. Comme "
+                + "l'autre moteur de macOS, il transcrit en langue courante et "
+                + "n'a qu'un seul rendu."
         case .apple:
             "Fourni par macOS : aucune licence, aucun compte, et le texte "
                 + "arrive dès que vous avez fini de parler. Son modèle de "

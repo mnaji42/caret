@@ -55,8 +55,11 @@ final class DictationController {
     /// Le service local. Toujours construit, jamais contacté tant qu'il n'est
     /// pas choisi — c'est `EngineService` qui décide s'il tourne.
     private let localEngine: any SpeechEngine
-    /// Le moteur système, absent avant macOS 26.
+    /// Le moteur système de macOS 26, absent en dessous.
     private let systemEngine: (any SpeechEngine)?
+    /// L'autre moteur système, celui de la Dictée. Présent partout où la
+    /// dictée de macOS fonctionne — Mac Intel et macOS antérieurs compris.
+    private let legacyEngine: any SpeechEngine
     private let recorder = AudioRecorder()
     private let injector = TextInjector()
     private let overlay = RecordingOverlay()
@@ -89,6 +92,7 @@ final class DictationController {
     private func engine(for choice: EngineChoice) -> (any SpeechEngine)? {
         switch choice {
         case .apple: systemEngine
+        case .appleLegacy: legacyEngine
         case .crisperWhisper: localEngine
         }
     }
@@ -100,6 +104,10 @@ final class DictationController {
         } else {
             self.systemEngine = nil
         }
+        // Toujours instancié : il ne coûte rien tant qu'on ne l'appelle pas,
+        // et sa disponibilité réelle se demande à `EngineChoice.isAvailable`
+        // plutôt qu'à une version de macOS.
+        self.legacyEngine = LegacySpeechEngine()
         overlay.levelProvider = { [weak self] in self?.recorder.level ?? 0 }
         overlay.onCancel = { [weak self] in self?.cancel() }
         overlay.onSelectMode = { [weak self] mode in
@@ -117,27 +125,6 @@ final class DictationController {
         // La collecte se coupe depuis la barre, pas seulement depuis le menu :
         // c'est en dictant qu'on se rend compte qu'on ne veut pas archiver
         // ce qu'on est en train de dire.
-        overlay.onToggleCorpus = { [weak self] in
-            guard let self else { return }
-            Preferences.shared.corpusEnabled.toggle()
-            refreshOverlay()
-            onStateChange?(state)
-        }
-        overlay.onToggleCorpus = { [weak self] in
-            guard let self else { return }
-            Preferences.shared.corpusEnabled.toggle()
-            refreshOverlay()
-            onStateChange?(state)
-        }
-        // La collecte se coupe depuis la barre, pas seulement depuis le menu :
-        // c'est en dictant qu'on se rend compte qu'on ne veut pas archiver
-        // ce qu'on est en train de dire.
-        overlay.onToggleCorpus = { [weak self] in
-            guard let self else { return }
-            Preferences.shared.corpusEnabled.toggle()
-            refreshOverlay()
-            onStateChange?(state)
-        }
         overlay.onToggleCorpus = { [weak self] in
             guard let self else { return }
             Preferences.shared.corpusEnabled.toggle()

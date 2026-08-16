@@ -163,6 +163,24 @@ final class Preferences {
 
     static let languages = [("fr", "Français"), ("en", "English")]
 
+    /// Le moteur retenu au tout premier lancement.
+    ///
+    /// Choisi sur ce que la machine sait faire, pas sur son numéro de version.
+    /// `.apple` était écrit en dur, ce qui donnait un défaut inutilisable sur
+    /// un Mac Intel, sur un macOS antérieur à 26, ou sur toute machine sans
+    /// Apple Intelligence : l'application s'ouvrait sur un moteur incapable
+    /// d'écrire une ligne, et rien ne disait pourquoi.
+    ///
+    /// L'ordre suit la qualité attendue puis la disponibilité : le moteur de
+    /// macOS 26 s'il est là, celui de la Dictée sinon, et CrisperWhisper en
+    /// dernier — lui seul demande un téléchargement, il ne peut pas être un
+    /// défaut.
+    static func defaultEngine(for language: String) -> EngineChoice {
+        if EngineChoice.apple.isAvailable(for: language) { return .apple }
+        if EngineChoice.appleLegacy.isAvailable(for: language) { return .appleLegacy }
+        return .apple
+    }
+
     // MARK: - Notes
 
     /// Fichier des notes, retenu **indépendamment** de la destination courante.
@@ -292,8 +310,9 @@ final class Preferences {
         } else {
             dictateShortcut = .dictate
         }
+        let storedLanguage = defaults.string(forKey: Key.language) ?? "fr"
         engine = EngineChoice(rawValue: defaults.string(forKey: Key.engine) ?? "")
-            ?? .apple
+            ?? Self.defaultEngine(for: storedLanguage)
         corpusEngines = defaults.stringArray(forKey: Key.corpusEngines)
             .map { Set($0.compactMap(EngineChoice.init(rawValue:))) }
             ?? Set(EngineChoice.allCases)

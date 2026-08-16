@@ -29,11 +29,6 @@ import SwiftUI
 /// en a qu'un, et laissait le choix du modèle en évidence même quand le moteur
 /// retenu était celui de macOS.
 struct TranscriptionSettings: View {
-    /// Le moteur système exige macOS 26. Sur une version antérieure, la ligne
-    /// reste visible mais ne se choisit pas : la masquer laisserait croire que
-    /// Sofler n'a qu'un moteur, et cacherait la raison.
-    var systemEngineAvailable: Bool = true
-
     @State private var prefs = Preferences.shared
 
     var body: some View {
@@ -49,7 +44,11 @@ struct TranscriptionSettings: View {
             // langue qu'on vient de choisir n'est pas forcément là. La même
             // ligne que l'accueil le dit et propose de le récupérer, plutôt
             // que de laisser découvrir le manque à la première dictée.
-            if EngineChoice.systemEngineAvailable {
+            // Le modèle par langue ne concerne que le moteur de macOS 26 :
+            // celui de la Dictée s'appuie sur les actifs du système, qui sont
+            // là dès que la dictée fonctionne.
+            if EngineChoice.apple.isAvailable(for: prefs.language)
+                || EngineChoice.systemEngineAvailable {
                 Divider().opacity(0.25)
                 SpeechModelRow(language: prefs.language,
                                label: Preferences.languages
@@ -60,19 +59,27 @@ struct TranscriptionSettings: View {
         }
 
         Card(title: "Moteur") {
-            ChoiceRow(title: EngineChoice.apple.label,
-                      subtitle: EngineChoice.apple.explanation,
-                      selected: prefs.engine == .apple,
-                      hasDetail: !systemEngineAvailable,
-                      action: { if systemEngineAvailable { prefs.engine = .apple } }) {
-                if !systemEngineAvailable {
-                    Note("Indisponible sur cette version de macOS : le moteur "
-                         + "intégré s'appuie sur une interface apparue avec "
-                         + "macOS 26. CrisperWhisper, lui, fonctionne — c'est "
-                         + "l'option ci-dessous.", warning: true)
-                }
+            // Les moteurs du système, et seulement ceux que cette machine
+            // sait faire tourner. La disponibilité est mesurée, jamais déduite
+            // d'un numéro de version : une machine sans Apple Intelligence
+            // dicte très bien avec celui de la Dictée, et un Mac Intel n'a que
+            // celui-là. Afficher un moteur qui ne peut pas écrire une ligne
+            // était le plus sûr moyen de faire croire l'application cassée.
+            ForEach(availableSystemEngines, id: \.self) { choice in
+                ChoiceRow(title: choice.label,
+                          subtitle: choice.explanation,
+                          selected: prefs.engine == choice,
+                          hasDetail: false,
+                          action: { prefs.engine = choice }) { EmptyView() }
             }
-            .opacity(systemEngineAvailable ? 1 : 0.75)
+
+            if availableSystemEngines.isEmpty {
+                Note("Aucun moteur de macOS n'est utilisable sur cette "
+                     + "machine : ni celui de macOS 26, qui demande Apple "
+                     + "Intelligence, ni celui de la Dictée, qui demande une "
+                     + "reconnaissance hors ligne. CrisperWhisper ne dépend "
+                     + "d'aucun des deux.", warning: true)
+            }
 
             ChoiceRow(title: crisperTitle,
                       subtitle: EngineChoice.crisperWhisper.explanation,
@@ -89,6 +96,11 @@ struct TranscriptionSettings: View {
     }
 
     // MARK: - Ce qui n'existe que sous CrisperWhisper
+
+    /// Ce que cette machine sait faire, à cet instant et dans cette langue.
+    private var availableSystemEngines: [EngineChoice] {
+        EngineChoice.systemEngines.filter { $0.isAvailable(for: prefs.language) }
+    }
 
     /// Le modèle qui servirait si l'on dictait maintenant, ou `nil` si rien
     /// n'est téléchargé. Plusieurs modèles peuvent coexister : c'est celui que

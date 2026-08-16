@@ -247,6 +247,13 @@ private struct OnboardingView: View {
 
             if EngineChoice.systemEngineAvailable {
                 Card(title: "modèle de reconnaissance") {
+                    if EngineChoice.appleLegacy.isAvailable(for: prefs.language) {
+                        Note("Sofler peut déjà écrire : la Dictée de macOS est "
+                             + "prête et n'a rien à télécharger. Ce modèle-ci "
+                             + "est celui du moteur apparu avec macOS 26, qui "
+                             + "transcrit les passages longs plus finement — "
+                             + "vous pourrez comparer les deux.")
+                    }
                     ForEach(Preferences.languages, id: \.0) { code, label in
                         SpeechModelRow(language: code, label: label)
                         if code != Preferences.languages.last?.0 {
@@ -259,11 +266,18 @@ private struct OnboardingView: View {
                          + "télécharge tout seul ; les autres attendent que "
                          + "vous en ayez besoin.")
                 }
+            } else if EngineChoice.appleLegacy.isAvailable(for: prefs.language) {
+                Card(title: "moteur de dictée") {
+                    StatusRow(ok: true, label: "Dictée de macOS", detail: "prête")
+                    Note("Votre version de macOS n'a pas le moteur apparu avec "
+                         + "macOS 26, mais elle a celui de la Dictée — et il "
+                         + "n'a rien à télécharger. Sofler s'en servira.")
+                }
             } else {
                 Card(title: "moteur intégré") {
-                    Note("Le moteur de macOS demande macOS 26 — votre version "
-                         + "ne le propose pas. CrisperWhisper s'installe deux "
-                         + "écrans plus loin et fonctionne dès macOS 14.",
+                    Note("Aucun moteur de macOS n'est utilisable sur cette "
+                         + "machine. CrisperWhisper s'installe deux écrans "
+                         + "plus loin, et ne dépend d'aucun d'eux.",
                          warning: true)
                 }
             }
@@ -295,8 +309,7 @@ private struct OnboardingView: View {
                 .font(.system(size: 13))
                 .fixedSize(horizontal: false, vertical: true)
 
-            TranscriptionSettings(
-                systemEngineAvailable: EngineChoice.systemEngineAvailable)
+            TranscriptionSettings()
 
             Card(title: "essayez maintenant") {
                 Note("Cliquez dans le cadre, tapez "
@@ -381,7 +394,13 @@ private struct OnboardingView: View {
     private var canContinue: Bool {
         switch step {
         case .language:
-            !EngineChoice.systemEngineAvailable || assets.isSettled(prefs.language)
+            // Le moteur de la Dictée ne dépend d'aucun téléchargement : s'il
+            // est là, la page est satisfaite quoi qu'il arrive au modèle de
+            // macOS 26. Bloquer dessus enfermerait sur une machine qui sait
+            // parfaitement dicter.
+            EngineChoice.appleLegacy.isAvailable(for: prefs.language)
+                || !EngineChoice.systemEngineAvailable
+                || assets.isSettled(prefs.language)
         case .permissions:
             monitor.allGranted
         default:

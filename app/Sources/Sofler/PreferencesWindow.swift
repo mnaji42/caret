@@ -480,8 +480,7 @@ private struct UpdateAction: View {
 /// partagé avec l'accueil. Cf. TranscriptionSettings.
 private struct TranscriptionTab: View {
     var body: some View {
-        TranscriptionSettings(
-            systemEngineAvailable: EngineChoice.systemEngineAvailable)
+        TranscriptionSettings()
     }
 }
 
