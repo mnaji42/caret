@@ -1,4 +1,5 @@
 import Foundation
+import SoflerCore
 
 /// Démarre et arrête le service CrisperWhisper selon qu'on en a besoin.
 ///
@@ -92,6 +93,31 @@ enum EngineService {
         return modelIsDownloaded ? .serviceMissing : .notInstalled
     }
 
+    /// Le journal du service, là où launchd envoie sa sortie.
+    nonisolated static var logFile: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appending(path: "Library/Logs/Sofler/engine.log")
+    }
+
+    /// Le service est-il **mort** au lieu d'être en train de démarrer ?
+    ///
+    /// Les deux se ressemblent vus du socket — il n'existe pas — et la consigne
+    /// à donner est opposée : attendre dans un cas, agir dans l'autre. Dire
+    /// « réessayez dans un instant » à quelqu'un dont le service se relance en
+    /// boucle depuis un quart d'heure, c'est le laisser attendre indéfiniment
+    /// quelque chose qui n'arrivera pas. C'est arrivé, et sur la panne la plus
+    /// bête qui soit : Metal absent en machine virtuelle.
+    ///
+    /// La trace Python est la seule preuve disponible. La règle qui la lit vit
+    /// dans `SoflerCore`, où elle est testée : se tromper ici ne produit aucune
+    /// erreur, seulement le mauvais conseil.
+    nonisolated static var recentFailure: String? {
+        guard let content = try? String(contentsOf: logFile, encoding: .utf8) else {
+            return nil
+        }
+        return EngineLog.fatalError(in: content)
+    }
+
     /// Ce qu'on affiche quand le socket ne répond pas.
     ///
     /// Trois causes très différentes se ressemblent vues du socket, et la
@@ -100,19 +126,27 @@ enum EngineService {
     nonisolated static var unreachableAdvice: String {
         switch readiness {
         case .ready:
-            // La cause de loin la plus fréquente est le démarrage, pas la
-            // panne : le service est installé, donc il vient probablement
+            // Le service s'est-il arrêté sur une erreur ? Alors c'est elle
+            // qu'il faut lire, pas une invitation à patienter.
+            if let failure = recentFailure {
+                return "le service n'a pas pu démarrer — \(failure). "
+                    + "Le journal complet est dans "
+                    + "~/Library/Logs/Sofler/engine.log"
+            }
+            // Sinon la cause de loin la plus fréquente est le démarrage, pas
+            // la panne : le service est installé, donc il vient probablement
             // d'être lancé et lit encore ses poids. Mener avec « voir le
             // journal » enverrait chercher une panne là où il suffit
             // d'attendre dix secondes.
-            "le modèle est en cours de chargement en mémoire — jusqu'à une "
-                + "minute au premier démarrage. Réessayez dans un instant ; si "
-                + "ça persiste, voir ~/Library/Logs/Sofler/engine.log"
+            return "le modèle est en cours de chargement en mémoire — jusqu'à "
+                + "une minute au premier démarrage. Réessayez dans un instant ; "
+                + "si ça persiste, voir ~/Library/Logs/Sofler/engine.log"
         case .serviceMissing:
-            "le modèle est là, mais le service qui le charge a été retiré — "
-                + "réinstallez-le depuis le dépôt, ou repassez au moteur macOS"
+            return "le modèle est là, mais le service qui le charge a été "
+                + "retiré — réinstallez-le depuis le dépôt, ou repassez au "
+                + "moteur macOS"
         case .notInstalled:
-            "CrisperWhisper n'est pas installé sur cette machine — "
+            return "CrisperWhisper n'est pas installé sur cette machine — "
                 + "le moteur macOS écrit sans rien installer"
         }
     }

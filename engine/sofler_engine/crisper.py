@@ -32,6 +32,43 @@ SAMPLE_RATE = 16_000
 MEL_FRAMES_PER_S = 100          # le feature extractor produit un hop de 10 ms
 MAX_WINDOW_S = 30.0             # limite architecturale de Whisper
 
+
+def resolve_device(requested: str = "auto") -> str:
+    """L'accélérateur à employer, **mesuré** plutôt que supposé.
+
+    ``mps`` était écrit en dur. Sur un Mac c'est le bon choix, et c'est
+    précisément ce qui a caché le problème : une machine virtuelle macOS a bien
+    un GPU paravirtualisé, mais pas Metal pour le calcul. ``torch`` y répond
+    donc non, ``.to("mps")`` lève dès le chargement du modèle, le service meurt
+    avant d'ouvrir son socket, et launchd le relance toutes les trente
+    secondes. Vue de l'application, cette panne définitive était indiscernable
+    d'un démarrage en cours : elle affichait « le modèle charge, réessayez dans
+    un instant » indéfiniment.
+
+    Un nom explicite reste honoré tel quel — c'est ce qui permet de forcer
+    ``cpu`` pour comparer, ou d'essayer un backend que cette fonction ne
+    connaît pas encore.
+    """
+    if requested != "auto":
+        return requested
+    if torch.backends.mps.is_available():
+        return "mps"
+    log.warning("Metal indisponible ici — repli sur le processeur, "
+                "la transcription sera nettement plus lente")
+    return "cpu"
+
+
+def default_dtype(device: str) -> torch.dtype:
+    """La précision qui va avec l'accélérateur.
+
+    Le demi-flottant est un gain franc sur Metal, et un piège sur processeur :
+    plusieurs opérateurs de l'encodeur n'ont pas d'implémentation CPU en
+    ``float16`` et lèvent, et ceux qui en ont une sont plus lents qu'en
+    ``float32``. Lier la précision au device évite de corriger l'un en
+    laissant l'autre derrière.
+    """
+    return torch.float32 if device == "cpu" else torch.float16
+
 # En dessous de 15 s la troncature devient imprévisible : mesuré sur clips
 # courts, un échantillon restait intact jusqu'à 4 s quand un autre se
 # dégradait dès 10 s ("Tu as oublié" -> "State a oublié"). 15 s est le
@@ -189,8 +226,8 @@ class CrisperWhisperEngine:
     def __init__(
         self,
         model_id: str = "nyralabs/CrisperWhisper2.0_turbo",
-        device: str = "mps",
-        dtype: torch.dtype = torch.float16,
+        device: str = "auto",
+        dtype: torch.dtype | None = None,
         beam_size: int = 1,
     ) -> None:
         # Faisceau désactivé par défaut : mesuré sur voix réelle, il produit
@@ -198,8 +235,12 @@ class CrisperWhisperEngine:
         # plus. Le paramètre reste exposé pour re-mesurer sur d'autres voix.
         self.beam_size = beam_size
         self.model_id = model_id
-        self.device = device
-        self.dtype = dtype
+        # Résolu ici et pas au chargement : `self.device` est lu par le `ping`
+        # du service, donc l'application doit pouvoir l'afficher avant même
+        # qu'un modèle soit chargé.
+        self.device = resolve_device(device)
+        # La précision suit le device dès qu'on ne l'impose pas.
+        self.dtype = dtype if dtype is not None else default_dtype(self.device)
         self._model = None
         self._processor = None
         self._eos = -1

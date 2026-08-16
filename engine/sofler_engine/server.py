@@ -147,7 +147,10 @@ class EngineServer:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Service de transcription Sofler")
     ap.add_argument("--model", default="nyralabs/CrisperWhisper2.0_turbo")
-    ap.add_argument("--device", default="mps")
+    # « auto » mesure Metal au lieu de le supposer : sur une machine virtuelle
+    # macOS il n'y en a pas, et « mps » écrit en dur y tuait le service au
+    # chargement du modèle. Cf. sofler_engine.crisper.resolve_device.
+    ap.add_argument("--device", default="auto")
     ap.add_argument("--socket", type=Path, default=protocol.DEFAULT_SOCKET)
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
@@ -159,7 +162,10 @@ def main() -> int:
     )
 
     engine = CrisperWhisperEngine(model_id=args.model, device=args.device)
-    log.info("chargement de %s …", args.model)
+    # Le device dans la ligne qui précède le chargement : c'est le chargement
+    # qui échoue quand il est mauvais, et le journal doit dire sur quoi il
+    # portait avant de montrer la trace.
+    log.info("chargement de %s sur %s …", args.model, engine.device)
     engine.load()
 
     server = EngineServer(engine, args.socket)

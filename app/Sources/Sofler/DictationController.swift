@@ -306,8 +306,13 @@ final class DictationController {
     /// il suffit d'attendre, et que le dire évite de chercher une panne.
     private static func shortReason(for error: Error) -> String {
         if case SpeechEngineError.unavailable = error, EngineService.isInstalled {
-            return EngineService.isAnswering
-                ? "Moteur injoignable — réessayez"
+            if EngineService.isAnswering { return "Moteur injoignable — réessayez" }
+            // « Réessayez dans un instant » sur un service qui se relance en
+            // boucle laisse attendre indéfiniment quelque chose qui n'arrivera
+            // pas. Quand le journal porte une trace, c'est une panne, et la
+            // barre doit le dire même si le détail complet part dans le menu.
+            return EngineService.recentFailure != nil
+                ? "CrisperWhisper n'a pas pu démarrer — voir le menu"
                 : "CrisperWhisper charge son modèle — réessayez dans un instant"
         }
         return "Transcription impossible — « Réessayer » dans le menu"

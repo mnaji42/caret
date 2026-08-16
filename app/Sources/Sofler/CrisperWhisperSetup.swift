@@ -161,19 +161,48 @@ struct CrisperWhisperSetup: View {
             // Lancé, mais pas encore utilisable. Sans cet état, la carte
             // affichait « Prêt » pendant que le service lisait ses 1,6 Go, et
             // la dictée tentée à ce moment-là ne rendait rien.
+            //
+            // Un service mort ressemble en tout point à un service qui
+            // démarre : dans les deux cas le socket n'existe pas. Cette carte
+            // restait donc sur « Chargement », spinner compris, pendant que
+            // launchd relançait le processus toutes les trente secondes —
+            // indéfiniment, sur une panne qui ne se réparerait jamais toute
+            // seule. Le journal, lui, portait la raison depuis le début.
             case .serviceStarting:
-                StatusRow(ok: false, label: "Chargement",
-                          detail: "modèle en cours de lecture",
-                          warningOnly: true)
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small)
-                    Text("Le service lit les \(model.downloadSize) du modèle.")
-                        .font(.system(size: 12))
+                if let failure = EngineService.recentFailure {
+                    StatusRow(ok: false, label: "Service",
+                              detail: "n'a pas pu démarrer", warningOnly: true)
+                    Text(failure)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(Style.collecting)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Note("Le journal complet est dans "
+                         + "`~/Library/Logs/Sofler/engine.log`. En attendant, "
+                         + "le moteur de macOS écrit sans rien installer.")
+                    ButtonRow {
+                        Button("Afficher le journal") {
+                            NSWorkspace.shared.activateFileViewerSelecting(
+                                [EngineService.logFile])
+                        }
+                        Button("Réessayer") {
+                            EngineInstall.installService(model: model)
+                        }
+                    }
+                } else {
+                    StatusRow(ok: false, label: "Chargement",
+                              detail: "modèle en cours de lecture",
+                              warningOnly: true)
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("Le service lit les \(model.downloadSize) du modèle.")
+                            .font(.system(size: 12))
+                    }
+                    Note("Jusqu'à une minute au premier démarrage, quelques "
+                         + "secondes ensuite. **Dicter avec CrisperWhisper avant "
+                         + "la fin de cette étape ne rendra rien** — le moteur de "
+                         + "macOS, lui, reste disponible tout de suite.")
                 }
-                Note("Jusqu'à une minute au premier démarrage, quelques "
-                     + "secondes ensuite. **Dicter avec CrisperWhisper avant "
-                     + "la fin de cette étape ne rendra rien** — le moteur de "
-                     + "macOS, lui, reste disponible tout de suite.")
 
             case .ready:
                 StatusRow(ok: true, label: "Prêt",
