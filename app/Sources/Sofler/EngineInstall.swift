@@ -64,6 +64,13 @@ enum EngineInstall {
         case serviceMissing
         /// Service installé mais arrêté.
         case serviceStopped
+        /// Service lancé, modèle pas encore en mémoire — donc pas utilisable.
+        ///
+        /// Cet état manquait, et son absence coûtait cher : `serviceStopped`
+        /// et `ready` étant les deux seules possibilités, tout service lancé
+        /// était déclaré prêt. Pendant la minute que dure le chargement des
+        /// poids, l'accueil affichait « Prêt » et la dictée ne rendait rien.
+        case serviceStarting
         /// Prêt à écrire.
         case ready
     }
@@ -72,7 +79,10 @@ enum EngineInstall {
         guard isAvailable else { return .engineMissing }
         guard model.isDownloaded else { return .modelMissing(model) }
         guard EngineService.isInstalled else { return .serviceMissing }
-        return EngineService.isRunning ? .ready : .serviceStopped
+        guard EngineService.isRunning else { return .serviceStopped }
+        // launchd dit « lancé », le socket dit « prêt ». Cf.
+        // EngineService.isAnswering : ce n'est pas la même question.
+        return EngineService.isAnswering ? .ready : .serviceStarting
     }
 
     // MARK: - Agent de lancement

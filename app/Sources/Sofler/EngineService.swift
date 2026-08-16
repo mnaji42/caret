@@ -29,6 +29,26 @@ enum EngineService {
         run(["list", label]) != nil
     }
 
+    /// Le service **répond**-il ? Ce qui n'est pas la même question.
+    ///
+    /// `isRunning` demande à launchd s'il a lancé le processus, et il répond
+    /// oui dans la milliseconde. Le serveur Python, lui, charge le modèle
+    /// **avant** d'ouvrir son socket — `engine.load()` puis `bind()`, dans cet
+    /// ordre — et ce chargement demande de trente secondes à une minute au
+    /// premier démarrage, le temps d'importer torch et de lire 1,6 Go de poids.
+    ///
+    /// Entre les deux, l'application affichait « Prêt · Turbo chargé » et la
+    /// première dictée ne produisait rien : `connect()` échouait sur un socket
+    /// qui n'existait pas encore. L'utilisateur changeait de moteur, revenait,
+    /// et ça marchait — non pas grâce à l'aller-retour, mais parce qu'il avait
+    /// pris le temps de le faire.
+    ///
+    /// La présence du fichier de socket est la seule mesure exacte : le
+    /// serveur ne le crée qu'une fois le modèle en mémoire.
+    nonisolated static var isAnswering: Bool {
+        FileManager.default.fileExists(atPath: SocketSpeechEngine.defaultSocketPath)
+    }
+
     /// Les poids sont-ils déjà sur la machine ?
     ///
     /// Séparé de « le service est installé », parce que les deux se défont
@@ -80,8 +100,14 @@ enum EngineService {
     nonisolated static var unreachableAdvice: String {
         switch readiness {
         case .ready:
-            "le service est installé mais ne répond pas — voir "
-                + "~/Library/Logs/Sofler/engine.log, ou repasser au moteur macOS"
+            // La cause de loin la plus fréquente est le démarrage, pas la
+            // panne : le service est installé, donc il vient probablement
+            // d'être lancé et lit encore ses poids. Mener avec « voir le
+            // journal » enverrait chercher une panne là où il suffit
+            // d'attendre dix secondes.
+            "le modèle est en cours de chargement en mémoire — jusqu'à une "
+                + "minute au premier démarrage. Réessayez dans un instant ; si "
+                + "ça persiste, voir ~/Library/Logs/Sofler/engine.log"
         case .serviceMissing:
             "le modèle est là, mais le service qui le charge a été retiré — "
                 + "réinstallez-le depuis le dépôt, ou repassez au moteur macOS"

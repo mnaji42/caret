@@ -106,6 +106,23 @@ struct CrisperWhisperSetup: View {
                     EngineInstall.installService(model: model)
                 }
 
+            // Lancé, mais pas encore utilisable. Sans cet état, la carte
+            // affichait « Prêt » pendant que le service lisait ses 1,6 Go, et
+            // la dictée tentée à ce moment-là ne rendait rien.
+            case .serviceStarting:
+                StatusRow(ok: false, label: "Chargement",
+                          detail: "modèle en cours de lecture",
+                          warningOnly: true)
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Le service lit les \(model.downloadSize) du modèle.")
+                        .font(.system(size: 12))
+                }
+                Note("Jusqu'à une minute au premier démarrage, quelques "
+                     + "secondes ensuite. **Dicter avec CrisperWhisper avant "
+                     + "la fin de cette étape ne rendra rien** — le moteur de "
+                     + "macOS, lui, reste disponible tout de suite.")
+
             case .ready:
                 StatusRow(ok: true, label: "Prêt",
                           detail: "\(model.label) chargé · \(model.residentMemory)")
@@ -202,8 +219,10 @@ private struct Installer: View {
             step("Téléchargement des poids de \(model.label) — \(model.downloadSize)",
                  fraction: fraction)
 
-        case .startingService:
-            step("Démarrage du service et chargement du modèle")
+        case .startingService(let seconds):
+            step("Chargement du modèle en mémoire"
+                 + (seconds > 2 ? " — \(seconds) s" : ""),
+                 caption: "jusqu'à une minute au premier démarrage")
 
         case .done:
             StatusRow(ok: true, label: "Installé", detail: "\(model.label) prêt")

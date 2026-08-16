@@ -51,6 +51,9 @@ final class RecordingOverlay {
 
     private var panel: NSPanel?
     private var timer: Timer?
+    /// L'effacement différé d'un message d'échec. Annulé si une dictée
+    /// reprend entre-temps, sinon il ferait disparaître la barre suivante.
+    private var dismissal: DispatchWorkItem?
 
     private let dot = NSView()
     private let timeLabel = NSTextField(labelWithString: "0:00")
@@ -176,7 +179,48 @@ final class RecordingOverlay {
         startProcessingGlow()
     }
 
+    /// Montre un échec, puis s'efface toute seule.
+    ///
+    /// L'échec ne s'affichait que dans la barre des menus : l'icône devenait
+    /// un triangle, et le message n'existait que dans une infobulle et dans un
+    /// menu qu'il faut dérouler. Or quelqu'un qui vient de dicter regarde son
+    /// curseur et cette barre-ci. Il voyait donc simplement que rien ne
+    /// s'écrivait, sans aucune raison de soupçonner qu'une explication
+    /// l'attendait ailleurs — au point de croire s'être mal servi de
+    /// l'application.
+    ///
+    /// Le message est court exprès : la barre tient sur une ligne, et le
+    /// détail complet reste dans le menu, avec « Réessayer ».
+    func showFailure(_ message: String) {
+        let panel = self.panel ?? makePanel()
+        self.panel = panel
+
+        timer?.invalidate()
+        stopProcessingGlow()
+        container?.isHidden = true
+        textRow?.isHidden = true
+        cardBelowTabs?.isActive = false
+        cardAlone?.isActive = true
+        statusLabel.isHidden = false
+        statusLabel.stringValue = message
+
+        let text = statusLabel.attributedStringValue.size().width
+        panel.setContentSize(NSSize(width: min(460, max(210, text + 2 * Self.padding + 20)),
+                                    height: 2 * Self.padding + 20))
+        cardSheen?.frame = card?.bounds ?? .zero
+        position(panel)
+        panel.orderFrontRegardless()
+
+        // Assez pour être lu, pas assez pour gêner la dictée suivante.
+        dismissal?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.hide() }
+        dismissal = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: work)
+    }
+
     func hide() {
+        dismissal?.cancel()
+        dismissal = nil
         timer?.invalidate()
         timer = nil
         startedAt = nil

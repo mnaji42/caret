@@ -290,12 +290,31 @@ final class DictationController {
             // coûter au temps que l'utilisateur attend.
             collect(samples: samples, primary: result, mode: used)
         } catch {
-            overlay.hide()
             pendingAudio = samples
             let minutes = Double(samples.count) / AudioRecorder.targetSampleRate / 60
             Log.error("échec de transcription : \(error.localizedDescription) — \(String(format: "%.1f", minutes)) min conservées")
+            // Dit là où l'utilisateur regarde. La barre des menus recevait déjà
+            // le détail, mais on ne consulte pas un menu qu'on n'a pas de
+            // raison d'ouvrir : sans ça, un échec se lit comme « je m'y suis
+            // mal pris ».
+            overlay.showFailure(Self.shortReason(for: error))
             state = .failed("\(error.localizedDescription) — audio conservé, « Réessayer » dans le menu.")
         }
+    }
+
+    /// La raison, en une ligne qui tient dans la barre.
+    ///
+    /// Le message complet part dans le menu ; celui-ci doit se lire d'un coup
+    /// d'œil, pendant les cinq secondes où la barre reste affichée. Le cas du
+    /// modèle en cours de chargement est distingué parce que c'est le seul où
+    /// il suffit d'attendre, et que le dire évite de chercher une panne.
+    private static func shortReason(for error: Error) -> String {
+        if case SpeechEngineError.unavailable = error, EngineService.isInstalled {
+            return EngineService.isAnswering
+                ? "Moteur injoignable — réessayez"
+                : "CrisperWhisper charge son modèle — réessayez dans un instant"
+        }
+        return "Transcription impossible — « Réessayer » dans le menu"
     }
 
     /// Achemine le texte vers la destination courante.

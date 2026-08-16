@@ -58,7 +58,11 @@ final class EngineBootstrap {
         case installingDependencies(String)
         /// Téléchargement des poids, fraction déduite de ce qui est sur disque.
         case downloadingModel(Double)
-        case startingService
+        /// Service lancé, modèle en train d'être lu. Porte les secondes
+        /// écoulées : l'étape dure jusqu'à une minute sans rien produire
+        /// d'observable, et un compteur qui monte est la seule preuve que
+        /// quelque chose se passe encore.
+        case startingService(Int)
         case done
         case failed(String)
     }
@@ -167,7 +171,7 @@ final class EngineBootstrap {
             try await installDependencies(uv: uv)
             try await downloadModel(uv: uv, model: model)
 
-            phase = .startingService
+            phase = .startingService(0)
             // Le descripteur d'abord : `installService` le lit pour écrire
             // l'agent de lancement.
             EngineInstall.write(project: Self.engineDirectory.path,
@@ -175,6 +179,7 @@ final class EngineBootstrap {
             guard EngineInstall.installService(model: model) else {
                 throw Failure.service
             }
+            try await waitUntilAnswering()
             phase = .done
             Log.info("engine: installé (\(model.rawValue))")
         } catch is CancellationError {
@@ -183,6 +188,26 @@ final class EngineBootstrap {
             Log.error("engine: \(error.localizedDescription)")
             phase = .failed(error.localizedDescription)
         }
+    }
+
+    /// Attend que le service réponde, pas seulement qu'il soit lancé.
+    ///
+    /// `installService` rend la main dès que launchd a accepté l'agent —
+    /// c'est-à-dire avant que le modèle soit en mémoire. Annoncer
+    /// l'installation terminée à cet instant produisait exactement le défaut
+    /// observé : une fenêtre disant « Prêt · Turbo chargé », et une première
+    /// dictée qui ne rendait rien parce que le socket n'existait pas encore.
+    ///
+    /// Trois minutes de patience. Au-delà, ce n'est plus un chargement, c'est
+    /// une panne, et le journal du service est le seul endroit où elle est
+    /// écrite.
+    private func waitUntilAnswering() async throws {
+        for elapsed in 0..<180 {
+            if EngineService.isAnswering { return }
+            phase = .startingService(elapsed)
+            try await Task.sleep(for: .seconds(1))
+        }
+        throw Failure.slowStart
     }
 
     /// Interrompt une installation en cours.
@@ -365,6 +390,7 @@ final class EngineBootstrap {
         case launch(String, String)
         case tool(String, Int, String)
         case service
+        case slowStart
 
         var errorDescription: String? {
             switch self {
@@ -388,6 +414,11 @@ final class EngineBootstrap {
             case .service:
                 "Le moteur est installé mais son service n'a pas démarré. "
                     + "Réessayez depuis les Réglages."
+            case .slowStart:
+                "Le service a démarré mais n'a pas fini de charger le modèle "
+                    + "au bout de trois minutes. Tout est installé — voir "
+                    + "~/Library/Logs/Sofler/engine.log pour savoir sur quoi "
+                    + "il bute."
             }
         }
     }
