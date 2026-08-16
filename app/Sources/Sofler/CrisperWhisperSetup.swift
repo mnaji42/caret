@@ -24,6 +24,14 @@ struct CrisperWhisperSetup: View {
     enum Presentation { case full, compact }
 
     var presentation: Presentation = .full
+    /// CrisperWhisper est-il le moteur retenu ?
+    ///
+    /// Un service arrêté n'est un problème que si l'on comptait s'en servir.
+    /// Quand macOS écrit, Sofler arrête ce service exprès — pour ne pas garder
+    /// trois gigaoctets en mémoire — et l'annoncer en orange sous un moteur
+    /// qu'on n'a pas choisi fait lire « installé et cassé » là où il faut lire
+    /// « au repos ».
+    var isActiveEngine: Bool = true
 
     /// Ouvert à la demande, depuis « Changer de modèle ». L'état vit ici et
     /// non chez l'appelant : c'est cette vue qui sait ce qu'elle replie.
@@ -63,11 +71,12 @@ struct CrisperWhisperSetup: View {
                 Subsection("Retirer")
                 removal
             } else {
-                // Replié, mais jamais muet sur un problème : si le service
-                // n'est pas prêt, le cacher laisserait quelqu'un dicter dans
-                // le vide sans rien pour comprendre. Prêt, l'état n'apprend
-                // rien que le titre ne dise déjà.
-                if step != .ready { state }
+                // Replié, mais jamais muet sur un problème *réel* : si le
+                // moteur retenu n'est pas prêt, le cacher laisserait quelqu'un
+                // dicter dans le vide sans rien pour comprendre. Prêt — ou
+                // simplement pas choisi — l'état n'apprend rien que le titre
+                // ne dise déjà.
+                if isActiveEngine, step != .ready { state }
                 ButtonRow {
                     Button("Changer de modèle") { expanded = true }
                 }

@@ -127,7 +127,8 @@ struct TranscriptionSettings: View {
         // Modèle, installation et licence : la vue qui interroge l'état réel.
         // Repliée dès qu'un modèle est là — elle rouvre sur demande.
         CrisperWhisperSetup(
-            presentation: installedModel == nil ? .full : .compact)
+            presentation: installedModel == nil ? .full : .compact,
+            isActiveEngine: prefs.engine == .crisperWhisper)
 
         Subsection("Vocabulaire technique")
         OptionCheck(title: "Utiliser la liste intégrée",
