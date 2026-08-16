@@ -71,7 +71,11 @@ private enum Step: Int, CaseIterable {
         // Avant tout le reste : c'est elle qui décide du modèle à récupérer,
         // et ce téléchargement doit être fini avant le premier essai.
         case .language: "Dans quelle langue dictez-vous ?"
-        case .permissions: "Deux autorisations"
+        // Le nombre dépend du moteur : la reconnaissance vocale ne s'ajoute
+        // que pour celui de la Dictée. Un titre qui annonce « deux » devant
+        // trois cases se lit comme un défaut d'attention.
+        case .permissions: PermissionsMonitor.shared.neededCount == 3
+            ? "Trois autorisations" : "Deux autorisations"
         case .tryIt: "Comment Sofler écrit"
         // Séparée de la précédente depuis que celle-ci est exactement l'onglet
         // Transcription des Réglages : y laisser le démarrage automatique

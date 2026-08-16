@@ -23,7 +23,26 @@ final class PermissionsMonitor {
     /// Les deux autorisations sans lesquelles la dictée ne peut rien faire.
     /// La version de macOS n'en fait pas partie : elle ne se corrige pas dans
     /// l'instant, et bloquer dessus enfermerait l'utilisateur.
-    var allGranted: Bool { micAccess == .granted && accessibilityGranted }
+    private(set) var speechGranted = LegacySpeechEngine.isAuthorised
+
+    /// Le droit de reconnaissance vocale n'entre dans le compte que s'il sert :
+    /// l'exiger sur une machine qui dictera avec CrisperWhisper bloquerait
+    /// l'accueil sur une autorisation inutile.
+    /// Combien d'autorisations cette machine réclame réellement.
+    var neededCount: Int { requiresSpeech ? 3 : 2 }
+
+    /// Le droit de reconnaissance vocale est-il en jeu ici ?
+    var requiresSpeech: Bool {
+        if Preferences.shared.engine == .appleLegacy { return true }
+        let language = Preferences.shared.language
+        return EngineChoice.appleLegacy.isAvailable(for: language)
+            && !EngineChoice.apple.isAvailable(for: language)
+    }
+
+    var allGranted: Bool {
+        guard micAccess == .granted, accessibilityGranted else { return false }
+        return requiresSpeech ? speechGranted : true
+    }
 
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var observers = 0
@@ -51,12 +70,15 @@ final class PermissionsMonitor {
         let granted = AXIsProcessTrusted()
         let wasGranted = accessibilityGranted
         accessibilityGranted = granted
+        let wasSpeech = speechGranted
+        speechGranted = LegacySpeechEngine.isAuthorised
 
         // Accorder une autorisation fait passer les Réglages Système devant,
         // et l'accueil disparaît derrière — on se retrouve à le chercher dans
         // Mission Control alors qu'on venait de faire exactement ce qu'il
         // demandait. macOS ne le remonte pas tout seul.
-        if (granted && !wasGranted) || (micAccess == .granted && wasMic != .granted) {
+        if (granted && !wasGranted) || (micAccess == .granted && wasMic != .granted)
+            || (speechGranted && !wasSpeech) {
             returnToForeground()
         }
         // C'est ici qu'on apprend le plus tôt que le droit vient d'arriver —
@@ -139,9 +161,45 @@ struct PermissionsChecklist: View {
             micSection
             Divider().opacity(0.25)
             accessibilitySection
+            // Ce droit n'existe que pour le moteur de la Dictée : le réclamer
+            // à quelqu'un qui dictera avec CrisperWhisper serait une
+            // autorisation demandée pour rien, et c'est exactement ce qu'on
+            // reproche aux applications qui en demandent trop.
+            if monitor.requiresSpeech {
+                Divider().opacity(0.25)
+                speechSection
+            }
         }
         .onAppear { monitor.observe() }
         .onDisappear { monitor.release() }
+    }
+
+    // MARK: Reconnaissance vocale
+
+    private var speechSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            StatusRow(ok: monitor.speechGranted, label: "Reconnaissance vocale",
+                      detail: monitor.speechGranted ? "accordée" : "pas encore accordée")
+
+            if explains {
+                Note("Le moteur de la Dictée de macOS passe par ce droit — "
+                     + "macOS le compte séparément du micro. **Rien ne part "
+                     + "chez Apple** : Sofler force la reconnaissance hors "
+                     + "ligne, et refuse de transcrire si la machine ne sait "
+                     + "pas le faire.")
+            }
+
+            if !monitor.speechGranted {
+                Button("Autoriser la reconnaissance vocale") {
+                    Task {
+                        _ = await LegacySpeechEngine.requestAuthorisation()
+                        monitor.refresh()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Style.accent)
+            }
+        }
     }
 
     // MARK: Micro
