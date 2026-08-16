@@ -65,6 +65,7 @@ final class OnboardingWindowController {
 private enum Step: Int, CaseIterable {
     case presentation, language, permissions, tryIt, finish
 
+    @MainActor
     var title: String {
         switch self {
         case .presentation: "Bienvenue dans Sofler"
