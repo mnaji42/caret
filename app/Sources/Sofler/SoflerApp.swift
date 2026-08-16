@@ -140,23 +140,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let alert = NSAlert()
         alert.alertStyle = .warning
+        // « Pas installé » portait un jugement là où il n'y a qu'un fait, et
+        // un fait discutable : l'application est bien là, elle est simplement
+        // sur un support qui va disparaître. On nomme donc l'endroit, pas un
+        // état — et on dit ce que cet endroit empêche, pour que le choix se
+        // fasse en connaissance de cause plutôt que sur une injonction.
         alert.messageText = installed
             ? "Ce n'est pas la copie installée"
-            : "Sofler n'est pas encore installé"
+            : "Sofler tourne depuis l'image disque"
         alert.informativeText = installed
             ? """
-              Sofler est bien dans Applications, mais c'est la copie restée               dans l'image disque qui vient de s'ouvrir — les deux icônes se               ressemblent, et celle de l'image est la plus proche.
+              Sofler est bien dans Applications, mais c'est la copie restée \
+              dans l'image disque qui vient de s'ouvrir — les deux icônes se \
+              ressemblent, et celle de l'image est la plus proche.
 
-              Cette copie-ci est en lecture seule : les autorisations que vous               lui accorderez seront perdues, et les mises à jour ne               s'installeront pas. Ouvrez celle d'Applications.
+              Celle-ci est en lecture seule : les autorisations que vous lui \
+              accorderez seront perdues, et les mises à jour ne s'y \
+              installeront pas. Ouvrez plutôt celle d'Applications.
               """
             : """
-              Il est ouvert depuis l'image disque, en lecture seule : les               autorisations accordées seraient perdues et les mises à jour               impossibles.
+              Cette copie vit sur l'image disque montée : elle disparaîtra \
+              quand vous éjecterez l'image, et macOS l'exécute en lecture \
+              seule.
 
-              Sofler peut s'installer dans Applications et s'y rouvrir tout               seul.
+              Deux conséquences concrètes. Les autorisations micro et \
+              accessibilité s'attachent à ce chemin temporaire, donc elles \
+              seront à ré-accorder. Et les mises à jour ne peuvent pas \
+              s'installer sur un volume qu'on ne peut pas écrire.
+
+              Applications est l'endroit habituel parce qu'il est permanent \
+              et inscriptible — mais n'importe quel dossier de votre disque \
+              ferait l'affaire, et ce message ne reviendrait pas. Sofler peut \
+              s'y copier, éjecter l'image et s'y rouvrir tout seul.
               """
         alert.addButton(withTitle: installed
                         ? "Ouvrir la copie installée"
-                        : "Installer et ouvrir")
+                        : "Installer dans Applications")
         alert.addButton(withTitle: "Continuer quand même")
 
         guard alert.runModal() == .alertFirstButtonReturn else { return }
