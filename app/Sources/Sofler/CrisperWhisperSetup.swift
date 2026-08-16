@@ -15,6 +15,19 @@ import SwiftUI
 /// la foulée et entendre la différence — proposer un moteur sans permettre de
 /// l'essayer ne sert à rien.
 struct CrisperWhisperSetup: View {
+    /// Combien montrer.
+    ///
+    /// Tout n'a d'intérêt qu'au moment de l'installation. Une fois un modèle
+    /// en place, la liste des quatre modèles, la licence et le bloc de retrait
+    /// occupent la moitié de la fenêtre pour répondre à une question qu'on ne
+    /// se pose plus — et repoussent le champ d'essai hors de l'écran.
+    enum Presentation { case full, compact }
+
+    var presentation: Presentation = .full
+
+    /// Ouvert à la demande, depuis « Changer de modèle ». L'état vit ici et
+    /// non chez l'appelant : c'est cette vue qui sait ce qu'elle replie.
+    @State private var expanded = false
     @State private var model = EngineInstall.selectedModel
     @State private var step: EngineInstall.Step = .engineMissing
     @State private var working = false
@@ -36,16 +49,29 @@ struct CrisperWhisperSetup: View {
     /// quatre réglages indépendants là où il n'y en a qu'un, et le choix du
     /// modèle restait visible en gros même quand le moteur retenu était celui
     /// de macOS.
+    private var showsEverything: Bool { presentation == .full || expanded }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Subsection("Modèle")
-            models
-            Subsection("Mise en marche")
-            state
-            Subsection("Licence")
-            licence
-            Subsection("Retirer")
-            removal
+            if showsEverything {
+                Subsection("Modèle")
+                models
+                Subsection("Mise en marche")
+                state
+                Subsection("Licence")
+                licence
+                Subsection("Retirer")
+                removal
+            } else {
+                // Replié, mais jamais muet sur un problème : si le service
+                // n'est pas prêt, le cacher laisserait quelqu'un dicter dans
+                // le vide sans rien pour comprendre. Prêt, l'état n'apprend
+                // rien que le titre ne dise déjà.
+                if step != .ready { state }
+                ButtonRow {
+                    Button("Changer de modèle") { expanded = true }
+                }
+            }
         }
         .onAppear { refresh() }
         // Pas pendant une installation : l'état bascule d'étape en étape au

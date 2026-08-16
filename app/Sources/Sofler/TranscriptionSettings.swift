@@ -61,9 +61,10 @@ struct TranscriptionSettings: View {
             }
             .opacity(systemEngineAvailable ? 1 : 0.75)
 
-            ChoiceRow(title: EngineChoice.crisperWhisper.label,
+            ChoiceRow(title: crisperTitle,
                       subtitle: EngineChoice.crisperWhisper.explanation,
                       selected: prefs.engine == .crisperWhisper,
+                      hasDetail: showsCrisperDetail,
                       action: { prefs.engine = .crisperWhisper }) {
                 crisperWhisper
             }
@@ -76,6 +77,39 @@ struct TranscriptionSettings: View {
     }
 
     // MARK: - Ce qui n'existe que sous CrisperWhisper
+
+    /// Le modèle qui servirait si l'on dictait maintenant, ou `nil` si rien
+    /// n'est téléchargé. Plusieurs modèles peuvent coexister : c'est celui que
+    /// le descripteur désigne qui compte, pas le premier trouvé.
+    private var installedModel: CrisperWhisperModel? {
+        let active = EngineInstall.selectedModel
+        return active.isDownloaded ? active : CrisperWhisperModel.downloaded.first
+    }
+
+    /// Le nom du moteur porte celui du modèle dès qu'il y en a un.
+    ///
+    /// C'est l'information qu'on cherche une fois installé — « lequel tourne
+    /// en ce moment » — et la mettre dans le titre permet de replier tout le
+    /// reste sans rien perdre.
+    private var crisperTitle: String {
+        guard let installed = installedModel else {
+            return EngineChoice.crisperWhisper.label
+        }
+        return "\(EngineChoice.crisperWhisper.label) · \(installed.label)"
+    }
+
+    /// Trois situations, et elles suffisent.
+    ///
+    /// Rien d'installé et le moteur n'est pas retenu : la ligne se lit seule,
+    /// il n'y a rien à régler sur quelque chose qu'on n'a pas choisi. Rien
+    /// d'installé mais le moteur vient d'être retenu : tout s'ouvre, c'est une
+    /// installation. Un modèle en place : le rendu reste visible, le reste se
+    /// replie derrière « Changer de modèle » — la liste des quatre modèles, la
+    /// licence et le bloc de retrait répondaient à une question qu'on ne se
+    /// pose plus, en occupant la moitié de la fenêtre.
+    private var showsCrisperDetail: Bool {
+        installedModel != nil || prefs.engine == .crisperWhisper
+    }
 
     @ViewBuilder
     private var crisperWhisper: some View {
@@ -91,7 +125,9 @@ struct TranscriptionSettings: View {
              + "les deux sur la même phrase.")
 
         // Modèle, installation et licence : la vue qui interroge l'état réel.
-        CrisperWhisperSetup()
+        // Repliée dès qu'un modèle est là — elle rouvre sur demande.
+        CrisperWhisperSetup(
+            presentation: installedModel == nil ? .full : .compact)
 
         Subsection("Vocabulaire technique")
         OptionCheck(title: "Utiliser la liste intégrée",
