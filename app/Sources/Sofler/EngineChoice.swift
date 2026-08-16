@@ -53,8 +53,11 @@ enum EngineChoice: String, CaseIterable, Sendable, Codable {
     var explanation: String {
         switch self {
         case .apple:
-            "Inclus dans macOS, rien à télécharger, et le texte arrive dès "
-                + "que vous avez fini de parler. Il transcrit en français "
+            "Fourni par macOS : aucune licence, aucun compte, et le texte "
+                + "arrive dès que vous avez fini de parler. Son modèle de "
+                + "reconnaissance se télécharge tout seul au premier usage "
+                + "s'il n'est pas déjà sur la machine — c'est le cas d'un "
+                + "macOS fraîchement installé. Il transcrit en français "
                 + "courant : les mots qu'il ne connaît pas — noms propres, "
                 + "mots anglais, vocabulaire de votre métier — sont remplacés "
                 + "par ceux qui leur ressemblent."

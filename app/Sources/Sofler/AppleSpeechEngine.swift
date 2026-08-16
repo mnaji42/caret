@@ -47,8 +47,34 @@ final class AppleSpeechEngine: SpeechEngine, @unchecked Sendable {
         SpeechTranscriber.isAvailable
     }
 
+    /// Télécharge le modèle de reconnaissance de cette langue, s'il manque.
+    ///
+    /// « Inclus dans macOS, rien à télécharger » était faux, et il a fallu une
+    /// machine vierge pour s'en apercevoir : sur un Mac qui a déjà servi, les
+    /// actifs de `SpeechTranscriber` sont là parce que la dictée du système
+    /// les a fait descendre un jour. Sur un macOS 26 fraîchement installé, il
+    /// n'y a rien, `isAvailable` répond faux, et Sofler annonçait « la
+    /// reconnaissance vocale de macOS est indisponible » — une phrase qui
+    /// décrit l'état sans nommer la cause ni ce qu'on peut y faire.
+    ///
+    /// `AssetInventory.reserve` ne suffit pas : elle réserve une place pour
+    /// une langue, elle ne récupère pas le modèle. C'est
+    /// `assetInstallationRequest(supporting:)` qui le fait, et elle rend `nil`
+    /// quand il n'y a rien à installer — donc l'appel est gratuit une fois les
+    /// actifs en place.
+    static func installAssets(for transcriber: SpeechTranscriber) async throws {
+        guard let request = try await AssetInventory
+            .assetInstallationRequest(supporting: [transcriber]) else { return }
+        NSLog("sofler: téléchargement du modèle de reconnaissance de macOS")
+        try await request.downloadAndInstall()
+        NSLog("sofler: modèle de reconnaissance de macOS installé")
+    }
+
     func transcribe(_ request: TranscriptionRequest) async throws -> TranscriptionResult {
-        guard SpeechTranscriber.isAvailable else { throw EngineError.unavailable }
+        // Pas de garde sur `isAvailable` ici : elle répond faux précisément
+        // quand aucun modèle n'est installé, c'est-à-dire dans le cas que
+        // `installAssets` est là pour régler. S'y fier interdirait la seule
+        // action qui débloque la situation.
         guard let locale = await SpeechTranscriber.supportedLocale(
             equivalentTo: Locale(identifier: request.language)) else {
             throw EngineError.localeUnsupported(request.language)
@@ -62,6 +88,7 @@ final class AppleSpeechEngine: SpeechEngine, @unchecked Sendable {
                                             reportingOptions: [],
                                             attributeOptions: [])
         try await LivePreview.reserve(locale)
+        try await Self.installAssets(for: transcriber)
 
         guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(
             compatibleWith: [transcriber]) else {

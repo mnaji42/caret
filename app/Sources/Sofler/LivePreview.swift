@@ -86,10 +86,6 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
     }
 
     func start(language: String) async {
-        guard SpeechTranscriber.isAvailable else {
-            await report("aperçu indisponible sur cette machine")
-            return
-        }
         guard let locale = await SpeechTranscriber.supportedLocale(
             equivalentTo: Locale(identifier: language)) else {
             await report("aperçu indisponible en \(language)")
@@ -131,6 +127,13 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
                 }
             }
             try await Self.reserve(locale)
+            // Premier lancement sur une machine neuve : le modèle n'est pas
+            // là. Le dire, sinon l'aperçu reste vide sans raison visible.
+            if try await AssetInventory
+                .assetInstallationRequest(supporting: [transcriber]) != nil {
+                await report("téléchargement du modèle de macOS…")
+                try await AppleSpeechEngine.installAssets(for: transcriber)
+            }
 
             guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(
                 compatibleWith: [transcriber]) else {
