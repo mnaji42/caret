@@ -161,7 +161,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         if installed {
-            relaunch(from: destination)
+            relaunch(from: destination, ejecting: sourceVolume)
         } else {
             install(to: destination)
         }
@@ -181,7 +181,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             strip.arguments = ["-dr", "com.apple.quarantine", destination.path]
             try? strip.run()
             strip.waitUntilExit()
-            relaunch(from: destination)
+            // L'image disque part avec : c'est elle qui laissait une fenêtre
+            // ouverte sur une icône devenue inutile, et c'est cette icône qui
+            // se fait double-cliquer au tour suivant.
+            relaunch(from: destination, ejecting: sourceVolume)
         } catch {
             let failure = NSAlert()
             failure.alertStyle = .warning
@@ -193,14 +196,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Ouvre la copie installée et se retire.
-    private func relaunch(from bundle: URL) {
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: bundle,
-                                           configuration: configuration) { _, _ in
-            Task { @MainActor in NSApp.terminate(nil) }
-        }
+    /// Le volume d'où l'on s'exécute, s'il est amovible.
+    ///
+    /// `nil` sur le disque de démarrage : on n'éjecte pas le Mac.
+    private var sourceVolume: URL? {
+        let values = try? Uninstall.appBundle.resourceValues(
+            forKeys: [.volumeURLKey, .volumeIsRemovableKey, .volumeIsReadOnlyKey])
+        guard let volume = values?.volume, volume.path != "/" else { return nil }
+        return (values?.volumeIsReadOnly ?? false) ? volume : nil
+    }
+
+    /// Ouvre la copie installée, éjecte l'image, et se retire.
+    ///
+    /// L'ordre est imposé par la situation : on ne peut pas éjecter un volume
+    /// depuis un processus qui s'y exécute. Un veilleur détaché attend donc
+    /// notre disparition, démonte l'image, puis ouvre la bonne copie. Adopté
+    /// par launchd, il survit à notre sortie.
+    ///
+    /// Éjecter compte autant que réinstaller : c'est la fenêtre restée ouverte
+    /// sur l'icône de l'image qui provoque le double-clic au mauvais endroit,
+    /// et la refermer supprime la question au lieu d'y répondre.
+    private func relaunch(from bundle: URL, ejecting volume: URL?) {
+        let watcher = Process()
+        watcher.executableURL = URL(fileURLWithPath: "/bin/sh")
+        watcher.arguments = [
+            "-c",
+            """
+            while /bin/kill -0 "$1" 2>/dev/null; do /bin/sleep 0.2; done
+            /bin/sleep 0.4
+            if [ -n "$3" ]; then
+                /usr/bin/hdiutil detach "$3" -quiet 2>/dev/null \
+                    || /usr/bin/hdiutil detach "$3" -force -quiet 2>/dev/null
+            fi
+            /usr/bin/open "$2"
+            """,
+            "sofler-install",
+            String(ProcessInfo.processInfo.processIdentifier),
+            bundle.path,
+            volume?.path ?? "",
+        ]
+        watcher.standardOutput = FileHandle.nullDevice
+        watcher.standardError = FileHandle.nullDevice
+        try? watcher.run()
+        NSApp.terminate(nil)
     }
 
     /// Demande le micro au lancement plutôt qu'à la première dictée.
