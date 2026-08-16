@@ -93,9 +93,29 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: \
               -s -k "$password" "$keychain" >/dev/null
           security list-keychains -d user -s "$keychain" login.keychain-db
-          hash="$(security find-identity -v -p codesigning "$keychain" \
-                  | awk 'NR==1 {print $2}')"
-          [ -n "$hash" ] || { echo "::error::Certificat importé mais introuvable."; exit 1; }
+          # Sans `-v`, et c'est tout le sujet. Un certificat auto-signé n'est
+          # jamais « valide » au sens de la confiance — `find-identity -v` le
+          # classe CSSMERR_TP_NOT_TRUSTED et ne le liste pas — alors que
+          # codesign l'accepte parfaitement : signer ne demande que la clé
+          # privée, la confiance ne regarde que la vérification.
+          #
+          # Avec `-v`, la sortie était « 0 valid identities found », dont le
+          # deuxième mot est « valid ». L'ancien `awk NR==1 {print $2}` le
+          # prenait pour une empreinte, le test de non-vacuité passait, et le
+          # build échouait plus loin sur « valid: no identity found » — une
+          # erreur qui ne nomme ni le certificat ni l'étape fautive.
+          #
+          # On extrait donc une empreinte, pas un mot : quarante caractères
+          # hexadécimaux, ou rien.
+          hash="$(security find-identity -p codesigning "$keychain" \
+                  | grep -oE '[0-9A-F]{40}' | head -1)"
+          if [ -z "$hash" ]; then
+            echo "::error::Certificat importé, mais aucune identité de" \
+                 "signature n'en ressort. Le .p12 contient-il bien sa clé" \
+                 "privée ? (security find-identity -p codesigning)"
+            exit 1
+          fi
+          echo "identité de signature : $hash"
           echo "identity=$hash" >> "$GITHUB_OUTPUT"
 
       - name: Construire le DMG
