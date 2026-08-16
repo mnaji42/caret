@@ -53,8 +53,9 @@ enum Uninstall {
                 "Votre lexique, votre raccourci, vos préférences et les "
                     + "transcriptions récentes."
             case .permissions:
-                "Retire Sofler des Réglages Système. Sans ça, il y reste "
-                    + "listé alors qu'il n'existe plus."
+                "Retire Sofler des Réglages Système — micro, accessibilité et "
+                    + "reconnaissance vocale. Sans ça, il y reste listé alors "
+                    + "qu'il n'existe plus."
             case .service:
                 "Le service qui charge le modèle à l'ouverture de session. "
                     + "Il ne sert à rien sans l'application."
@@ -413,10 +414,22 @@ enum Uninstall {
         }
 
         if items.contains(.permissions) {
-            // « SpeechRecognition » depuis que le moteur de la Dictée existe :
-            // macOS la compte comme un droit distinct du micro, et la laisser
-            // accordée à une application retirée est exactement ce que ce
-            // désinstalleur existe pour éviter.
+            // « SpeechRecognition » depuis que la version Dictée du moteur de
+            // macOS existe : macOS la compte comme un droit distinct du micro,
+            // et la laisser accordée à une application retirée est exactement
+            // ce que ce désinstalleur existe pour éviter.
+            //
+            // Et c'est **tout** ce que les moteurs de macOS laissent derrière
+            // eux, vérifié version par version. Leurs modèles de
+            // reconnaissance n'appartiennent pas à Sofler : ceux de la Dictée
+            // sont installés par Réglages Système › Clavier › Dictée et
+            // servent à la dictée du système, ceux d'Apple Intelligence sont
+            // des actifs partagés par toutes les applications qui les
+            // demandent. Les retirer priverait l'utilisateur d'une
+            // fonctionnalité de macOS qu'il n'a jamais installée pour nous.
+            // Reste la locale réservée auprès d'`AssetInventory` : elle est
+            // rattachée à l'application, plafonnée à une seule à la fois
+            // (cf. `LivePreview.reserve`), et disparaît avec elle.
             for service in ["Microphone", "Accessibility", "SpeechRecognition"] {
                 runTool("/usr/bin/tccutil", ["reset", service, bundleIdentifier])
             }

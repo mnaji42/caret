@@ -40,7 +40,7 @@ final class AppleSpeechEngine: SpeechEngine, @unchecked Sendable {
     }
 
     var displayName: String {
-        get async { "macOS SpeechTranscriber · \(resolvedLocale ?? "—")" }
+        get async { "\(EngineChoice.apple.fullLabel) · \(resolvedLocale ?? "—")" }
     }
 
     func isReady() async -> Bool {

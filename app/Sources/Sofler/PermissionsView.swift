@@ -32,11 +32,20 @@ final class PermissionsMonitor {
     var neededCount: Int { requiresSpeech ? 3 : 2 }
 
     /// Le droit de reconnaissance vocale est-il en jeu ici ?
+    ///
+    /// Trois façons de faire tourner la Dictée, et il suffit d'une : elle
+    /// écrit, la collecte l'exécute après insertion, ou c'est elle qui assure
+    /// l'aperçu en direct. La version précédente ne voyait que la première et
+    /// une approximation de la troisième — quelqu'un qui écrivait avec
+    /// CrisperWhisper tout en archivant avec la Dictée n'avait jamais
+    /// l'occasion d'accorder le droit dont sa collecte dépendait.
     var requiresSpeech: Bool {
-        if Preferences.shared.engine == .appleLegacy { return true }
-        let language = Preferences.shared.language
-        return EngineChoice.appleLegacy.isAvailable(for: language)
-            && !EngineChoice.apple.isAvailable(for: language)
+        let prefs = Preferences.shared
+        // Contient toujours le moteur d'écriture, plus ceux de la collecte.
+        if prefs.enginesToCollect().contains(.appleLegacy) { return true }
+        return prefs.livePreviewEnabled
+            && SpeechPreview.engine(writing: prefs.engine,
+                                    for: prefs.language) == .appleLegacy
     }
 
     var allGranted: Bool {

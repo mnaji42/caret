@@ -208,7 +208,12 @@ final class Corpus {
             stats.count += 1
             stats.totalSeconds += entry.durationSeconds
             let moteurs = Set(entry.transcriptions.map(\.engine))
-            if moteurs.contains("apple") { stats.withApple += 1 }
+            // Les deux versions comptent : depuis que macOS en fournit deux,
+            // ne reconnaître que « apple » revenait à déclarer sans texte
+            // système toutes les dictées d'une machine sans Apple Intelligence.
+            if moteurs.contains(where: { EngineChoice(rawValue: $0)?.isSystem == true }) {
+                stats.withApple += 1
+            }
             if moteurs.count > 1 { stats.withBothEngines += 1 }
             if entry.audioFile != nil { stats.audioFiles += 1 }
         }
@@ -263,7 +268,7 @@ final class Corpus {
     | `destination` | `curseur` ou `notes` |
     | `lexicon` | termes envoyés aux moteurs, absent si celui du moteur |
     | `transcriptions[]` | une entrée par moteur et par mode |
-    | `transcriptions[].engine` | `apple`, `crisperwhisper`, … |
+    | `transcriptions[].engine` | `apple`, `apple-legacy` ou `crisperwhisper` |
     | `transcriptions[].model` | modèle précis, ou locale pour un moteur système |
     | `transcriptions[].mode` | `intended`, `verbatim`, absent si le moteur n'en a qu'un |
     | `transcriptions[].inserted` | celle qui a été réellement insérée |
@@ -271,16 +276,30 @@ final class Corpus {
     | `skipped[]` | moteurs demandés mais non exécutés, avec la raison |
     | `audioFile` | nom dans `audio/`, absent si l'audio n'est pas conservé |
 
-    Les trois textes viennent du **même** audio. `textApple` est celui de
-    l'aperçu en direct : il est produit en flux pendant la dictée, avec
-    l'option `fastResults`, donc légèrement moins exact que ce que le même
-    moteur produirait sur le fichier complet.
+    ## Les trois moteurs
+
+    | `engine` | ce que c'est |
+    |---|---|
+    | `apple` | `SpeechTranscriber`, la version Apple Intelligence du moteur de macOS |
+    | `apple-legacy` | `SFSpeechRecognizer`, la version qui fait tourner la Dictée de macOS |
+    | `crisperwhisper` | le service local, avec lexique et deux modes |
+
+    Les deux premiers viennent tous deux de macOS et **ne sont pas
+    interchangeables** : ils n'ont ni les mêmes modèles ni la même couverture
+    de langues. Une machine sans Apple Intelligence ne produit que le second.
+
+    Tous les textes d'une entrée viennent du **même** audio. Celui dont
+    `latencyMs` est absent est le texte de l'aperçu en direct : produit en flux
+    pendant la dictée, avec l'option `fastResults`, donc légèrement moins exact
+    que ce que le même moteur rendrait sur le fichier complet.
 
     ## Relire le corpus
 
         import pandas as pd
         df = pd.read_json("sessions.jsonl", lines=True)
-        df[["textIntended", "textApple"]].head()
+        textes = df.explode("transcriptions")
+        textes = pd.json_normalize(textes["transcriptions"])
+        textes.pivot_table(index="engine", values="latencyMs", aggfunc="median")
 
     ## Repartir de zéro
 

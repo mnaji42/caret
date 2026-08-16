@@ -158,7 +158,22 @@ final class Preferences {
     /// existe mais coûte une passe de détection et se trompe régulièrement sur
     /// les phrases mêlant deux langues, ce qui est précisément le cas d'usage.
     var language: String {
-        didSet { defaults.set(language, forKey: Key.language) }
+        didSet {
+            defaults.set(language, forKey: Key.language)
+            // Une version de macOS peut savoir écrire en français et pas en
+            // anglais : les actifs sont fournis par locale, et la Dictée
+            // n'installe que les langues qu'on lui a demandées. Rester sur une
+            // version qui ne sait rien produire dans la langue qu'on vient de
+            // choisir ne se manifesterait qu'à la dictée suivante, par un texte
+            // vide. On glisse donc vers l'autre version quand elle, elle sait —
+            // et seulement dans ce cas : un choix explicite qui fonctionne
+            // encore n'est jamais déplacé.
+            if engine.isSystem, !engine.isAvailable(for: language),
+               let usable = EngineChoice.systemEngine(preferring: engine,
+                                                      for: language) {
+                engine = usable
+            }
+        }
     }
 
     static let languages = [("fr", "Français"), ("en", "English")]
@@ -172,13 +187,15 @@ final class Preferences {
     /// d'écrire une ligne, et rien ne disait pourquoi.
     ///
     /// L'ordre suit la qualité attendue puis la disponibilité : le moteur de
-    /// macOS 26 s'il est là, celui de la Dictée sinon, et CrisperWhisper en
-    /// dernier — lui seul demande un téléchargement, il ne peut pas être un
-    /// défaut.
+    /// macOS 26 s'il est là, celui de la Dictée sinon. CrisperWhisper n'est
+    /// jamais un défaut — lui seul demande un téléchargement.
+    ///
+    /// Quand aucune version de macOS ne marche ici, on retient quand même la
+    /// famille : l'interface montre alors la ligne « macOS » avec la raison
+    /// mesurée et le bouton qui y mène, ce qui vaut mieux que de désigner un
+    /// moteur que rien n'explique.
     static func defaultEngine(for language: String) -> EngineChoice {
-        if EngineChoice.apple.isAvailable(for: language) { return .apple }
-        if EngineChoice.appleLegacy.isAvailable(for: language) { return .appleLegacy }
-        return .apple
+        EngineChoice.systemEngine(preferring: .apple, for: language) ?? .apple
     }
 
     // MARK: - Notes
@@ -239,9 +256,21 @@ final class Preferences {
     }
 
     /// Moteurs qui produiront une transcription pour cette dictée.
+    ///
+    /// Filtrés sur ce que la machine sait faire, dans la langue en cours. Sans
+    /// ce filtre, une case cochée pour un moteur que cette machine n'aura
+    /// jamais écrivait `skipped: "apple: indisponible"` à **chaque** dictée,
+    /// indéfiniment. Or `skipped` sert à repérer l'accident — une passe
+    /// abandonnée parce qu'on a réenchaîné, un moteur qui a échoué — et une
+    /// ligne qui se répète toujours à l'identique le noie.
+    ///
+    /// Le moteur d'écriture, lui, y figure quoi qu'il arrive : c'est lui qui
+    /// vient d'écrire, sa transcription existe déjà.
     func enginesToCollect() -> Set<EngineChoice> {
         guard corpusEnabled else { return [engine] }
-        return corpusEngines.union([engine])
+        return corpusEngines
+            .filter { $0.isAvailable(for: language) }
+            .union([engine])
     }
 
     // MARK: - Collecte

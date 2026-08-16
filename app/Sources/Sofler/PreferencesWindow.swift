@@ -490,6 +490,13 @@ private struct CollectionTab: View {
     @State private var prefs = Preferences.shared
     @State private var stats = Corpus.Statistics()
 
+    /// Le nom du moteur, et son état quand il ne peut rien produire ici.
+    private func label(for choice: EngineChoice) -> String {
+        choice.isAvailable(for: prefs.language)
+            ? choice.fullLabel
+            : "\(choice.fullLabel) — indisponible ici"
+    }
+
     var body: some View {
         Card(title: "Collecte") {
             FeatureSwitch(title: "Archiver mes dictées", isOn: $prefs.corpusEnabled)
@@ -515,8 +522,14 @@ private struct CollectionTab: View {
                 Divider().opacity(0.25)
                 Text("Transcrire aussi avec")
                     .font(.system(size: 12, weight: .medium))
+                // `fullLabel`, pas `label` : celui-ci nomme la famille, donc
+                // les deux versions de macOS afficheraient ici deux cases
+                // rigoureusement identiques. C'est le seul écran où l'on
+                // désigne un moteur précis plutôt qu'un fournisseur — on
+                // coche « macOS · Dictée » pour comparer les deux versions
+                // entre elles.
                 ForEach(EngineChoice.allCases, id: \.self) { choice in
-                    OptionCheck(title: choice.label, isOn: Binding(
+                    OptionCheck(title: label(for: choice), isOn: Binding(
                         get: { prefs.corpusEngines.contains(choice) },
                         set: { on in
                             if on { prefs.corpusEngines.insert(choice) }
@@ -527,6 +540,18 @@ private struct CollectionTab: View {
                 Note("En plus du moteur qui écrit, et **après** insertion : la "
                      + "latence de dictée n'est jamais échangée contre de la "
                      + "collecte. Un moteur non coché n'est jamais chargé.")
+                // Listé et non masqué : savoir qu'une version n'existe pas sur
+                // cette machine est une information, une ligne absente n'en est
+                // pas une. La case reste cochable — elle vaudra le jour où le
+                // moteur sera là, et d'ici là rien ne tourne.
+                if EngineChoice.allCases.contains(where: {
+                    !$0.isAvailable(for: prefs.language)
+                }) {
+                    Note("Les moteurs marqués indisponibles ne sont pas "
+                         + "exécutés et n'apparaissent pas dans le corpus : "
+                         + "cochés d'avance, ils reprendront le jour où cette "
+                         + "machine saura les faire tourner.")
+                }
                 if prefs.needsLocalEngine {
                     Label("Le service CrisperWhisper tourne — environ 3 Go en mémoire.",
                           systemImage: "memorychip")

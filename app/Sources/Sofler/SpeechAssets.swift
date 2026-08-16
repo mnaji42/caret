@@ -4,12 +4,17 @@ import Speech
 
 /// Les modèles de reconnaissance de macOS, langue par langue.
 ///
-/// Ce n'est pas une option. Le moteur de macOS écrit l'aperçu en direct sous
-/// la barre d'enregistrement quel que soit le moteur retenu, et il est le
-/// moteur par défaut : sans son modèle, Sofler ne montre rien pendant qu'on
+/// Ce n'est pas une option. Ce sont les actifs de la version **Apple
+/// Intelligence** du moteur de macOS — celle qui est retenue par défaut là où
+/// elle existe, et qui assure alors l'aperçu en direct sous la barre
+/// d'enregistrement : sans son modèle, Sofler ne montre rien pendant qu'on
 /// parle et n'écrit rien à la fin. Il n'y a donc pas de choix à proposer, mais
 /// un prérequis à satisfaire — et à satisfaire **avant** le premier essai,
 /// pas pendant.
+///
+/// La version **Dictée** n'a rien à voir avec ce fichier : ses modèles sont
+/// ceux que Réglages Système › Clavier › Dictée installe, et Sofler ne fait
+/// que constater leur présence.
 ///
 /// ## Par langue, et pas globalement
 ///

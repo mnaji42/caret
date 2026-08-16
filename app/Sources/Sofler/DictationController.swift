@@ -69,8 +69,16 @@ final class DictationController {
     /// le veut. `nil` le reste du temps.
     private var preview: (any SpeechPreviewing)?
 
-    /// Dernier texte rendu par le moteur de macOS pour la dictée en cours.
-    private var applePreviewText = ""
+    /// Dernier texte rendu par l'aperçu pour la dictée en cours, et le moteur
+    /// qui l'a produit.
+    ///
+    /// Les deux vont ensemble, et c'est le sujet d'un bug corrigé : le texte
+    /// était archivé sous « apple » quel que soit l'aperçu réellement employé,
+    /// donc une machine sans Apple Intelligence consignait du `SFSpeechRecognizer`
+    /// sous le nom du moteur de macOS 26. Un corpus qui se trompe de moteur ne
+    /// répond plus à la seule question pour laquelle il existe.
+    private var previewText = ""
+    private var previewEngine: EngineChoice?
 
     /// Seconde passe du moteur pour la collecte. Annulable : elle ne doit
     /// jamais retarder une nouvelle dictée.
@@ -207,7 +215,8 @@ final class DictationController {
             // qu'une requête à la fois, et la dictée qui commence est
             // prioritaire sur l'archivage de la précédente.
             secondPassTask?.cancel()
-            applePreviewText = ""
+            previewText = ""
+            previewEngine = nil
             // Avant d'afficher la barre : elle grise le bouton Notes tant
             // qu'un sélecteur serait impossible, et lit l'état pour le savoir.
             state = .recording
@@ -407,18 +416,24 @@ final class DictationController {
 
         // Figé ici, et pas à l'archivage : l'archivage a lieu plusieurs
         // centaines de millisecondes plus tard, et si l'utilisateur réenchaîne
-        // une dictée d'ici là, `applePreviewText` a déjà été réinitialisé puis
+        // une dictée d'ici là, `previewText` a déjà été réinitialisé puis
         // rempli par la nouvelle. Constaté dans le corpus — une entrée portait
         // comme texte Apple le début de la dictée suivante. À ce point-ci la
         // reconnaissance système est finalisée depuis longtemps : elle l'était
         // avant même que la transcription ne rende la main.
-        let preview = applePreviewText
+        //
+        // Le moteur de l'aperçu est figé avec son texte, pour la même raison et
+        // parce qu'il n'est pas devinable : il dépend du moteur d'écriture et
+        // de ce que la machine sait faire.
+        let preview = previewText
+        let previewEngine = previewEngine
         let pending = prefs.enginesToCollect().subtracting([choice])
         secondPassTask = Task { [weak self] in
             await self?.completeAndArchive(entry, samples: samples,
                                            primary: primary, insertedMode: used,
                                            writer: choice, pending: pending,
-                                           preview: preview)
+                                           preview: preview,
+                                           previewEngine: previewEngine)
         }
     }
 
@@ -434,7 +449,8 @@ final class DictationController {
                                     insertedMode: TranscriptionMode,
                                     writer choice: EngineChoice,
                                     pending: Set<EngineChoice>,
-                                    preview: String) async {
+                                    preview: String,
+                                    previewEngine: EngineChoice?) async {
         var entry = entry
         let identity = await (engine(for: choice)?.identity
                               ?? EngineIdentity(engine: choice.rawValue, model: nil))
@@ -454,10 +470,12 @@ final class DictationController {
             remaining.append((engine, engine.hasModes ? .intended : nil))
         }
 
-        // L'aperçu a déjà transcrit avec le moteur système : on ne le refait
-        // pas tourner pour rien.
-        if !preview.isEmpty,
-           let index = remaining.firstIndex(where: { $0.0 == .apple }) {
+        // L'aperçu a déjà transcrit avec l'un des moteurs de macOS : on ne le
+        // refait pas tourner pour rien. Lequel, on ne le devine pas — il suit
+        // le moteur d'écriture et ce que la machine sait faire — d'où
+        // `previewEngine`, figé avec le texte à la source.
+        if !preview.isEmpty, let previewEngine,
+           let index = remaining.firstIndex(where: { $0.0 == previewEngine }) {
             // La locale, pas `nil`. Ce raccourci écrivait « apple » sans rien
             // d'autre, alors que la seconde passe, elle, enregistre bien
             // `fr-FR` : deux lignes du même moteur n'étaient donc pas
@@ -465,9 +483,10 @@ final class DictationController {
             // exactement le champ dont une analyse ultérieure a besoin —
             // arbitrer CrisperWhisper contre macOS suppose de savoir sur
             // quelle langue chaque texte a été produit.
-            let identity = await engine(for: .apple)?.identity
+            let identity = await engine(for: previewEngine)?.identity
             entry.transcriptions.append(CorpusTranscription(
-                engine: "apple", model: identity?.model, mode: nil,
+                engine: identity?.engine ?? previewEngine.rawValue,
+                model: identity?.model, mode: nil,
                 text: preview, latencyMs: nil, inserted: false))
             remaining.remove(at: index)
         }
@@ -478,7 +497,13 @@ final class DictationController {
                 entry.skipped.append("\(choice.rawValue): dictée enchaînée")
                 continue
             }
-            guard let engine = engine(for: choice) else {
+            // Demandé avant d'essayer, et mesuré : `legacyEngine` existe
+            // toujours, même là où la Dictée n'a aucun modèle. Sans ce test on
+            // apprendrait l'indisponibilité par une exception, après avoir fait
+            // attendre la machine — et la raison archivée serait un message
+            // d'erreur au lieu du fait.
+            guard choice.isAvailable(for: entry.language),
+                  let engine = engine(for: choice) else {
                 entry.skipped.append("\(choice.rawValue): indisponible")
                 continue
             }
@@ -512,12 +537,15 @@ final class DictationController {
     /// l'aperçu n'a donc aucun effet sur la dictée.
     private func startPreview() {
         guard Preferences.shared.livePreviewEnabled, preview == nil else { return }
-        guard let preview = SpeechPreview.make(
-            for: language,
+        // Le moteur d'écriture décide : quand c'est macOS qui écrit, l'aperçu
+        // emploie exactement la même version, et devient donc une vraie
+        // préversion du texte inséré. Cf. `SpeechPreview.engine`.
+        guard let made = SpeechPreview.make(
+            writing: Preferences.shared.engine, for: language,
             onText: { [weak self] text in
-                // Retenu pour la collecte : c'est la transcription du moteur
+                // Retenu pour la collecte : c'est la transcription d'un moteur
                 // de macOS sur exactement le même audio.
-                self?.applePreviewText = text
+                self?.previewText = text
                 self?.overlay.setPreviewText(text)
             },
             onFailure: { [weak self] reason in self?.overlay.setPreviewNotice(reason) })
@@ -525,11 +553,14 @@ final class DictationController {
             overlay.setPreviewNotice("aperçu indisponible sur cette machine")
             return
         }
-        self.preview = preview
-        recorder.onBuffer = { [weak preview] buffer in preview?.append(buffer) }
+        self.preview = made.preview
+        previewEngine = made.engine
+        recorder.onBuffer = { [weak preview = made.preview] buffer in
+            preview?.append(buffer)
+        }
         // Détaché : le premier lancement peut télécharger le modèle système,
         // et la dictée ne doit pas attendre.
-        Task { await preview.start(language: language) }
+        Task { await made.preview.start(language: language) }
     }
 
     private func stopPreview() {

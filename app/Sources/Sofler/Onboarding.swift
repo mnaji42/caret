@@ -196,24 +196,33 @@ private struct OnboardingView: View {
 
     private var permissionsStep: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // La version de macOS ne bloque pas : elle ne se corrige pas dans
-            // l'instant, et griser « Continuer » dessus enfermerait quelqu'un
-            // dans un écran dont il ne peut plus sortir.
+            // Ce que cette machine sait faire ne bloque pas : ça ne se corrige
+            // pas dans l'instant, et griser « Continuer » dessus enfermerait
+            // quelqu'un dans un écran dont il ne peut plus sortir.
+            //
+            // Et c'est **mesuré**. La version précédente lisait le numéro de
+            // macOS : elle annonçait « le moteur intégré demande macOS 26 » et
+            // proposait une mise à jour système sur des Mac où la Dictée
+            // d'Apple dicte parfaitement — un avertissement inquiétant, une
+            // action inutile, et rien de vrai.
             Card(title: "votre Mac") {
-                StatusRow(ok: EngineChoice.systemEngineAvailable, label: systemVersionLabel,
-                          detail: EngineChoice.systemEngineAvailable
-                            ? "le moteur intégré est disponible"
-                            : "le moteur intégré demande macOS 26",
+                StatusRow(ok: usableSystemEngine != nil, label: systemVersionLabel,
+                          detail: usableSystemEngine.map {
+                              "\($0.versionLabel ?? $0.label) — prêt à écrire"
+                          } ?? "aucun moteur de macOS utilisable ici",
                           warningOnly: true)
-                if !EngineChoice.systemEngineAvailable {
-                    Note("Sur votre version, le moteur inclus n'existe pas. "
-                         + "Vous pouvez mettre à jour macOS, ou passer par "
-                         + "CrisperWhisper à l'écran suivant — il fonctionne "
-                         + "dès macOS 14.", warning: true)
-                    Button("Ouvrir la mise à jour de logiciels") {
-                        NSWorkspace.shared.open(URL(
-                            string: "x-apple.systempreferences:com.apple.preferences.softwareupdate")!)
+                if usableSystemEngine == nil {
+                    Note(LegacySpeechEngine.unavailabilityReason(for: prefs.language)
+                         ?? "Aucune version du moteur de macOS n'est utilisable "
+                            + "ici.", warning: true)
+                    ButtonRow {
+                        Button("Ouvrir Réglages › Clavier") {
+                            NSWorkspace.shared.open(URL(string:
+                                "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
+                        }
                     }
+                    Note("CrisperWhisper s'installe à l'écran suivant et ne "
+                         + "dépend d'aucun moteur de macOS.")
                 }
             }
 
@@ -222,10 +231,19 @@ private struct OnboardingView: View {
             }
 
             if !monitor.allGranted {
-                Note("« Continuer » s'activera dès que les deux seront "
+                // Le compte suit la machine : la reconnaissance vocale ne
+                // s'ajoute que là où la Dictée sert réellement. Le titre de la
+                // page le savait déjà, cette note annonçait « les deux » devant
+                // trois cases.
+                Note("« Continuer » s'activera dès que \(monitor.neededCount == 3 ? "les trois" : "les deux") seront "
                      + "accordées.")
             }
         }
+    }
+
+    /// La version de macOS qui écrirait si l'on dictait maintenant.
+    private var usableSystemEngine: EngineChoice? {
+        EngineChoice.systemEngine(preferring: prefs.engine, for: prefs.language)
     }
 
     // MARK: 2 — Langue, et le modèle qui va avec
@@ -258,11 +276,12 @@ private struct OnboardingView: View {
             if EngineChoice.apple.isAvailable(for: prefs.language) {
                 Card(title: "modèle de reconnaissance") {
                     if EngineChoice.appleLegacy.isAvailable(for: prefs.language) {
-                        Note("Sofler peut déjà écrire : la Dictée de macOS est "
-                             + "prête et n'a rien à télécharger. Ce modèle-ci "
-                             + "est celui du moteur apparu avec macOS 26, qui "
-                             + "transcrit les passages longs plus finement — "
-                             + "vous pourrez comparer les deux.")
+                        Note("Sofler peut déjà écrire : la version **Dictée** "
+                             + "est prête et n'a rien à télécharger. Ce "
+                             + "modèle-ci est celui de la version **Apple "
+                             + "Intelligence**, qui transcrit les passages "
+                             + "longs plus finement — vous pourrez basculer de "
+                             + "l'une à l'autre à l'écran suivant.")
                     }
                     ForEach(Preferences.languages, id: \.0) { code, label in
                         SpeechModelRow(language: code, label: label)
@@ -278,10 +297,12 @@ private struct OnboardingView: View {
                 }
             } else if EngineChoice.appleLegacy.isAvailable(for: prefs.language) {
                 Card(title: "moteur de dictée") {
-                    StatusRow(ok: true, label: "Dictée de macOS", detail: "prête")
-                    Note("Votre version de macOS n'a pas le moteur apparu avec "
-                         + "macOS 26, mais elle a celui de la Dictée — et il "
-                         + "n'a rien à télécharger. Sofler s'en servira.")
+                    StatusRow(ok: true, label: EngineChoice.appleLegacy.fullLabel,
+                              detail: "prêt")
+                    Note("Cette machine n'a pas la version **Apple "
+                         + "Intelligence** du moteur de macOS, mais elle a "
+                         + "celle de la **Dictée** — et elle n'a rien à "
+                         + "télécharger. Sofler s'en servira.")
                 }
             } else {
                 Card(title: "moteur de dictée") {
@@ -411,12 +432,17 @@ private struct OnboardingView: View {
     private var canContinue: Bool {
         switch step {
         case .language:
-            // Le moteur de la Dictée ne dépend d'aucun téléchargement : s'il
-            // est là, la page est satisfaite quoi qu'il arrive au modèle de
-            // macOS 26. Bloquer dessus enfermerait sur une machine qui sait
+            // La version Dictée ne dépend d'aucun téléchargement : si elle est
+            // là, la page est satisfaite quoi qu'il arrive au modèle de l'autre
+            // version. Bloquer dessus enfermerait sur une machine qui sait
             // parfaitement dicter.
+            //
+            // Et la seconde condition se mesure — `SpeechTranscriber.isAvailable`
+            // — au lieu de lire le numéro de macOS : une machine virtuelle en
+            // macOS 26 n'a pas ce moteur, et attendre un modèle qu'elle ne
+            // saura jamais installer bloquait l'accueil pour de bon.
             EngineChoice.appleLegacy.isAvailable(for: prefs.language)
-                || !EngineChoice.systemEngineAvailable
+                || !EngineChoice.apple.isAvailable(for: prefs.language)
                 || assets.isSettled(prefs.language)
         case .permissions:
             monitor.allGranted

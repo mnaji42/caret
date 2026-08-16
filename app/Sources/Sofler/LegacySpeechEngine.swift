@@ -162,7 +162,7 @@ final class LegacySpeechEngine: SpeechEngine, @unchecked Sendable {
     }
 
     var displayName: String {
-        get async { "macOS Dictée · \(resolvedLocale ?? "—")" }
+        get async { "\(EngineChoice.appleLegacy.fullLabel) · \(resolvedLocale ?? "—")" }
     }
 
     func isReady() async -> Bool {

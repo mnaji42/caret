@@ -68,7 +68,7 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
     /// texte système très court avaient été mises sur le compte de cette
     /// omission. Vérification faite, ces textes n'étaient pas tronqués mais
     /// **étrangers** — des fragments d'autres dictées, dus à une course sur
-    /// `applePreviewText`, corrigée ailleurs. La réservation reste nécessaire
+    /// `previewText`, corrigée ailleurs. La réservation reste nécessaire
     /// parce que le framework la réclame, pas parce qu'on lui a mesuré cet
     /// effet-là.
     ///
@@ -238,6 +238,31 @@ final class LivePreview: SpeechPreviewing, @unchecked Sendable {
 /// Un seul endroit teste la version : le reste du code ne voit qu'un
 /// `SpeechPreviewing?`.
 enum SpeechPreview {
+    /// Quel moteur va montrer le texte pendant qu'on parle.
+    ///
+    /// Il **suit le moteur d'écriture** dès que celui-ci vient de macOS, et ce
+    /// n'est pas qu'une question de cohérence d'affichage : chaque moteur
+    /// système a son autorisation — la reconnaissance vocale, que macOS compte
+    /// séparément du micro — et ses actifs, un modèle par locale à télécharger.
+    /// Faire tourner l'autre pour le seul aperçu réclamerait donc un droit ou
+    /// un téléchargement dont l'utilisateur n'a aucun usage.
+    ///
+    /// La condition porte sur `isSystem`, jamais sur un moteur nommé : un
+    /// quatrième moteur ajouté demain tomberait dans le cas « pas un moteur de
+    /// macOS » sans qu'on ait à y penser, alors qu'un test sur CrisperWhisper
+    /// l'aurait fait passer pour un moteur système.
+    ///
+    /// Quand ce n'est pas macOS qui écrit, l'aperçu ne peut pas être le moteur
+    /// d'écriture (cf. l'en-tête de `LivePreview` : une passe CrisperWhisper
+    /// par seconde coûterait la latence finale) : on prend alors la version la
+    /// plus fine disponible, Apple Intelligence d'abord, la Dictée sinon.
+    ///
+    /// - Returns: `nil` si cette machine ne sait produire aucun aperçu.
+    static func engine(writing: EngineChoice, for language: String) -> EngineChoice? {
+        if writing.isSystem, writing.isAvailable(for: language) { return writing }
+        return EngineChoice.availableSystemEngines(for: language).first
+    }
+
     /// Choisit l'implémentation selon ce que la machine sait faire.
     ///
     /// L'aperçu n'était branché que sur `SpeechTranscriber`, donc il
@@ -246,20 +271,25 @@ enum SpeechPreview {
     /// ça sans que le contrôleur de dictée en sache quoi que ce soit : il
     /// demande un aperçu, il en reçoit un.
     ///
-    /// L'ordre suit la finesse attendue : le moteur de macOS 26 quand il est
-    /// réellement disponible — mesuré, pas déduit de la version — celui de la
-    /// Dictée sinon.
+    /// Le moteur retenu est **rendu avec l'aperçu**, et non deviné par
+    /// l'appelant. C'est ce que la collecte archive : le texte de l'aperçu
+    /// était consigné sous « apple » quoi qu'il arrive, si bien qu'une machine
+    /// sans Apple Intelligence enregistrait du `SFSpeechRecognizer` sous le nom
+    /// de l'autre moteur — exactement la distinction que le corpus existe pour
+    /// établir.
     @MainActor
-    static func make(for language: String,
+    static func make(writing: EngineChoice, for language: String,
                      onText: @escaping @MainActor @Sendable (String) -> Void,
                      onFailure: @escaping @MainActor @Sendable (String) -> Void)
-    -> (any SpeechPreviewing)? {
-        if EngineChoice.apple.isAvailable(for: language), #available(macOS 26.0, *) {
-            return LivePreview(onText: onText, onFailure: onFailure)
+    -> (engine: EngineChoice, preview: any SpeechPreviewing)? {
+        switch engine(writing: writing, for: language) {
+        case .apple:
+            guard #available(macOS 26.0, *) else { return nil }
+            return (.apple, LivePreview(onText: onText, onFailure: onFailure))
+        case .appleLegacy:
+            return (.appleLegacy, LegacyLivePreview(onText: onText, onFailure: onFailure))
+        default:
+            return nil
         }
-        if EngineChoice.appleLegacy.isAvailable(for: language) {
-            return LegacyLivePreview(onText: onText, onFailure: onFailure)
-        }
-        return nil
     }
 }
