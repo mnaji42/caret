@@ -164,13 +164,21 @@ final class SpeechAssets {
             if await SpeechTranscriber.supportedLocales.isEmpty {
                 Log.error("assets: le système ne propose aucune langue — "
                           + "moteur macOS indisponible sur cette machine")
+                // Ce qui est établi, et rien de plus. `SpeechTranscriber` ne
+                // fonctionne pas sous virtualisation : `supportedLocales` y
+                // rend une liste vide et `isAvailable` répond faux. C'est une
+                // limite de la virtualisation elle-même, rapportée par
+                // d'autres développeurs et vérifiable — pas un réglage manqué,
+                // pas Siri, pas un compte Apple. Rien de ce que l'utilisateur
+                // pourrait faire n'y changerait quoi que ce soit, et le lui
+                // suggérer l'enverrait chercher pendant une heure.
                 states[language] = .unsupported(
                     "macOS ne propose aucune langue de reconnaissance sur "
-                    + "cette machine : son moteur de dictée n'y est pas "
-                    + "approvisionné. Cela arrive sur une machine virtuelle, "
-                    + "ou sur un Mac dont la dictée n'a jamais été activée. "
-                    + "CrisperWhisper ne dépend pas de ce moteur et "
-                    + "fonctionnera normalement.")
+                    + "cette machine. C'est le cas des machines virtuelles et "
+                    + "des simulateurs, où ce moteur n'est pas disponible — "
+                    + "il n'y a rien à activer pour l'obtenir. Sur un Mac "
+                    + "ordinaire il fonctionne. CrisperWhisper, lui, ne "
+                    + "dépend pas de ce moteur et marchera ici.")
                 return
             }
 
