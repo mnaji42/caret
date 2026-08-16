@@ -83,10 +83,13 @@
     curseur clignote. Tout reste sur votre Mac.
   </p>
 
-  <a class="btn" id="download" aria-disabled="true" href="#">
-    Vérification…
+  <!-- Actif d'emblée, sur l'URL stable : le bouton ne dépend d'aucune
+       requête. Voir le script en bas de page. -->
+  <a class="btn" id="download"
+     href="https://github.com/mnaji42/sofler/releases/latest/download/Sofler.dmg">
+    Télécharger pour macOS
   </a>
-  <p class="status" id="status">Recherche de la dernière version publiée…</p>
+  <p class="status" id="status">Dernière version · macOS 14 ou plus récent</p>
 
   <div class="card">
     <h2>Au premier lancement</h2>
@@ -109,21 +112,33 @@
 </main>
 
 <script>
-  // On interroge *toutes* les releases, pas seulement la dernière.
+  // Le bouton fonctionne **avant** cette requête, et sans elle.
   //
-  // GitHub compte les téléchargements par asset, et chaque version a le sien :
-  // publier une 0.1.4 remettait donc le compteur à zéro, comme si personne
-  // n'avait jamais rien téléchargé. Or quelqu'un qui a pris la 0.1.2 est bien
-  // un utilisateur — il mettra à jour, ou pas, mais il compte. Le total se
-  // cumule sur toutes les versions.
+  // Il était désactivé au chargement et n'était activé qu'en cas de réponse
+  // favorable de l'API GitHub. Résultat : la moindre défaillance de cette
+  // requête rendait l'application impossible à télécharger. Et cette API
+  // limite le débit **par adresse IP**, sans authentification — un réseau
+  // partagé, un bureau, un café suffisent à épuiser le quota pour tout le
+  // monde. La page affichait alors « Indisponible · GitHub a répondu 403 »
+  // pendant que le fichier, lui, était parfaitement téléchargeable.
+  //
+  // L'action principale ne dépend donc plus d'une requête secondaire.
+  // `releases/latest/download/Sofler.dmg` est une redirection permanente que
+  // GitHub sert sans passer par l'API : elle pointe toujours sur la dernière
+  // publication. Ce qui suit n'ajoute que du détail — version, poids, nombre
+  // de téléchargements — et son échec ne coûte plus que ce détail.
+  //
+  // On interroge *toutes* les releases, pas seulement la dernière : GitHub
+  // compte les téléchargements par asset, et chaque version a le sien. Publier
+  // une 0.1.4 remettait le compteur à zéro, comme si personne n'avait jamais
+  // rien pris. Or quelqu'un resté en 0.1.2 est bien un utilisateur.
   fetch("https://api.github.com/repos/mnaji42/sofler/releases")
     .then(function (r) {
-      if (!r.ok) throw new Error("GitHub a répondu " + r.status);
+      if (!r.ok) throw new Error("indisponible");
       return r.json();
     })
     .then(function (releases) {
-      if (!releases.length) throw new Error("aucune release publiée pour l'instant");
-      // Renvoyées de la plus récente à la plus ancienne.
+      if (!releases.length) return;
       var release = releases[0];
       var downloads = releases.reduce(function (sum, rel) {
         return sum + (rel.assets || []).reduce(function (s, a) {
@@ -133,31 +148,15 @@
       var dmg = (release.assets || []).filter(function (a) {
         return a.name === "Sofler.dmg";
       })[0];
-      var el = document.getElementById("status");
-      var btn = document.getElementById("download");
-      if (!dmg) {
-        el.textContent = "⚠ Release " + release.tag_name
-          + " trouvée, mais aucun asset nommé Sofler.dmg.";
-        btn.textContent = "Indisponible";
-        return;
-      }
-      // On pointe sur l'URL réelle de l'asset plutôt que sur l'alias
-      // « latest » : c'est la même chose une fois la release publiée, mais
-      // celle-ci est confirmée existante par la réponse qu'on vient de lire.
-      //
-      // Le navigateur télécharge sans quitter la page : GitHub sert l'asset
-      // avec `content-disposition: attachment`. Les 404 qui font naviguer
-      // viennent d'une release absente, pas du lien.
-      btn.href = dmg.browser_download_url;
-      btn.setAttribute("aria-disabled", "false");
-      btn.textContent = "Télécharger pour macOS";
-      el.textContent = "✓ " + release.tag_name + " · "
-        + (dmg.size / 1048576).toFixed(1) + " Mo · "
+      if (!dmg) return;
+      document.getElementById("status").textContent =
+        release.tag_name + " · " + (dmg.size / 1048576).toFixed(1) + " Mo · "
         + downloads + " téléchargement(s) au total";
     })
-    .catch(function (e) {
-      document.getElementById("status").textContent = "⚠ " + e.message;
-      document.getElementById("download").textContent = "Indisponible";
+    .catch(function () {
+      // Silencieux, et c'est voulu : le téléchargement marche, seul son
+      // numéro de version manque. Afficher un avertissement ferait douter
+      // d'un bouton qui fonctionne.
     });
 </script>
 </body>
