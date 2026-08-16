@@ -279,11 +279,18 @@ private struct OnboardingView: View {
                          + "n'a rien à télécharger. Sofler s'en servira.")
                 }
             } else {
-                Card(title: "moteur intégré") {
-                    Note("Aucun moteur de macOS n'est utilisable sur cette "
-                         + "machine. CrisperWhisper s'installe deux écrans "
-                         + "plus loin, et ne dépend d'aucun d'eux.",
+                Card(title: "moteur de dictée") {
+                    Note(LegacySpeechEngine.unavailabilityReason(for: prefs.language)
+                         ?? "Aucun moteur de macOS n'est utilisable ici.",
                          warning: true)
+                    ButtonRow {
+                        Button("Ouvrir Réglages › Clavier") {
+                            NSWorkspace.shared.open(URL(string:
+                                "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
+                        }
+                    }
+                    Note("CrisperWhisper s'installe deux écrans plus loin et "
+                         + "ne dépend d'aucun moteur de macOS.")
                 }
             }
         }

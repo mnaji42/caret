@@ -45,11 +45,20 @@ final class PermissionsMonitor {
     }
 
     func refresh() {
+        let wasMic = micAccess
         micAccess = AudioRecorder.microphoneAccess
 
         let granted = AXIsProcessTrusted()
         let wasGranted = accessibilityGranted
         accessibilityGranted = granted
+
+        // Accorder une autorisation fait passer les Réglages Système devant,
+        // et l'accueil disparaît derrière — on se retrouve à le chercher dans
+        // Mission Control alors qu'on venait de faire exactement ce qu'il
+        // demandait. macOS ne le remonte pas tout seul.
+        if (granted && !wasGranted) || (micAccess == .granted && wasMic != .granted) {
+            returnToForeground()
+        }
         // C'est ici qu'on apprend le plus tôt que le droit vient d'arriver —
         // pendant que l'accueil est ouvert et que l'utilisateur regarde. Le
         // déclencheur clavier en dépend et ne se répare pas seul.
@@ -57,6 +66,20 @@ final class PermissionsMonitor {
             NotificationCenter.default.post(name: .soflerAccessibilityGranted,
                                             object: nil)
         }
+    }
+
+    /// Ramène Sofler devant, au moment où l'on sait que le droit vient
+    /// d'arriver.
+    ///
+    /// Seulement si une de ses fenêtres est visible : accorder l'accessibilité
+    /// six mois plus tard, depuis les Réglages Système, ne doit pas faire
+    /// surgir une application d'arrière-plan par-dessus le travail en cours.
+    private func returnToForeground() {
+        guard let window = NSApp.windows.first(where: {
+            $0.isVisible && $0.canBecomeKey
+        }) else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
     }
 
     /// Déclenche le dialogue système du micro, si macOS accepte encore de

@@ -68,6 +68,32 @@ final class LegacySpeechEngine: SpeechEngine, @unchecked Sendable {
         return recognizer.isAvailable && recognizer.supportsOnDeviceRecognition
     }
 
+    /// Pourquoi cette langue ne marche pas, quand elle ne marche pas.
+    ///
+    /// « Aucun moteur de macOS n'est utilisable » était vrai et inutilisable :
+    /// sur une machine où la Dictée a été activée en français, l'anglais n'a
+    /// simplement pas ses modèles, et il suffit de les ajouter. Distinguer les
+    /// deux cas change une impasse en une action.
+    @MainActor
+    static func unavailabilityReason(for language: String) -> String? {
+        if isAvailable(for: language) { return nil }
+        let others = Preferences.languages.map(\.0).filter { $0 != language }
+        let elsewhere = others.first { isAvailable(for: $0) }
+        let name = Preferences.languages.first { $0.0 == language }?.1 ?? language
+
+        if let elsewhere {
+            let working = Preferences.languages.first { $0.0 == elsewhere }?.1
+                ?? elsewhere
+            return "La Dictée de macOS fonctionne ici en \(working), mais pas "
+                + "encore en \(name) : ses modèles ne sont pas installés. "
+                + "Ajoutez la langue dans Réglages Système › Clavier › Dictée, "
+                + "puis revenez — Sofler la verra aussitôt."
+        }
+        return "La Dictée de macOS n'est pas activée sur cette machine. "
+            + "Activez-la dans Réglages Système › Clavier › Dictée : c'est "
+            + "elle qui installe les modèles dont Sofler se sert."
+    }
+
     /// Les langues que ce moteur sait traiter hors ligne, en codes courts.
     ///
     /// Regroupées par langue et non par région : l'application propose « fr »,

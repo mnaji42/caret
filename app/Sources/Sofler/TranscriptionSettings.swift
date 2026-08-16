@@ -73,11 +73,15 @@ struct TranscriptionSettings: View {
             }
 
             if availableSystemEngines.isEmpty {
-                Note("Aucun moteur de macOS n'est utilisable sur cette "
-                     + "machine : ni celui de macOS 26, qui demande Apple "
-                     + "Intelligence, ni celui de la Dictée, qui demande une "
-                     + "reconnaissance hors ligne. CrisperWhisper ne dépend "
-                     + "d'aucun des deux.", warning: true)
+                Note(LegacySpeechEngine.unavailabilityReason(for: prefs.language)
+                     ?? "Aucun moteur de macOS n'est utilisable ici.",
+                     warning: true)
+                ButtonRow {
+                    Button("Ouvrir Réglages › Clavier") {
+                        NSWorkspace.shared.open(URL(string:
+                            "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
+                    }
+                }
             }
 
             ChoiceRow(title: crisperTitle,
