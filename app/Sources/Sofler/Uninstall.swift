@@ -28,6 +28,7 @@ enum Uninstall {
         case settings
         case permissions
         case service
+        case engine
         case logs
         case corpus
         case model
@@ -39,6 +40,7 @@ enum Uninstall {
             case .settings: "Réglages et historique"
             case .permissions: "Autorisations micro et accessibilité"
             case .service: "Service moteur CrisperWhisper"
+            case .engine: "Moteur Python et ses bibliothèques"
             case .logs: "Journaux et fichiers temporaires"
             case .corpus: "Dictées archivées"
             case .model: "Modèle CrisperWhisper"
@@ -56,6 +58,12 @@ enum Uninstall {
             case .service:
                 "Le service qui charge le modèle à l'ouverture de session. "
                     + "Il ne sert à rien sans l'application."
+            case .engine:
+                "Python, torch et transformers — les bibliothèques installées "
+                    + "depuis le Terminal, et la déclaration qui dit à Sofler "
+                    + "où elles sont. **Les garder permet de réinstaller sans "
+                    + "retoucher au Terminal**, un bouton suffira ; les "
+                    + "retirer libère plus d'un gigaoctet."
             case .logs:
                 "Sans valeur une fois l'application partie."
             case .corpus:
@@ -70,14 +78,17 @@ enum Uninstall {
 
         /// Coché d'avance ?
         ///
-        /// Tout ce qui est petit et se reconstruit, oui. Le corpus et le
-        /// modèle, non : l'un est irremplaçable, l'autre coûte un long
-        /// téléchargement. Un désinstalleur qui coche par défaut la seule
-        /// chose qu'on ne peut pas récupérer est un piège.
+        /// Tout ce qui est petit et se reconstruit, oui. Le corpus, le modèle
+        /// et le moteur, non : le premier est irremplaçable, le deuxième coûte
+        /// un long téléchargement, et le troisième est le seul dont la
+        /// reconstruction repasse par le Terminal. Un désinstalleur qui coche
+        /// par défaut la seule chose qu'on ne peut pas récupérer est un piège ;
+        /// un désinstalleur qui impose une ligne de commande à quiconque
+        /// réinstalle en est un autre.
         var checkedByDefault: Bool {
             switch self {
             case .settings, .permissions, .service, .logs: true
-            case .corpus, .model: false
+            case .engine, .corpus, .model: false
             }
         }
 
@@ -100,10 +111,58 @@ enum Uninstall {
     private static var preferencesFile: URL {
         home.appending(path: "Library/Preferences/\(bundleIdentifier).plist")
     }
-    /// Contient le corpus *et* les sauvegardes de réglages : c'est tout ce que
-    /// Sofler garde à long terme.
+    /// Contient le corpus, les sauvegardes de réglages et la déclaration du
+    /// moteur : c'est tout ce que Sofler garde à long terme.
+    ///
+    /// Il n'est jamais retiré d'un bloc. Ce qu'il contient appartient à trois
+    /// cases différentes, et les jeter ensemble a déjà eu une conséquence
+    /// concrète : `engine.json` ne partait qu'avec les dictées archivées,
+    /// c'est-à-dire seulement si l'on cochait la seule case que l'interface
+    /// laisse décochée exprès. Le dossier lui-même s'en va à la fin, s'il ne
+    /// reste rien dedans.
     private static var supportDirectory: URL {
         home.appending(path: "Library/Application Support/Sofler")
+    }
+    private static var corpusDirectory: URL {
+        supportDirectory.appending(path: "corpus")
+    }
+
+    /// Ce que `setup-engine.sh` a laissé sur la machine.
+    ///
+    /// Déduit du descripteur, jamais d'un chemin écrit en dur — et la
+    /// distinction n'est pas cosmétique ici. Se tromper d'emplacement dans un
+    /// désinstalleur ne produit pas un message d'erreur : ça met à la
+    /// corbeille le dossier de quelqu'un d'autre.
+    ///
+    /// D'où la règle sur le dépôt cloné : il ne part **que** s'il se trouve
+    /// exactement là où la commande d'installation le met, `~/.sofler`. Sur
+    /// une machine de développement, `project` désigne le dépôt de travail ;
+    /// en remonter d'un cran et le jeter effacerait le code source et tout ce
+    /// qui n'y est pas encore commité. Dans ce cas seul l'environnement
+    /// Python s'en va — c'est lui qui pèse, et lui seul se régénère.
+    private static var enginePaths: (bulk: URL?, label: String) {
+        let fm = FileManager.default
+        guard let project = EngineInstall.descriptor?.project else {
+            return (nil, "")
+        }
+        let projectURL = URL(fileURLWithPath: project).standardizedFileURL
+        let clone = projectURL.deletingLastPathComponent()
+        let canonical = home.appending(path: ".sofler").standardizedFileURL
+
+        // Comparés par leur `path`, jamais comme deux `URL`. Elles ne sont pas
+        // égales ici : `deletingLastPathComponent()` rend « …/.sofler/ » quand
+        // `appending(path:)` rend « …/.sofler », et l'égalité d'URL porte sur
+        // la chaîne entière, barre oblique comprise. Le test échouait donc
+        // toujours, et le dépôt cloné d'un utilisateur survivait à la case
+        // qui promettait de le retirer.
+        if clone.path == canonical.path, fm.fileExists(atPath: clone.path) {
+            return (clone, "moteur Python")
+        }
+        let venv = projectURL.appending(path: ".venv")
+        if fm.fileExists(atPath: venv.path) {
+            return (venv, "bibliothèques Python du moteur")
+        }
+        return (nil, "")
     }
     private static var logsDirectory: URL {
         home.appending(path: "Library/Logs/Sofler")
@@ -132,12 +191,18 @@ enum Uninstall {
         case .service:
             return FileManager.default.fileExists(atPath: launchAgent.path)
                 ? "installé" : "non installé"
+        case .engine:
+            guard let bulk = enginePaths.bulk else {
+                return EngineInstall.descriptor == nil
+                    ? "non installé" : "déclaration seule"
+            }
+            return size(of: [bulk])
         case .logs:
             return size(of: [logsDirectory, cachesDirectory])
         case .corpus:
             let stats = Corpus.shared.statistics()
             guard stats.count > 0 else { return "aucune dictée" }
-            return "\(stats.count) dictées · \(size(of: [supportDirectory]))"
+            return "\(stats.count) dictées · \(size(of: [corpusDirectory]))"
         case .model:
             let s = size(of: [modelDirectory])
             return s.isEmpty ? "non téléchargé" : s
@@ -153,6 +218,9 @@ enum Uninstall {
         case .settings: return fm.fileExists(atPath: preferencesFile.path)
         case .permissions: return true
         case .service: return fm.fileExists(atPath: launchAgent.path)
+        case .engine:
+            return enginePaths.bulk != nil
+                || fm.fileExists(atPath: EngineInstall.descriptorURL.path)
         case .logs:
             return fm.fileExists(atPath: logsDirectory.path)
                 || fm.fileExists(atPath: cachesDirectory.path)
@@ -179,13 +247,27 @@ enum Uninstall {
             report.append(trash(launchAgent, "service moteur"))
         }
 
+        // Après le service, qui s'exécutait depuis cet environnement Python :
+        // le sortir d'abord évite de retirer le sol sous un processus vivant.
+        if items.contains(.engine) {
+            if let bulk = enginePaths.bulk {
+                report.append(trash(bulk, enginePaths.label))
+            }
+            // Le descripteur part avec le moteur qu'il décrit. Il était rangé
+            // avec les dictées archivées, donc il survivait à toute
+            // désinstallation raisonnable — et une réinstallation retrouvait
+            // une déclaration pointant vers un moteur qui n'existait plus.
+            report.append(trash(EngineInstall.descriptorURL,
+                                "déclaration du moteur"))
+        }
+
         if items.contains(.logs) {
             report.append(trash(logsDirectory, "journaux"))
             report.append(trash(cachesDirectory, "fichiers temporaires"))
         }
 
         if items.contains(.corpus) {
-            report.append(trash(supportDirectory, "dictées archivées"))
+            report.append(trash(corpusDirectory, "dictées archivées"))
         }
 
         if items.contains(.model) {
@@ -205,6 +287,15 @@ enum Uninstall {
                 runTool("/usr/bin/tccutil", ["reset", service, bundleIdentifier])
             }
             report.append("✓ autorisations révoquées")
+        }
+
+        // Le dossier de support lui-même, une fois ses trois occupants partis.
+        // Sans ce balayage, une désinstallation complète laisserait une
+        // coquille vide, un dossier `backups` que plus rien n'écrit et un
+        // `.DS_Store` — c'est-à-dire l'impression tenace, en rouvrant le
+        // Finder, que quelque chose n'est pas parti.
+        if isEffectivelyEmpty(supportDirectory) {
+            report.append(trash(supportDirectory, "dossier de Sofler"))
         }
 
         // Jamais optionnel. Laissé en place, macOS tenterait de lancer une
@@ -235,6 +326,26 @@ enum Uninstall {
             return "✓ \(label) — mis à la corbeille"
         } catch {
             return "✗ \(label) — \(error.localizedDescription)"
+        }
+    }
+
+    /// Ne reste-t-il là-dedans que des miettes ?
+    ///
+    /// Un `.DS_Store` et des dossiers vides ne sont pas des données de
+    /// l'utilisateur : les compter comme du contenu ferait survivre le dossier
+    /// à sa propre vacuité. Récursif, parce que la vacuité l'est.
+    private static func isEffectivelyEmpty(_ url: URL) -> Bool {
+        let fm = FileManager.default
+        guard let entries = try? fm.contentsOfDirectory(atPath: url.path) else {
+            return false
+        }
+        return entries.allSatisfy { name in
+            if name == ".DS_Store" { return true }
+            let child = url.appending(path: name)
+            var isDirectory: ObjCBool = false
+            guard fm.fileExists(atPath: child.path, isDirectory: &isDirectory),
+                  isDirectory.boolValue else { return false }
+            return isEffectivelyEmpty(child)
         }
     }
 

@@ -92,10 +92,29 @@ final class UpdateInstaller {
         // croit. Remplacer ce fantôme ne mettrait rien à jour : l'original
         // resterait où il est, et la copie disparaîtrait à la fermeture.
         if bundle.path.contains("/AppTranslocation/") {
+            // Le cas de loin le plus fréquent n'est pas « pas encore
+            // installée » : c'est installée, puis lancée depuis la fenêtre de
+            // l'image disque, restée ouverte juste à côté. Dire « glissez-la
+            // dans Applications » à quelqu'un qui vient précisément de le
+            // faire, c'est lui laisser croire que son geste n'a pas pris.
+            let name = bundle.lastPathComponent
+            let elsewhere = ["/Applications/\(name)",
+                             NSHomeDirectory() + "/Applications/\(name)"]
+                .first { fm.fileExists(atPath: $0) }
+            if let elsewhere {
+                return "Cette fenêtre appartient à la copie restée dans "
+                    + "l'image disque, pas à celle que vous avez installée — "
+                    + "macOS l'exécute en lecture seule depuis un dossier "
+                    + "temporaire. Quittez Sofler, éjectez l'image, puis "
+                    + "ouvrez `\(elsewhere)`. Les autorisations que vous "
+                    + "auriez accordées à cette copie-ci sont à revoir : elles "
+                    + "ont été données à un chemin qui n'existera plus."
+            }
             return "Sofler tourne depuis une copie temporaire, ce que macOS "
                 + "fait tant que l'application n'a pas été déplacée dans "
-                + "Applications. Glissez-la dans Applications et rouvrez-la : "
-                + "la mise à jour intégrée sera alors possible."
+                + "Applications. Glissez-la dans Applications, éjectez "
+                + "l'image disque, et ouvrez la copie installée : la mise à "
+                + "jour intégrée sera alors possible."
         }
 
         guard fm.isWritableFile(atPath: parent.path),
