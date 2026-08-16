@@ -471,8 +471,16 @@ final class DictationController {
         // pas tourner pour rien.
         if !preview.isEmpty,
            let index = remaining.firstIndex(where: { $0.0 == .apple }) {
+            // La locale, pas `nil`. Ce raccourci écrivait « apple » sans rien
+            // d'autre, alors que la seconde passe, elle, enregistre bien
+            // `fr-FR` : deux lignes du même moteur n'étaient donc pas
+            // comparables selon qu'un aperçu avait tourné ou non. Or c'est
+            // exactement le champ dont une analyse ultérieure a besoin —
+            // arbitrer CrisperWhisper contre macOS suppose de savoir sur
+            // quelle langue chaque texte a été produit.
+            let identity = await engine(for: .apple)?.identity
             entry.transcriptions.append(CorpusTranscription(
-                engine: "apple", model: nil, mode: nil,
+                engine: "apple", model: identity?.model, mode: nil,
                 text: preview, latencyMs: nil, inserted: false))
             remaining.remove(at: index)
         }

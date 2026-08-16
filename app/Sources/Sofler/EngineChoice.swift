@@ -20,6 +20,20 @@ enum EngineChoice: String, CaseIterable, Sendable, Codable {
         }
     }
 
+    /// Le moteur intégré est-il utilisable ici ?
+    ///
+    /// C'est la seule condition qui rend Sofler utilisable sans rien
+    /// installer. En dessous de macOS 26 l'application se lance quand même
+    /// — cf. `LSMinimumSystemVersion` dans install.sh — précisément pour
+    /// pouvoir l'expliquer plutôt que de se faire refuser par le système.
+    ///
+    /// Vit ici et non dans une vue : l'accueil et les Réglages posent la même
+    /// question, et deux copies d'une condition de disponibilité finissent
+    /// toujours par répondre différemment.
+    static var systemEngineAvailable: Bool {
+        if #available(macOS 26.0, *) { true } else { false }
+    }
+
     /// Ce moteur distingue-t-il texte nettoyé et mot à mot ?
     var hasModes: Bool { self == .crisperWhisper }
 

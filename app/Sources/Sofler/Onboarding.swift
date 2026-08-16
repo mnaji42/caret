@@ -63,24 +63,20 @@ final class OnboardingWindowController {
 // MARK: - Étapes
 
 private enum Step: Int, CaseIterable {
-    case presentation, permissions, tryIt
+    case presentation, permissions, tryIt, finish
 
     var title: String {
         switch self {
         case .presentation: "Bienvenue dans Sofler"
         case .permissions: "Deux autorisations"
-        case .tryIt: "Choisissez, puis essayez"
+        case .tryIt: "Comment Sofler écrit"
+        // Séparée de la précédente depuis que celle-ci est exactement l'onglet
+        // Transcription des Réglages : y laisser le démarrage automatique
+        // aurait mélangé un réglage général à une page qui n'en contient
+        // aucun, et empêché de partager la vue.
+        case .finish: "Retrouver Sofler"
         }
     }
-}
-
-/// Vrai si le moteur intégré — celui de macOS — est utilisable ici.
-///
-/// C'est la seule condition qui rend Sofler utilisable sans rien installer.
-/// En dessous, l'application se lance quand même (cf. LSMinimumSystemVersion
-/// dans install.sh) précisément pour pouvoir l'expliquer.
-private var systemEngineAvailable: Bool {
-    if #available(macOS 26.0, *) { true } else { false }
 }
 
 private var systemVersionLabel: String {
@@ -138,6 +134,7 @@ private struct OnboardingView: View {
         case .presentation: presentationStep
         case .permissions: permissionsStep
         case .tryIt: tryStep
+        case .finish: finishStep
         }
     }
 
@@ -193,12 +190,12 @@ private struct OnboardingView: View {
             // l'instant, et griser « Continuer » dessus enfermerait quelqu'un
             // dans un écran dont il ne peut plus sortir.
             Card(title: "votre Mac") {
-                StatusRow(ok: systemEngineAvailable, label: systemVersionLabel,
-                          detail: systemEngineAvailable
+                StatusRow(ok: EngineChoice.systemEngineAvailable, label: systemVersionLabel,
+                          detail: EngineChoice.systemEngineAvailable
                             ? "le moteur intégré est disponible"
                             : "le moteur intégré demande macOS 26",
                           warningOnly: true)
-                if !systemEngineAvailable {
+                if !EngineChoice.systemEngineAvailable {
                     Note("Sur votre version, le moteur inclus n'existe pas. "
                          + "Vous pouvez mettre à jour macOS, ou passer par "
                          + "CrisperWhisper à l'écran suivant — il fonctionne "
@@ -223,24 +220,22 @@ private struct OnboardingView: View {
 
     // MARK: 3 — Moteur, puis essai
 
+    /// Exactement l'onglet Transcription des Réglages, plus le champ d'essai.
+    ///
+    /// C'était une deuxième implémentation des mêmes questions, et elle avait
+    /// perdu en route le mode mot à mot, le vocabulaire et la langue. Un
+    /// accueil qui ne montre pas une fonctionnalité est un accueil après
+    /// lequel on ne la découvre jamais.
     private var tryStep: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Deux moteurs. La question tient en une phrase : dictez-vous "
-                 + "des mots que le français courant ne contient pas ?")
+            Text("Deux moteurs, et une seule question : les mots de votre "
+                 + "métier, les noms propres, les mots anglais — voulez-vous "
+                 + "qu'ils s'écrivent tels que vous les dites ?")
                 .font(.system(size: 13))
                 .fixedSize(horizontal: false, vertical: true)
 
-            ForEach(EngineChoice.allCases, id: \.self) { choice in
-                EngineOption(
-                    choice: choice,
-                    selected: prefs.engine == choice,
-                    enabled: choice == .crisperWhisper || systemEngineAvailable,
-                    select: { prefs.engine = choice })
-            }
-
-            if prefs.engine == .crisperWhisper {
-                crisperWhisperTerms
-            }
+            TranscriptionSettings(
+                systemEngineAvailable: EngineChoice.systemEngineAvailable)
 
             Card(title: "essayez maintenant") {
                 Note("Cliquez dans le cadre, tapez "
@@ -262,16 +257,24 @@ private struct OnboardingView: View {
                          + "effacer et recommencer autant que vous voulez.")
                 }
             }
+        }
+    }
 
+    // MARK: 4 — Réglages généraux
+
+    /// Ce qui ne relève d'aucun moteur : où trouver l'application, et
+    /// faut-il la lancer toute seule.
+    private var finishStep: some View {
+        VStack(alignment: .leading, spacing: 16) {
             Card(title: "retrouver Sofler") {
                 Note("Il vit dans la barre de menus, en haut à droite : un "
                      + "caret entouré d'ondes pendant qu'il écoute.")
                 Note(prefs.triggerKind == .option
                      ? "Maintenez **⌥** une seconde pour ouvrir les réglages."
                      : "Les réglages s'ouvrent depuis ce menu.")
+            }
 
-                Divider().opacity(0.25)
-
+            Card(title: "ouverture de session") {
                 // Proposé et coché, pas imposé en silence. Appliqué au clic
                 // sur « Terminer » : cocher une case n'est pas encore une
                 // décision, finir l'accueil en est une.
@@ -282,11 +285,18 @@ private struct OnboardingView: View {
                      + "l'application — et rien ne dira que c'est la raison. "
                      + "Se change à tout moment dans les réglages.")
             }
-        }
-    }
 
-    private var crisperWhisperTerms: some View {
-        CrisperWhisperSetup()
+            Card(title: "revenir sur tout ça") {
+                Note("Rien de ce que vous venez de choisir n'est définitif. "
+                     + "Le moteur, le modèle, la langue et le mode se "
+                     + "changent depuis **Réglages › Transcription**, qui est "
+                     + "la même page que celle que vous venez de voir. "
+                     + "CrisperWhisper et ses modèles se téléchargent ou se "
+                     + "retirent quand vous voulez, et **Désinstaller "
+                     + "Sofler…** dans le menu retire tout, en vous laissant "
+                     + "cocher ce qui part.")
+            }
+        }
     }
 
     // MARK: Pied
@@ -317,13 +327,13 @@ private struct OnboardingView: View {
 
             Spacer()
 
-            Button(step == .tryIt ? "Terminer" : "Continuer") {
-                if step == .tryIt {
+            Button(step == .finish ? "Terminer" : "Continuer") {
+                if step == .finish {
                     LoginItem.set(launchAtLogin)
                     prefs.onboarded = true
                     onFinish()
                 } else {
-                    step = Step(rawValue: step.rawValue + 1) ?? .tryIt
+                    step = Step(rawValue: step.rawValue + 1) ?? .finish
                 }
             }
             .buttonStyle(.borderedProminent)
@@ -337,50 +347,3 @@ private struct OnboardingView: View {
 }
 
 // MARK: - Pièces
-
-/// Un moteur présenté comme un choix, avec ce qu'il coûte.
-///
-/// `EngineChoice.explanation` porte le texte : le dupliquer ici condamnerait
-/// les réglages et l'accueil à finir par se contredire.
-private struct EngineOption: View {
-    let choice: EngineChoice
-    let selected: Bool
-    let enabled: Bool
-    let select: () -> Void
-
-    var body: some View {
-        Button(action: select) {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: selected ? "largecircle.fill.circle" : "circle")
-                    .foregroundStyle(selected ? Style.accent : Color.secondary)
-                    .font(.system(size: 14))
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(choice.label).font(.system(size: 13, weight: .medium))
-                    Text(choice.explanation)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if !enabled {
-                        Text("Indisponible sur \(systemVersionLabel).")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Style.collecting)
-                    }
-                }
-                Spacer()
-            }
-            .padding(Style.cardPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: Style.cardRadius, style: .continuous)
-                    .fill(Style.cardFill)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Style.cardRadius, style: .continuous)
-                            .strokeBorder(selected ? Style.accent.opacity(0.6) : Style.cardStroke,
-                                          lineWidth: 1))
-            )
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-        .opacity(enabled ? 1 : 0.5)
-    }
-}

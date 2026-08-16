@@ -24,10 +24,20 @@ struct CrisperWhisperSetup: View {
 
     private let ticker = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
+    /// Rendu sans carte, pour tenir à l'intérieur du bloc CrisperWhisper.
+    ///
+    /// La vue posait trois `Card` empilées — modèle, mise en marche, licence —
+    /// ce qui les détachait du moteur auquel elles appartiennent : on lisait
+    /// quatre réglages indépendants là où il n'y en a qu'un, et le choix du
+    /// modèle restait visible en gros même quand le moteur retenu était celui
+    /// de macOS.
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
+            Subsection("Modèle")
             models
+            Subsection("Mise en marche")
             state
+            Subsection("Licence")
             licence
         }
         .onAppear { refresh() }
@@ -48,7 +58,7 @@ struct CrisperWhisperSetup: View {
     // MARK: Choix du modèle
 
     private var models: some View {
-        Card(title: "modèle") {
+        VStack(alignment: .leading, spacing: 10) {
             ForEach(CrisperWhisperModel.allCases, id: \.self) { candidate in
                 ModelRow(model: candidate, selected: candidate == model) {
                     model = candidate
@@ -75,7 +85,7 @@ struct CrisperWhisperSetup: View {
 
     @ViewBuilder
     private var state: some View {
-        Card(title: "mise en marche") {
+        VStack(alignment: .leading, spacing: 12) {
             switch step {
             case .engineMissing:
                 StatusRow(ok: false, label: "Moteur Python", detail: "pas installé",
@@ -166,7 +176,7 @@ struct CrisperWhisperSetup: View {
     // MARK: Licence
 
     private var licence: some View {
-        Card(title: "licence") {
+        VStack(alignment: .leading, spacing: 10) {
             Note("Les poids sont distribués par Nyra Health sous une licence "
                  + "de **recherche non commerciale** — sous une lecture "
                  + "stricte, dicter un courriel professionnel peut déjà en "
@@ -348,6 +358,14 @@ private struct ModelRow: View {
                              : "\(model.downloadSize) à télécharger")
                             .font(.system(size: 10))
                             .foregroundStyle(model.isDownloaded ? Style.accent : .secondary)
+                        // La mémoire vive à côté du poids sur disque, avant le
+                        // téléchargement et non après. C'est le coût le plus
+                        // sensible des deux — un gigaoctet de disque ne se
+                        // remarque pas, trois de mémoire si — et il
+                        // n'apparaissait qu'une fois le modèle installé.
+                        Text("· \(model.residentMemory) en mémoire")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
                     }
                     Text(model.explanation)
                         .font(.system(size: 11))

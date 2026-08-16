@@ -473,85 +473,12 @@ private struct UpdateAction: View {
 
 // MARK: - Transcription
 
+/// L'onglet Transcription n'est plus qu'un appel : tout son contenu est
+/// partagé avec l'accueil. Cf. TranscriptionSettings.
 private struct TranscriptionTab: View {
-    @State private var prefs = Preferences.shared
-    @State private var localReady = false
-    @State private var localName = "—"
-    @State private var lexiconText = ""
-
     var body: some View {
-        Card(title: "Langue") {
-            PillPicker(options: Preferences.languages.map { ($0.0, $0.1) },
-                       selection: $prefs.language)
-            Note("Vaut pour tous les moteurs. Un seul choix à la fois : les "
-                 + "modèles imposent une langue par passage, et « automatique » "
-                 + "se trompe précisément sur les phrases qui en mêlent deux.")
-        }
-
-        Card(title: "Moteur") {
-            ChoiceRow(title: EngineChoice.apple.label,
-                      subtitle: EngineChoice.apple.explanation,
-                      selected: prefs.engine == .apple,
-                      hasDetail: false,
-                      action: { prefs.engine = .apple }) { EmptyView() }
-
-            ChoiceRow(title: EngineChoice.crisperWhisper.label,
-                      subtitle: EngineChoice.crisperWhisper.explanation,
-                      selected: prefs.engine == .crisperWhisper,
-                      action: { prefs.engine = .crisperWhisper }) {
-                Row(label: "Mode par défaut") {
-                    PillPicker(options: [(TranscriptionMode.intended, "Texte nettoyé"),
-                                         (TranscriptionMode.verbatim, "Mot à mot")],
-                               selection: $prefs.defaultMode)
-                }
-                Row(label: "Service") {
-                    Text(localReady ? localName : "hors ligne")
-                        .font(.system(size: 12))
-                        .foregroundStyle(localReady ? Color.secondary : Color.red)
-                }
-                if !localReady {
-                    Note("Le modèle n'est pas installé, ou le service met "
-                         + "quelques secondes à charger. Lancez `scripts/setup.sh` "
-                         + "une fois : Sofler démarre et arrête ensuite le "
-                         + "service tout seul.", warning: true)
-                }
-
-                Divider().opacity(0.25)
-                Text("Vocabulaire technique")
-                    .font(.system(size: 12, weight: .medium))
-                OptionCheck(title: "Utiliser la liste intégrée",
-                            isOn: $prefs.useDefaultLexicon)
-                if !prefs.useDefaultLexicon {
-                    TextEditor(text: $lexiconText)
-                        .font(.system(size: 12, design: .monospaced))
-                        .scrollContentBackground(.hidden)
-                        .frame(minHeight: 120)
-                        .padding(8)
-                        .background(RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.black.opacity(0.2)))
-                        .onChange(of: lexiconText) { _, new in
-                            prefs.lexicon = new.split(separator: "\n")
-                                .map { $0.trimmingCharacters(in: .whitespaces) }
-                                .filter { !$0.isEmpty }
-                        }
-                    Note("Un terme par ligne. Gardez la liste courte : plus elle "
-                         + "est longue, plus le modèle risque d'y piocher un mot "
-                         + "sur un passage où vous n'avez rien dit.")
-                }
-            }
-
-            Note("Le mode et le vocabulaire n'apparaissent que sous "
-                 + "CrisperWhisper parce qu'ils n'existent que là : le moteur de "
-                 + "macOS n'a qu'un rendu, et mesuré sur de vrais "
-                 + "enregistrements, lui fournir un vocabulaire ne change pas "
-                 + "sa sortie d'un caractère.")
-        }
-        .task {
-            lexiconText = prefs.lexicon.joined(separator: "\n")
-            let engine = SocketSpeechEngine()
-            localReady = await engine.isReady()
-            if localReady { localName = await engine.displayName }
-        }
+        TranscriptionSettings(
+            systemEngineAvailable: EngineChoice.systemEngineAvailable)
     }
 }
 

@@ -535,8 +535,10 @@ extension EngineBootstrap {
     }
 
     /// Déballe l'archive et place le binaire à l'emplacement voulu.
+    /// `async` bien qu'elle n'attende rien : sans ça elle s'exécuterait sur le
+    /// fil principal, et déballer dix-huit mégaoctets y fige la fenêtre.
     private nonisolated static func unpackTool(_ archive: URL, to destination: URL)
-        throws -> URL {
+        async throws -> URL {
         let fm = FileManager.default
         let staging = fm.temporaryDirectory.appending(path: "uv-\(UUID().uuidString)")
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)

@@ -198,6 +198,28 @@ struct ChoiceRow<Detail: View>: View {
     }
 }
 
+/// Titre de sous-partie, à l'intérieur d'une carte ou d'une ligne de choix.
+///
+/// Une `Card` imbriquée dans une autre se lit mal : deux fonds, deux bordures,
+/// et le contenu paraît appartenir à un réglage voisin plutôt qu'à celui qui
+/// l'englobe. Là où il faut séparer sans encadrer — le modèle, l'installation
+/// et la licence sous CrisperWhisper — un filet et un titre suffisent.
+struct Subsection: View {
+    let title: String
+
+    init(_ title: String) { self.title = title }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Divider().opacity(0.25)
+            Text(title.uppercased())
+                .font(.system(size: 9, weight: .bold))
+                .kerning(0.8)
+                .foregroundStyle(.tertiary)
+        }
+    }
+}
+
 /// Boutons secondaires alignés, taille et style uniformes.
 struct ButtonRow<Content: View>: View {
     @ViewBuilder var content: Content
