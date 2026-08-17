@@ -27,15 +27,18 @@ struct UsageHabitsCard: View, ValidatingComponent {
 
     private static let questions: [(UsageHabits.Habit, String)] = [
         (.mixesLanguages,
-         "Je mélange souvent les langues — franglais, expressions bilingues."),
+         "Je mélange souvent les langues (Franglais, expressions bilingues au "
+            + "quotidien)."),
         (.usesJargon,
-         "J'emploie du vocabulaire technique, du code ou du jargon métier."),
+         "J'utilise du vocabulaire technique, du code (`useEffect`, variables) "
+            + "ou du jargon métier."),
         (.wantsLightweight,
-         "Je cherche la simplicité et la légèreté — rien de lourd en mémoire."),
+         "Je cherche la simplicité et la légèreté (dictée rapide, 0 Mo de RAM, "
+            + "pas d'IA lourde)."),
     ]
 
     var body: some View {
-        Card(title: "Votre usage") {
+        Card(title: "") {
             ForEach(Self.questions, id: \.0) { habit, question in
                 choice(habit, question)
             }
@@ -47,20 +50,34 @@ struct UsageHabitsCard: View, ValidatingComponent {
         let checked = prefs.habits.has(habit)
 
         return HStack(alignment: .top, spacing: 10) {
-            Image(systemName: checked ? "checkmark.square.fill" : "square")
-                .font(.system(size: 14))
-                .foregroundStyle(checked ? Style.accent : Color.secondary)
-            Text(question)
-                .font(.system(size: 12))
-                .foregroundStyle(checked ? Style.textPrimary : .secondary)
+            // `.check-box` : 16×16, rayon 4, bordure 1,5 pt ; coché, il se
+            // remplit d'accent avec la coche en sombre.
+            ZStack {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(checked ? Style.accent : Color.clear)
+                    .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .strokeBorder(checked ? Style.accent : Style.textTertiary,
+                                      lineWidth: 1.5))
+                    .frame(width: 16, height: 16)
+                if checked {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Style.onAccent)
+                }
+            }
+            .padding(.top, 1)
+            Text(.init(question))
+                .font(.system(size: 12.5))
+                .lineSpacing(2)
+                .foregroundStyle(checked ? Style.textPrimary : Style.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 5)
-        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(checked ? Style.accentDim : Color.clear))
+                .fill(checked ? Color.white.opacity(0.04) : Color.clear))
         .contentShape(Rectangle())
         // La règle d'exclusion vit dans le modèle, pas ici : « légèreté » et
         // les deux autres s'annulent, et une vue qui l'appliquerait de son côté
@@ -73,7 +90,7 @@ struct UsageHabitsCard: View, ValidatingComponent {
     private var recommendation: some View {
         let advice = prefs.recommendation
         let engine = advice.choice == .crisperWhisper
-            ? "CrisperWhisper" : "macOS natif"
+            ? "CrisperWhisper Turbo" : "macOS Natif (0 Mo)"
 
         return HStack(alignment: .top, spacing: 9) {
             Rectangle()
@@ -81,12 +98,11 @@ struct UsageHabitsCard: View, ValidatingComponent {
                 .frame(width: 3)
                 .clipShape(Capsule())
             VStack(alignment: .leading, spacing: 2) {
-                Text("Conseillé pour vous : \(engine)")
-                    .font(.system(size: 12, weight: .semibold))
+                Text(.init("💡 **Recommandation personnalisée :** \(engine) — "
+                           + "\(advice.reason)."))
+                    .font(.system(size: 11.5))
                     .foregroundStyle(Style.accent)
-                Text(.init(advice.reason.prefix(1).capitalized + advice.reason.dropFirst() + "."))
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

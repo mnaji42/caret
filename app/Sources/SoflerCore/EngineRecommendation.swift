@@ -80,6 +80,10 @@ public struct EngineRecommendation: Equatable, Sendable {
 
     /// Le conseil, à partir des habitudes déclarées et de la langue principale.
     ///
+    /// Les motifs sont ceux du prototype (`recommendationReason` dans
+    /// `SoflerContext.jsx`), mot pour mot : c'est du texte validé, pas une
+    /// formulation à réinventer ici.
+    ///
     /// - Parameters:
     ///   - habits: ce que l'utilisateur a coché.
     ///   - primaryBase: le code ISO-639-1 de la langue principale — `fr`, `en`.
@@ -94,8 +98,7 @@ public struct EngineRecommendation: Equatable, Sendable {
         if habits.wantsLightweight {
             return EngineRecommendation(
                 choice: .appleNative,
-                reason: "vous avez demandé la légèreté — rien ne réside en "
-                    + "mémoire entre deux dictées")
+                reason: "Mode simplicité & légèreté (0 Mo de RAM résidente)")
         }
 
         // 2. Un moteur qui ne couvre pas toutes les langues retenues se
@@ -104,44 +107,28 @@ public struct EngineRecommendation: Equatable, Sendable {
         guard crisperCoversAll else {
             return EngineRecommendation(
                 choice: .appleNative,
-                reason: "CrisperWhisper ne couvre pas toutes les langues que "
-                    + "vous avez retenues")
+                reason: "CrisperWhisper ne couvre pas toutes les langues retenues")
         }
 
         // 3. Les deux usages où le conditionnement du lexique change vraiment
-        //    la sortie.
-        if habits.usesJargon, habits.mixesLanguages {
+        //    la sortie. Ils partagent leur motif : ce sont les deux faces du
+        //    même problème — des mots que le moteur ne connaît pas.
+        if habits.usesJargon || habits.mixesLanguages {
             return EngineRecommendation(
                 choice: .crisperWhisper,
-                reason: "vous mêlez les langues **et** employez du vocabulaire "
-                    + "technique — les deux cas où les mots inconnus sont "
-                    + "remplacés par ceux qui leur ressemblent")
-        }
-        if habits.usesJargon {
-            return EngineRecommendation(
-                choice: .crisperWhisper,
-                reason: "vous lui donnerez la liste de vos termes métier, et il "
-                    + "les écrira tels quels")
-        }
-        if habits.mixesLanguages {
-            return EngineRecommendation(
-                choice: .crisperWhisper,
-                reason: "il tient les phrases qui mêlent deux langues sans "
-                    + "basculer de modèle")
+                reason: "Idéal pour le Franglais, le vocabulaire technique & le code")
         }
 
         // 4. L'anglais et l'allemand, où l'écart se voit sans avoir rien coché.
         if whisperStrongBases.contains(primaryBase) {
             return EngineRecommendation(
                 choice: .crisperWhisper,
-                reason: "Whisper ponctue et découpe nettement mieux dans cette "
-                    + "langue")
+                reason: "Précision exceptionnelle en Anglais / Allemand via Whisper")
         }
 
         // 5. À défaut : ce qui ne coûte rien et n'a rien à télécharger.
         return EngineRecommendation(
             choice: .appleNative,
-            reason: "rien à télécharger, rien en mémoire, et il transcrit "
-                + "pendant que vous parlez")
+            reason: "Recommandé par défaut (rapide, 0 Mo de RAM)")
     }
 }

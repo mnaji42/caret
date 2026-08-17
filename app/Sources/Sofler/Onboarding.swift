@@ -34,13 +34,18 @@ final class OnboardingWindowController {
             return
         }
 
-        let window = NSWindow.sofler(title: "Bienvenue dans Sofler") {
+        // `weak var` capturé plus bas : la vue met à jour le titre de la
+        // fenêtre qui la contient, ce que SwiftUI ne sait pas faire seul.
+        var host: NSWindow?
+        let window = NSWindow.sofler(title: Step.welcome.windowTitle) {
             OnboardingView(onFinish: { [weak self] in self?.close() },
                            onOpenSettings: { [weak self] in
                                self?.close()
                                self?.openSettings?()
-                           })
+                           },
+                           onStepChange: { step in host?.title = step.windowTitle })
         }
+        host = window
         self.window = window
 
         NSApp.activate(ignoringOtherApps: true)
@@ -60,45 +65,56 @@ final class OnboardingWindowController {
 // MARK: - Les étapes
 
 private enum Step: Int, CaseIterable {
-    case welcome, languages, trigger, engine, finish
+    case welcome, preferences, liveEngine, finalEngine, completion
 
-    var title: String {
+    /// Le titre de la fenêtre, qui **suit l'étape**.
+    ///
+    /// Repris tel quel de `HeaderNav.jsx` : la barre de titre annonce où l'on
+    /// est, elle ne répète pas « Bienvenue » sur les cinq écrans.
+    var windowTitle: String {
         switch self {
         case .welcome: "Bienvenue dans Sofler"
-        // La langue avant tout le reste : c'est elle qui décide du modèle à
-        // récupérer, et ce téléchargement doit être fini avant le premier essai.
-        case .languages: "Vos langues"
-        case .trigger: "Comment déclencher la dictée"
-        case .engine: "Qui écrit le texte"
-        case .finish: "Tout est prêt"
+        case .preferences: "Vos Préférences"
+        case .liveEngine: "Moteur Live & Premier Essai"
+        case .finalEngine: "Moteur de transcription finale"
+        case .completion: "Tout est prêt !"
         }
     }
 
-    /// L'intitulé du bouton principal. Le premier écran annonce ce qui
-    /// commence — « Continuer » n'y voudrait rien dire, puisqu'on n'a encore
-    /// rien fait à poursuivre.
+    /// L'en-tête de la page. `nil` pour l'accueil et la fin, qui portent le
+    /// leur — `WelcomeCard` et `CompletionView` dans le prototype.
+    var header: (title: String, subtitle: String)? {
+        switch self {
+        case .welcome:
+            ("Bienvenue dans Sofler",
+             "La dictée vocale instantanée pensée pour vos mots, votre métier "
+                + "et vos langues mélangées.")
+        case .preferences:
+            ("Vos Préférences",
+             "Configurez vos langues de travail et vos habitudes pour que "
+                + "Sofler s'adapte à vous.")
+        case .liveEngine:
+            ("Moteur Live & Premier Essai",
+             "Ce moteur assure l'aperçu en direct (Live Preview) sous la barre "
+                + "flottante.")
+        case .finalEngine:
+            ("Moteur de transcription finale",
+             "Le moteur Live (configuré à l'étape précédente) assure l'aperçu "
+                + "sous la barre flottante. Choisissez maintenant le moteur qui "
+                + "rédigera le texte définitif de votre dictée.")
+        case .completion:
+            ("Tout est prêt !",
+             "Sofler est configuré et prêt à transcrire votre voix en toute "
+                + "fluidité.")
+        }
+    }
+
+    /// L'intitulé du bouton principal — `FooterNav.jsx`.
     var actionLabel: String {
         switch self {
         case .welcome: "Commencer la configuration  →"
-        case .finish: "Terminer"
+        case .completion: "Terminer"
         default: "Continuer  →"
-        }
-    }
-
-    var subtitle: String? {
-        switch self {
-        case .welcome:
-            "La dictée locale, pensée pour vos mots, votre métier et vos "
-                + "langues mêlées."
-        case .languages:
-            "Sofler récupérera les modèles correspondants pendant que vous "
-                + "configurez le reste."
-        case .trigger:
-            "Deux autorisations, puis un premier essai."
-        case .engine:
-            "Ce choix se change à tout moment, et n'engage à rien."
-        case .finish:
-            nil
         }
     }
 }
@@ -108,14 +124,20 @@ private enum Step: Int, CaseIterable {
 private struct OnboardingView: View {
     let onFinish: () -> Void
     let onOpenSettings: () -> Void
+    /// Le titre à afficher dans la barre de fenêtre. Remonté plutôt que posé
+    /// ici : c'est `NSWindow` qui le porte, et le redessiner en SwiftUI
+    /// donnerait deux titres à trois pixels d'écart.
+    let onStepChange: (Step) -> Void
 
     @State private var prefs = Preferences.shared
     @State private var step: Step
     @State private var launchAtLogin = LoginItem.isEnabled
 
-    init(onFinish: @escaping () -> Void, onOpenSettings: @escaping () -> Void) {
+    init(onFinish: @escaping () -> Void, onOpenSettings: @escaping () -> Void,
+         onStepChange: @escaping (Step) -> Void) {
         self.onFinish = onFinish
         self.onOpenSettings = onOpenSettings
+        self.onStepChange = onStepChange
         // Reprend là où on s'était arrêté. Rouvrir sur la page de bienvenue
         // quelqu'un qui était à l'étape des autorisations lui ferait relire ce
         // qu'il vient de lire, et douter d'avoir progressé.
@@ -129,235 +151,281 @@ private struct OnboardingView: View {
                 StepCounter(current: step.rawValue + 1, total: Step.allCases.count)
             }
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    header
+                VStack(alignment: .leading, spacing: 0) {
+                    if let header = step.header {
+                        PageHeader(title: header.title, subtitle: header.subtitle)
+                    }
                     content
                 }
+                // `.content-area { padding: 26px 30px 24px }`
                 .padding(.horizontal, Style.windowPadding)
-                .padding(.bottom, 18)
+                .padding(.top, 26)
+                .padding(.bottom, 24)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             footer
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(WindowBackground().ignoresSafeArea())
+        .onAppear { onStepChange(step) }
         // Enregistrée en continu : quitter l'application au milieu d'une étape
         // ne doit pas coûter les précédentes.
-        .onChange(of: step) { _, now in prefs.onboardingStep = now.rawValue }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(step.title)
-                .font(.system(size: 24, weight: .bold))
-                .kerning(-0.4)
-            if let subtitle = step.subtitle {
-                Text(subtitle)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        .onChange(of: step) { _, now in
+            prefs.onboardingStep = now.rawValue
+            onStepChange(now)
         }
-        .padding(.bottom, 2)
     }
 
     @ViewBuilder
     private var content: some View {
         switch step {
         case .welcome: welcomeStep
-        case .languages: languagesStep
-        case .trigger: triggerStep
-        case .engine: engineStep
-        case .finish: finishStep
+        case .preferences: preferencesStep
+        case .liveEngine: liveEngineStep
+        case .finalEngine: finalEngineStep
+        case .completion: completionStep
         }
     }
 
     // MARK: 1 — Bienvenue
 
     private var welcomeStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Card(title: "le principe en trois points") {
+        VStack(alignment: .leading, spacing: 0) {
+            SectionLabel("Le principe en trois points")
+                .padding(.bottom, 8)
+
+            Card(title: "") {
                 principle(1, "Écrivez au son de votre voix",
-                          "Une touche, vous parlez, la même touche. Le texte "
-                          + "s'insère à votre curseur, dans l'application que "
-                          + "vous avez devant vous.")
+                          "Appuyez sur une touche, parlez naturellement dans "
+                          + "n'importe quelle application, relâchez. Le texte "
+                          + "s'insère instantanément à votre curseur.")
                 Divider().opacity(0.25)
-                principle(2, "Rien ne sort de votre Mac",
-                          "Aucun compte, aucun serveur, aucune connexion. **Il "
-                          + "n'existe aucun réglage pour autoriser l'envoi de "
-                          + "ce que vous dictez.**")
+                principle(2, "100 % sur votre puce Apple",
+                          "Zéro cloud, zéro compte, zéro connexion Internet "
+                          + "requise. **Vos paroles ne quittent jamais votre "
+                          + "Mac.**")
                 Divider().opacity(0.25)
-                principle(3, "Vous choisissez le moteur",
-                          "Celui de macOS ne pèse rien. CrisperWhisper écrit "
-                          + "les mots de votre métier tels que vous les dites, "
-                          + "contre 1,6 Go et ~3 Go en mémoire.")
+                principle(3, "Liberté de vos moteurs & modèles IA",
+                          "**Vous gardez le contrôle total.** Utilisez le "
+                          + "moteur natif de macOS pour une légèreté absolue "
+                          + "(0 Mo de RAM), ou choisissez des modèles IA "
+                          + "spécialisés (comme CrisperWhisper) selon vos "
+                          + "besoins de vocabulaire, de code ou de bilingue.")
             }
+            .padding(.bottom, 12)
 
-            Card(title: "deux destinations") {
-                destination("Au curseur",
-                            "là où il clignote déjà, sans changer de fenêtre")
-                Divider().opacity(0.25)
-                destination("Dans un fichier de notes",
-                            "tout s'y ajoute, où que soit le curseur — pour "
-                            + "réfléchir à voix haute en travaillant")
-            }
+            SectionLabel("Ce que nous allons configurer")
+                .padding(.top, 4)
+                .padding(.bottom, 8)
 
-            // Sans titre : « ce que nous allons configurer » répéterait ce que
-            // la phrase dit déjà, en coûtant la ligne qui faisait déborder
-            // l'écran.
             Card(title: "", highlighted: true) {
-                Text(.init("Nous allons choisir vos **langues**, accorder les "
-                           + "**deux accès système** requis, et faire un "
-                           + "**premier essai vocal**."))
+                Text(.init("Ce court parcours vous aide à **choisir vos "
+                           + "langues**, **activer les deux accès système "
+                           + "requis** et **faire un premier essai vocal**."))
                     .font(.system(size: 12))
+                    .foregroundStyle(Color(hex: 0xCCFBF1))
+                    .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-    }
-
-    /// Une destination, sur une ligne : le nom, puis ce qu'elle fait.
-    private func destination(_ name: String, _ effect: String) -> some View {
-        Text(.init("**\(name)** — \(effect)."))
-            .font(.system(size: 12))
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
     }
 
     private func principle(_ number: Int, _ title: String,
                            _ detail: String) -> some View {
-        HStack(alignment: .top, spacing: 11) {
+        HStack(alignment: .top, spacing: 12) {
             NumberBadge(number: number)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 13, weight: .semibold))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 13.5, weight: .semibold))
+                    .foregroundStyle(.white)
                 Text(.init(detail))
                     .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Style.textSecondary)
+                    .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
-    // MARK: 2 — Langues et usage
+    // MARK: 2 — Préférences
 
-    private var languagesStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Card(title: "langues de dictée") {
-                LanguagePicker()
-                Note("La première de la liste est celle avec laquelle Sofler "
-                     + "dicte. Vous en changerez d'un clic depuis les Réglages "
-                     + "ou la barre flottante.")
-            }
+    private var preferencesStep: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SectionLabel("Langues de dictée (Au moins 1 langue requise)")
+                .padding(.bottom, 8)
+            Card(title: "") { LanguagePicker() }
+                .padding(.bottom, 12)
+
+            SectionLabel("Vos habitudes d'expression (Optionnel)")
+                .padding(.top, 4)
+                .padding(.bottom, 8)
             UsageHabitsCard()
         }
     }
 
-    // MARK: 3 — Déclencheur, autorisations, essai
+    // MARK: 3 — Moteur live, déclencheur et essai
 
-    /// L'étape charnière : c'est elle qui rend Sofler utilisable, et c'est la
-    /// dernière que la garde d'accès exige.
-    private var triggerStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            TriggerCard(showTrialSandbox: true)
+    /// L'ordre du prototype : le moteur d'aperçu **avant** le déclencheur.
+    ///
+    /// L'inverse paraissait plus logique — on configure la touche, puis ce
+    /// qu'elle déclenche — mais c'est le moteur qui décide des autorisations à
+    /// demander : sous la Dictée, la reconnaissance vocale s'ajoute aux deux
+    /// autres. Le poser d'abord évite de voir une troisième permission
+    /// apparaître après coup dans une carte qu'on croyait finie.
+    private var liveEngineStep: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SectionLabel("Moteur de reconnaissance en direct")
+                .padding(.bottom, 8)
             AppleEngineCard()
-            Note("Ce moteur assure l'aperçu en direct sous la barre pendant "
-                 + "que vous parlez, et écrit le texte final tant que vous "
-                 + "n'avez pas choisi autre chose à l'écran suivant.")
+                .padding(.bottom, 12)
+
+            SectionLabel("Déclencheur & Zone de test")
+                .padding(.top, 4)
+                .padding(.bottom, 8)
+            TriggerCard(showTrialSandbox: true)
         }
     }
 
     // MARK: 4 — Moteur final
 
-    private var engineStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            FinalEngineCard(showsRecommendation: true, isOnboarding: true)
-        }
+    private var finalEngineStep: some View {
+        FinalEngineCard(showsRecommendation: true, isOnboarding: true)
     }
 
-    // MARK: 5 — Récapitulatif
+    // MARK: 5 — Tout est prêt
 
-    private var finishStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Card(title: "votre configuration") {
-                summary("Langue", prefs.primary.badge)
-                summary("Déclencheur", prefs.triggerKind == .option
-                        ? "Touche \(prefs.triggerSide.label)"
-                        : prefs.dictateShortcut.label)
-                summary("Moteur", prefs.engine.fullLabel)
-                summary("Destination", prefs.destination == .notes
-                        ? (prefs.noteFile?.lastPathComponent ?? "fichier de notes")
-                        : "au curseur")
+    private var completionStep: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            recap
+
+            VStack(alignment: .leading, spacing: 8) {
+                SectionLabel("Bon à savoir pour votre quotidien")
+                VStack(spacing: 0) {
+                    tip("📍", "Barre des menus & Raccourci rapide",
+                        "Sofler reste toujours accessible dans la barre des "
+                        + "menus en haut.\n**💡 Astuce :** Maintenir votre "
+                        + "touche de dictée (**⌥ Option**) pendant **1 "
+                        + "seconde** ouvre directement les Réglages.")
+                    Divider().opacity(0.25)
+                    tip("🛡️", "Filet de sécurité : vous ne perdez jamais rien",
+                        "Même si aucune application n'a le focus ou si votre "
+                        + "curseur n'était pas actif, votre dictée est "
+                        + "immédiatement enregistrée dans l'**Historique "
+                        + "local** du menu pour que vous puissiez la copier à "
+                        + "tout moment.")
+                    Divider().opacity(0.25)
+                    tip("📁", "Au curseur ou dans un fichier de notes",
+                        "Par défaut, Sofler écrit là où clignote votre "
+                        + "curseur. Vous pouvez aussi lui désigner un fichier "
+                        + "de notes (ex : `journal.md`) dans les Réglages pour "
+                        + "y archiver automatiquement vos idées.")
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: Style.cardRadius, style: .continuous)
+                        .fill(Color.white.opacity(0.03))
+                        .overlay(RoundedRectangle(cornerRadius: Style.cardRadius,
+                                                  style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.09), lineWidth: 1)))
             }
 
-            Card(title: "bon à savoir") {
-                tip("menubar.rectangle", "Sofler vit dans la barre de menus",
-                    prefs.triggerKind == .option
-                        ? "Un caret entouré d'ondes pendant qu'il écoute. "
-                          + "**Maintenir ⌥ une seconde** ouvre les Réglages."
-                        : "Un caret entouré d'ondes pendant qu'il écoute. Les "
-                          + "Réglages s'ouvrent depuis ce menu.")
-                Divider().opacity(0.25)
-                tip("clock.arrow.circlepath", "Vous ne perdez jamais une dictée",
-                    "Même sans curseur actif, le texte part dans l'historique "
-                    + "local du menu, où il reste copiable. Et si un moteur "
-                    + "échoue, l'audio est conservé : « Réessayer » relance "
-                    + "sans vous faire tout redire.")
-                Divider().opacity(0.25)
-                tip("folder", "La destination se change en pleine phrase",
-                    "Un clic sur la barre flottante bascule entre le curseur "
-                    + "et votre fichier de notes — la destination n'est lue "
-                    + "qu'au moment où vous arrêtez de parler.")
+            VStack(alignment: .leading, spacing: 8) {
+                SectionLabel("Démarrage du système")
+                SettingsToggleRow(
+                    title: "Lancer Sofler à l'ouverture de session",
+                    description: "Disponible immédiatement dans la barre des "
+                        + "menus dès le démarrage de votre Mac.",
+                    isOn: $launchAtLogin)
             }
 
-            SettingsToggleRow(
-                title: "Lancer Sofler à l'ouverture de session",
-                description: "Disponible dans la barre de menus dès le "
-                    + "démarrage de votre Mac.",
-                note: "Sans ça, la touche de dictée ne fera rien après chaque "
-                    + "redémarrage, jusqu'à ce que vous pensiez à rouvrir "
-                    + "l'application — et rien ne dira que c'est la raison.",
-                isOn: $launchAtLogin)
-
-            ButtonRow {
-                Button("Personnaliser dans les Réglages…") {
+            VStack(spacing: 8) {
+                Divider().opacity(0.4)
+                Button("⚙️  Personnaliser dans les Réglages…") {
                     apply()
                     onOpenSettings()
                 }
+                .buttonStyle(SoflerSecondaryButtonStyle())
+                Text("Vous pourrez toujours réouvrir les réglages ou "
+                     + "l'onboarding depuis l'icône de la barre des menus.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Style.textTertiary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Note("Tout ce que vous venez de choisir se retrouve dans les "
-                 + "Réglages, dans les mêmes cartes que celles que vous venez "
-                 + "de voir. **Désinstaller Sofler…** y retire tout, en vous "
-                 + "laissant cocher ce qui part.")
+            .frame(maxWidth: .infinity)
+            .padding(.top, 6)
+        }
+    }
+
+    private var recap: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("RÉCAPITULATIF DE VOTRE CONFIGURATION")
+                .font(.system(size: 11, weight: .semibold))
+                .kerning(0.55)
+                .foregroundStyle(Style.accent)
+
+            VStack(alignment: .leading, spacing: 5) {
+                summary("Langue active :", prefs.primary.badge)
+                summary("Déclencheur :", prefs.triggerKind == .option
+                        ? "Touche \(prefs.triggerSide.label) (Maintenir pour parler)"
+                        : "Raccourci clavier (\(prefs.dictateShortcut.label))")
+                summary("Moteur final :", engineSummary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: Style.cardRadius, style: .continuous)
+                .fill(Style.accent.opacity(0.05))
+                .overlay(RoundedRectangle(cornerRadius: Style.cardRadius,
+                                          style: .continuous)
+                    .strokeBorder(Style.accentBorder, lineWidth: 1)))
+    }
+
+    private var engineSummary: String {
+        switch prefs.finalEngine {
+        case .crisperWhisper:
+            let model = EngineInstall.selectedModel.label.uppercased()
+            return "CrisperWhisper IA · Modèle \(model) (0 Mo au repos)"
+        case .apple:
+            let version = prefs.appleTechnology.versionLabel
+                ?? prefs.appleTechnology.label
+            return "macOS Natif · \(version) (0 Mo de RAM, instantané)"
         }
     }
 
     private func summary(_ label: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(label)
-                .font(.system(size: 11.5))
-                .foregroundStyle(.tertiary)
-                .frame(width: 90, alignment: .leading)
+                .font(.system(size: 12))
+                .foregroundStyle(Style.textTertiary)
+                .frame(width: 125, alignment: .leading)
             Text(value)
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
     }
 
-    private func tip(_ symbol: String, _ title: String,
+    private func tip(_ emoji: String, _ title: String,
                      _ detail: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: symbol)
-                .font(.system(size: 13))
-                .foregroundStyle(Style.accent)
-                .frame(width: 18)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 12.5, weight: .semibold))
-                Text(.init(detail))
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 7) {
+                Text(emoji).font(.system(size: 12.5))
+                Text(title)
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(.white)
             }
+            Text(.init(detail))
+                .font(.system(size: 11))
+                .foregroundStyle(Style.textSecondary)
+                .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
     }
 
     // MARK: - Pied
@@ -370,21 +438,17 @@ private struct OnboardingView: View {
     private var blocker: ComponentValidationError? {
         switch step {
         case .welcome: nil
-        case .languages: LanguagePicker.validate()
-        // Le moteur macOS ne bloque pas : sur une machine sans aucun moteur
-        // système, CrisperWhisper s'installe à l'écran suivant et n'a besoin de
-        // rien de tout ça. Bloquer ici enfermerait dans une page dont rien ne
-        // sort.
-        case .trigger: TriggerCard.validate()
-        case .engine: FinalEngineCard.validate()
-        case .finish: nil
+        case .preferences: LanguagePicker.validate()
+        // Le déclencheur **et** le moteur d'aperçu : c'est l'étape qui rend
+        // Sofler utilisable, et la dernière qu'exige la garde d'accès.
+        case .liveEngine: TriggerCard.validate() ?? AppleEngineCard.validate()
+        case .finalEngine: FinalEngineCard.validate()
+        case .completion: nil
         }
     }
 
     private var footer: some View {
         VStack(spacing: 0) {
-            Divider().opacity(0.5)
-
             if let blocker, step != .welcome {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.circle.fill")
@@ -399,32 +463,39 @@ private struct OnboardingView: View {
                 }
                 .foregroundStyle(Style.warning)
                 .padding(.horizontal, Style.windowPadding)
-                .padding(.top, 10)
+                .padding(.bottom, 8)
             }
 
+            Divider().opacity(0.5)
+
             HStack(spacing: 12) {
-                if step != .welcome {
-                    Button("Retour") {
-                        step = Step(rawValue: step.rawValue - 1) ?? .welcome
-                    }
-                    .buttonStyle(SoflerSecondaryButtonStyle())
+                Button("←  Retour") {
+                    step = Step(rawValue: step.rawValue - 1) ?? .welcome
                 }
+                .buttonStyle(SoflerSecondaryButtonStyle())
+                // Masqué, pas retiré : le retirer décalerait les points de
+                // navigation d'un écran à l'autre.
+                .opacity(step == .welcome ? 0 : 1)
+                .disabled(step == .welcome)
+
                 Spacer()
-                HStack(spacing: 6) {
+                HStack(spacing: 7) {
                     ForEach(Step.allCases, id: \.self) { each in
                         Circle()
                             .fill(each == step ? Style.accent
-                                               : Color.secondary.opacity(0.28))
+                                               : Color.white.opacity(0.2))
                             .frame(width: 6, height: 6)
+                            .scaleEffect(each == step ? 1.3 : 1)
                     }
                 }
                 Spacer()
+
                 Button(step.actionLabel) {
-                    if step == .finish {
+                    if step == .completion {
                         apply()
                         onFinish()
                     } else {
-                        step = Step(rawValue: step.rawValue + 1) ?? .finish
+                        step = Step(rawValue: step.rawValue + 1) ?? .completion
                     }
                 }
                 .buttonStyle(SoflerPrimaryButtonStyle())
@@ -432,7 +503,8 @@ private struct OnboardingView: View {
                 .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, Style.windowPadding)
-            .padding(.vertical, 16)
+            .frame(height: 60)
+            .background(Color.black.opacity(0.2))
         }
     }
 

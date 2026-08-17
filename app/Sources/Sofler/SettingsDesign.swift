@@ -219,6 +219,48 @@ struct WindowChrome<Trailing: View>: View {
     }
 }
 
+/// L'en-tête d'un écran : titre et phrase d'introduction.
+///
+/// Reprend `.page-header` du prototype — 24 pt gras avec un crénage serré, un
+/// sous-titre de 13 pt, et 20 pt sous l'ensemble.
+struct PageHeader: View {
+    let title: String
+    var subtitle: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 24, weight: .bold))
+                .kerning(-0.72)
+                .foregroundStyle(.white)
+            if let subtitle {
+                Text(.init(subtitle))
+                    .font(.system(size: 13))
+                    .foregroundStyle(Style.textSecondary)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, 20)
+    }
+}
+
+/// Le titre d'une section, au-dessus d'une carte — `.section-label`.
+struct SectionLabel: View {
+    let text: String
+
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text.uppercased())
+            .font(.system(size: 10.5, weight: .bold))
+            .kerning(0.84)
+            .foregroundStyle(Style.textTertiary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 /// Le compteur d'étapes de l'accueil — « 2 / 5 ».
 struct StepCounter: View {
     let current: Int
@@ -250,10 +292,10 @@ struct SoflerPrimaryButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .semibold))
+            .font(.system(size: 12.5, weight: .semibold))
             .foregroundStyle(Style.onAccent)
-            .padding(.horizontal, 18)
-            .padding(.vertical, 9)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 7)
             .background(Capsule().fill(isEnabled ? Style.accent
                                                  : Color.white.opacity(0.12)))
             .shadow(color: isEnabled ? Style.accentGlow : .clear,
@@ -269,13 +311,14 @@ struct SoflerSecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 12.5, weight: .medium))
-            .foregroundStyle(Color.secondary)
-            .padding(.horizontal, 14)
+            .foregroundStyle(Style.textPrimary)
+            .padding(.horizontal, 16)
             .padding(.vertical, 7)
             .background(
                 Capsule()
-                    .fill(Color.white.opacity(configuration.isPressed ? 0.10 : 0.05))
-                    .overlay(Capsule().strokeBorder(Style.cardStroke, lineWidth: 1)))
+                    .fill(Color.white.opacity(configuration.isPressed ? 0.13 : 0.08))
+                    .overlay(Capsule().strokeBorder(Color.white.opacity(0.08),
+                                                    lineWidth: 1)))
     }
 }
 
@@ -292,7 +335,7 @@ struct NumberBadge: View {
             .font(.system(size: 11, weight: .bold))
             .monospacedDigit()
             .foregroundStyle(Style.accent)
-            .frame(width: 22, height: 22)
+            .frame(width: 20, height: 20)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(Style.accentDim)
@@ -324,10 +367,10 @@ struct Card<Content: View>: View {
                     .foregroundStyle(Style.textTertiary)
             }
 
-            VStack(alignment: .leading, spacing: 12) { content }
+            VStack(alignment: .leading, spacing: 14) { content }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Style.cardPadding)
-                .padding(.vertical, 18)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
                 .background(
                     RoundedRectangle(cornerRadius: Style.cardRadius, style: .continuous)
                         .fill(highlighted ? Style.accent.opacity(0.05) : Style.cardFill)
