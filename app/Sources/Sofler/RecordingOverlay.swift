@@ -47,6 +47,19 @@ final class RecordingOverlay {
         var modesAvailable: Bool = true
         var corpusEnabled: Bool
         var corpusKeepsAudio: Bool
+        /// La langue en cours, « 🇫🇷 FR ».
+        ///
+        /// **Un indicateur, pas un sélecteur**, et c'est un arbitrage. Les
+        /// documents proposaient d'en faire une pastille cliquable pour
+        /// basculer de langue en pleine dictée. Ça suppose de redémarrer le
+        /// recognizer système alors qu'il consomme déjà un flux audio — une
+        /// opération dont rien ne dit qu'elle est sans latence ni perte, et
+        /// dont l'échec se manifesterait par une transcription tronquée au
+        /// milieu d'une phrase. Tant que ce n'est pas mesuré, la pastille dit
+        /// ce qui écoute et ne prétend rien de plus : savoir dans quelle langue
+        /// on est en train de dicter est déjà l'essentiel de ce qu'on lui
+        /// demande.
+        var languageBadge: String = ""
     }
 
     private var panel: NSPanel?
@@ -65,6 +78,7 @@ final class RecordingOverlay {
     private let targetControl = PillSelector(
         labels: ["Curseur", "Notes…"], accent: accent)
     private let micButton = FirstMouseButton()
+    private let languageBadge = NSTextField(labelWithString: "")
     private let corpusBadge = BadgeButton()
     private var container: NSStackView?
     private var recordingRow: NSStackView?
@@ -96,11 +110,18 @@ final class RecordingOverlay {
 
     /// Teinte des états actifs. Une seule dans toute la barre : deux accents
     /// concurrents et plus rien ne ressort.
-    static let accent = NSColor.systemTeal
+    ///
+    /// La valeur exacte du reste de l'application, et non `systemTeal` : la
+    /// teinte système varie d'une version de macOS à l'autre, si bien que la
+    /// barre et les Réglages avaient fini par ne plus tout à fait s'accorder.
+    /// Cf. `Style.accent`.
+    static let accent = NSColor(srgbRed: 0x00 / 255.0, green: 0xE5 / 255.0,
+                                blue: 0xCC / 255.0, alpha: 1)
     /// La collecte a sa propre couleur, et c'est délibéré : c'est le seul
     /// réglage qui écrit sur le disque à l'insu de l'utilisateur. Il doit se
     /// distinguer d'un simple choix de mode.
-    private static let collecting = NSColor.systemOrange
+    private static let collecting = NSColor(srgbRed: 0xFB / 255.0, green: 0x92 / 255.0,
+                                            blue: 0x3C / 255.0, alpha: 1)
 
     private static let rowHeight: CGFloat = 26
     private static let controlRowHeight: CGFloat = 32
@@ -112,8 +133,20 @@ final class RecordingOverlay {
     private static let previewLines = 3
     private static let previewFontSize: CGFloat = 13
     private static let previewLineHeight: CGFloat = 18
-    private static let minimumWidth: CGFloat = 380
-    private static let widthWithPreview: CGFloat = 440
+    /// **Largeur unique, dans les trois états.**
+    ///
+    /// Elle valait 380 à 460 pt selon ce qui était affiché : 210 pt pendant la
+    /// transcription, la largeur du message pendant un échec, et une mesure des
+    /// contrôles pendant l'enregistrement. La barre changeait donc de taille à
+    /// chaque transition, sous les yeux de quelqu'un qui vient de parler —
+    /// un saut d'autant plus visible qu'elle est centrée, donc que ses deux
+    /// bords bougent en sens contraires.
+    ///
+    /// Une seule largeur supprime la question. Seul le contenu intérieur
+    /// change, et la hauteur suit le nombre de lignes que l'aperçu occupe
+    /// réellement — réserver trois lignes en permanence laissait un vide sous
+    /// le texte les trois quarts du temps.
+    private static let cardWidth: CGFloat = 440
     /// Borne de sécurité avant mesure : trois lignes n'en contiendront jamais
     /// autant, et mesurer la dictée entière à chaque mot serait inutile.
     private static let previewCharacters = 400
@@ -173,7 +206,8 @@ final class RecordingOverlay {
         cardAlone?.isActive = true
         statusLabel.isHidden = false
         statusLabel.stringValue = "Transcription…"
-        panel.setContentSize(NSSize(width: 210, height: 2 * Self.padding + 20))
+        panel.setContentSize(NSSize(width: Self.cardWidth,
+                                    height: 2 * Self.padding + 20))
         cardSheen?.frame = card?.bounds ?? .zero
         position(panel)
         startProcessingGlow()
@@ -204,8 +238,7 @@ final class RecordingOverlay {
         statusLabel.isHidden = false
         statusLabel.stringValue = message
 
-        let text = statusLabel.attributedStringValue.size().width
-        panel.setContentSize(NSSize(width: min(460, max(210, text + 2 * Self.padding + 20)),
+        panel.setContentSize(NSSize(width: Self.cardWidth,
                                     height: 2 * Self.padding + 20))
         cardSheen?.frame = card?.bounds ?? .zero
         position(panel)
@@ -293,6 +326,7 @@ final class RecordingOverlay {
         self.status = status
 
         modeControl.select(TranscriptionMode.allCases.firstIndex(of: status.mode) ?? 0)
+        languageBadge.stringValue = status.languageBadge
         // Masquer ne suffit pas à recentrer : les entretoises restent en
         // place et le contrôle survivant se retrouve décalé d'une demi-
         // entretoise. On refait la rangée avec les seuls contrôles visibles.
@@ -353,7 +387,7 @@ final class RecordingOverlay {
         guard let font = previewLabel.font, !text.isEmpty else { return (text, 1) }
         let width = previewLabel.bounds.width > 0
             ? previewLabel.bounds.width
-            : (panel?.frame.width ?? Self.widthWithPreview) - 2 * (Self.padding + 4)
+            : Self.cardWidth - 2 * (Self.padding + 4)
         guard width > 0 else { return (text, 1) }
 
         let ceiling = CGFloat(Self.previewLines) * Self.previewLineHeight
@@ -443,19 +477,9 @@ final class RecordingOverlay {
         ])
     }
 
-    /// Largeur dictée par les contrôles seuls — jamais par le texte reconnu —
-    /// et jamais plus large que l'écran. Hauteur ajustée au nombre de lignes
-    /// que l'aperçu occupe vraiment : réserver trois lignes en permanence
-    /// laissait un vide sous le texte les trois quarts du temps.
+    /// Hauteur seule : la largeur ne bouge jamais (cf. `cardWidth`).
     private func resize() {
         guard let panel else { return }
-        let rows = [recordingRow?.fittingSize.width ?? 0,
-                    textRow?.fittingSize.width ?? 0]
-        let needed = (rows.max() ?? Self.minimumWidth) + 2 * Self.padding + 14
-        let floor = status.previewEnabled ? Self.widthWithPreview : Self.minimumWidth
-        let ceiling = (NSScreen.main?.visibleFrame.width ?? 1440) - 80
-        let width = min(max(floor, needed), max(floor, ceiling))
-
         var height = Self.controlRowHeight + Self.tabGap
             + Self.padding + Self.rowHeight + Self.padding
         if status.previewEnabled {
@@ -463,7 +487,7 @@ final class RecordingOverlay {
         }
         previewHeight?.constant = CGFloat(previewLineCount) * Self.previewLineHeight
         previewLabel.isHidden = !status.previewEnabled
-        panel.setContentSize(NSSize(width: width, height: height))
+        panel.setContentSize(NSSize(width: Self.cardWidth, height: height))
         // Les couches Core Animation ne suivent pas Auto Layout.
         cardSheen?.frame = card?.bounds ?? .zero
         position(panel)
@@ -471,7 +495,7 @@ final class RecordingOverlay {
 
     private func makePanel() -> NSPanel {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: Self.minimumWidth, height: 110),
+            contentRect: NSRect(x: 0, y: 0, width: Self.cardWidth, height: 110),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -572,6 +596,13 @@ final class RecordingOverlay {
 
             statusLabel.centerXAnchor.constraint(equalTo: card.centerXAnchor),
             statusLabel.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            // La carte ne s'élargit plus pour accueillir le message : il faut
+            // donc qu'il tienne dedans. Les messages d'échec sont déjà écrits
+            // pour ça (cf. `DictationController.shortReason`), et la troncature
+            // est le filet pour ceux qui viendraient du système.
+            statusLabel.widthAnchor.constraint(
+                lessThanOrEqualTo: card.widthAnchor,
+                constant: -2 * Self.padding),
         ])
         return panel
     }
@@ -597,7 +628,8 @@ final class RecordingOverlay {
             row.removeArrangedSubview(view)
             view.removeFromSuperview()
         }
-        fill(row, with: showMode ? [modeControl, targetControl] : [targetControl])
+        fill(row, with: showMode ? [modeControl, languageBadge, targetControl]
+                                 : [languageBadge, targetControl])
     }
 
     private func makeSpacedRow(_ views: [NSView]) -> NSStackView {
@@ -646,6 +678,11 @@ final class RecordingOverlay {
         timeLabel.textColor = .labelColor
         statusLabel.font = .systemFont(ofSize: 12, weight: .medium)
         statusLabel.textColor = .secondaryLabelColor
+        statusLabel.lineBreakMode = .byTruncatingTail
+        statusLabel.alignment = .center
+        languageBadge.font = .systemFont(ofSize: 11, weight: .medium)
+        languageBadge.textColor = .tertiaryLabelColor
+        languageBadge.alignment = .center
 
         // Italique et discret : l'aperçu ne doit jamais être pris pour le
         // texte qui sera inséré.

@@ -67,6 +67,9 @@ struct Language: Identifiable, Hashable, Sendable {
     /// « 🇫🇷 Français » — pour les pastilles et les puces.
     var badge: String { "\(flag) \(name)" }
 
+    /// « 🇫🇷 FR » — pour la barre d'enregistrement, où la place est comptée.
+    var shortBadge: String { "\(flag) \(base.uppercased())" }
+
     /// Poids arrondi, présenté comme l'approximation qu'il est.
     var estimatedSizeLabel: String {
         ByteCountFormatter.string(fromByteCount: estimatedModelBytes, countStyle: .file)

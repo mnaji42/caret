@@ -176,7 +176,12 @@ final class DictationController {
             previewEnabled: Preferences.shared.livePreviewEnabled,
             modesAvailable: Preferences.shared.engine.hasModes,
             corpusEnabled: Preferences.shared.corpusEnabled,
-            corpusKeepsAudio: Preferences.shared.corpusKeepsAudio)
+            corpusKeepsAudio: Preferences.shared.corpusKeepsAudio,
+            // La langue **effectivement** écoutée. Elle n'était nulle part sur
+            // la barre : depuis le multi-langues, dicter en français avec
+            // l'anglais actif produit un texte incompréhensible qu'on met
+            // longtemps à imputer à la bonne cause.
+            languageBadge: Preferences.shared.primary.shortBadge)
     }
 
     private func refreshOverlay() {
