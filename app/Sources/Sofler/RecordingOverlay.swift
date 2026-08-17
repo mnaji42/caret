@@ -115,8 +115,7 @@ final class RecordingOverlay {
     /// teinte système varie d'une version de macOS à l'autre, si bien que la
     /// barre et les Réglages avaient fini par ne plus tout à fait s'accorder.
     /// Cf. `Style.accent`.
-    static let accent = NSColor(srgbRed: 0x00 / 255.0, green: 0xE5 / 255.0,
-                                blue: 0xCC / 255.0, alpha: 1)
+    static let accent = NSColor.soflerAccent
     /// La collecte a sa propre couleur, et c'est délibéré : c'est le seul
     /// réglage qui écrit sur le disque à l'insu de l'utilisateur. Il doit se
     /// distinguer d'un simple choix de mode.
@@ -864,7 +863,7 @@ private final class LevelMeter: NSView {
             // Les barres récentes sont franches, les anciennes s'effacent :
             // le sens de défilement se lit sans y penser.
             let fade = 1 - CGFloat(index) / CGFloat(barCount) * 0.75
-            context.setFillColor(NSColor.systemTeal.withAlphaComponent(fade).cgColor)
+            context.setFillColor(NSColor.soflerAccent.withAlphaComponent(fade).cgColor)
             let x = bounds.width - CGFloat(index + 1) * barWidth - CGFloat(index) * gap
             let rect = NSRect(x: x, y: (bounds.height - height) / 2,
                               width: barWidth, height: height)

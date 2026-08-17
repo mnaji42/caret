@@ -139,15 +139,15 @@ struct ShortcutRecorder: NSViewRepresentable {
             let radius: CGFloat = 7
             let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5),
                                     xRadius: radius, yRadius: radius)
-            (recording ? NSColor.systemTeal.withAlphaComponent(0.18)
+            (recording ? NSColor.soflerAccent.withAlphaComponent(0.18)
                        : NSColor.white.withAlphaComponent(0.06)).setFill()
             path.fill()
-            (recording ? NSColor.systemTeal : NSColor.white.withAlphaComponent(0.10)).setStroke()
+            (recording ? NSColor.soflerAccent : NSColor.white.withAlphaComponent(0.10)).setStroke()
             path.stroke()
 
             let text = refusal ?? (recording ? "Tapez la combinaison…" : shortcut.label)
-            let colour: NSColor = refusal != nil ? .systemOrange
-                : (recording ? .systemTeal : .secondaryLabelColor)
+            let colour: NSColor = refusal != nil ? .soflerWarning
+                : (recording ? .soflerAccent : .secondaryLabelColor)
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: NSFont.systemFont(ofSize: refusal != nil ? 9 : 12,
                                          weight: .medium),

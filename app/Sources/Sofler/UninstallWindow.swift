@@ -39,7 +39,9 @@ final class UninstallWindowController {
         window.titlebarAppearsTransparent = true
         window.backgroundColor = .clear
         window.isOpaque = false
-        window.setContentSize(NSSize(width: 560, height: 620))
+        // La même géométrie que l'accueil et les Réglages : trois surfaces,
+        // une seule fenêtre.
+        window.applySoflerGeometry()
         window.center()
         window.isReleasedWhenClosed = false
         // Cf. Onboarding.swift : sans ça la fenêtre s'efface dès que Sofler
@@ -89,13 +91,13 @@ private struct UninstallView: View {
             Text(title)
                 .font(.system(size: 22, weight: .semibold))
                 .padding(.top, 28)
-                .padding(.horizontal, 28)
+                .padding(.horizontal, Style.windowPadding)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if let report { summary(report) } else { chooser }
                 }
-                .padding(.horizontal, 28)
+                .padding(.horizontal, Style.windowPadding)
                 .padding(.top, 18)
                 .padding(.bottom, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -185,7 +187,7 @@ private struct UninstallView: View {
                 ForEach(lines, id: \.self) { line in
                     Text(line)
                         .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(line.hasPrefix("✗") ? Style.collecting : .secondary)
+                        .foregroundStyle(line.hasPrefix("✗") ? Style.warning : .secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -214,7 +216,11 @@ private struct UninstallView: View {
                     report = Uninstall.perform(selected, removingApp: scope.removesApp)
                 }
                     .buttonStyle(.borderedProminent)
-                    .tint(Style.collecting)
+                    // Rouge, et non l'ambre de la collecte : « ceci est
+                    // archivé » et « ceci part » ne sont pas le même registre,
+                    // et c'est le seul bouton de l'application dont l'effet ne
+                    // se défait pas.
+                    .tint(Style.danger)
             } else {
                 // Quitter n'a de sens que si l'application vient de partir.
                 Button(scope.removesApp ? "Quitter Sofler" : "Fermer") {
@@ -225,7 +231,7 @@ private struct UninstallView: View {
                 .keyboardShortcut(.defaultAction)
             }
         }
-        .padding(.horizontal, 28)
+        .padding(.horizontal, Style.windowPadding)
         .padding(.vertical, 18)
     }
 }

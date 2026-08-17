@@ -72,6 +72,21 @@ enum Style {
     static var contentWidth: CGFloat { windowWidth - 2 * windowPadding }
 }
 
+extension NSColor {
+    /// L'accent de Sofler, pour le code AppKit — barre d'enregistrement,
+    /// enregistreur de raccourci, vumètre.
+    ///
+    /// La même valeur que `Style.accent`, et non `systemTeal` : la teinte
+    /// système varie d'une version de macOS à l'autre et se désature hors
+    /// focus, si bien que les surfaces AppKit et SwiftUI de l'application
+    /// avaient fini par ne plus s'accorder tout à fait.
+    static let soflerAccent = NSColor(srgbRed: 0x00 / 255.0, green: 0xE5 / 255.0,
+                                      blue: 0xCC / 255.0, alpha: 1)
+    /// L'ambre des avertissements, pour le code AppKit.
+    static let soflerWarning = NSColor(srgbRed: 0xF5 / 255.0, green: 0x9E / 255.0,
+                                       blue: 0x0B / 255.0, alpha: 1)
+}
+
 extension Color {
     /// Couleur depuis un littéral hexadécimal — `Color(hex: 0x00E5CC)`.
     ///
@@ -195,10 +210,7 @@ struct PillPicker<Value: Hashable>: View {
                 let active = option.value == selection
                 Text(option.label)
                     .font(.system(size: 12, weight: active ? .semibold : .medium))
-                    .foregroundStyle(active
-                        ? Color(nsColor: NSColor.systemTeal
-                            .blended(withFraction: 0.25, of: .white) ?? .systemTeal)
-                        : Color.secondary)
+                    .foregroundStyle(active ? Style.accent : Color.secondary)
                     .padding(.horizontal, 10)
                     .frame(height: Self.height - 2 * Self.inset)
                     .background(
