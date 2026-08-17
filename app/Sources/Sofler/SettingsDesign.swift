@@ -102,6 +102,46 @@ extension Color {
 }
 
 extension NSWindow {
+    /// Crée une fenêtre Sofler autour d'une vue SwiftUI.
+    ///
+    /// ## Pourquoi une fabrique, et pas trois appels à la suite
+    ///
+    /// Parce qu'une des étapes est facile à oublier et qu'elle casse tout.
+    ///
+    /// `NSHostingController` propage par défaut la taille *idéale* de sa vue
+    /// SwiftUI vers la fenêtre — c'est `sizingOptions = .preferredContentSize`
+    /// — et il le fait **après** l'appel qui fixe la taille. Une page dont le
+    /// contenu dépasse produit donc une fenêtre plus haute que l'écran, dont le
+    /// pied devient inatteignable : le bouton « Continuer » de l'accueil se
+    /// retrouve sous le bord inférieur, sans aucun moyen de l'atteindre puisque
+    /// la fenêtre n'est pas redimensionnable. Constaté, et parfaitement muet
+    /// côté compilation.
+    ///
+    /// La fabrique neutralise donc ce comportement : c'est la **fenêtre** qui
+    /// impose sa taille, et le contenu qui défile dedans.
+    static func sofler<Content: View>(title: String,
+                                      @ViewBuilder content: () -> Content) -> NSWindow {
+        let hosting = NSHostingController(rootView: content())
+        // Aucune remontée de taille : sans ça, tout ce qui suit est écrasé.
+        hosting.sizingOptions = []
+
+        let window = NSWindow(contentViewController: hosting)
+        window.title = title
+        window.styleMask = [.titled, .closable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
+        // Le fond est peint par la vue : sans ça, macOS glisse son gris système
+        // derrière et les surfaces de l'application ne se ressemblent plus.
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.isReleasedWhenClosed = false
+        // Les fenêtres de Sofler contiennent des boutons qui ouvrent les
+        // Réglages Système. Sans ça, elles s'effacent au moment d'y aller, et
+        // on revient devant rien — en croyant avoir fait fuir l'application.
+        window.hidesOnDeactivate = false
+        window.applySoflerGeometry()
+        return window
+    }
+
     /// Applique la géométrie commune : 580 × 700, non redimensionnable.
     ///
     /// La hauteur est **écrêtée à l'écran**. Les documents de conception la
@@ -139,31 +179,164 @@ struct GlassBackground: NSViewRepresentable {
     func updateNSView(_ view: NSVisualEffectView, context: Context) {}
 }
 
+/// Le fond des fenêtres de configuration.
+///
+/// Le verre seul ne suffisait pas, et c'était visible : `hudWindow` en
+/// `behindWindow` laisse passer assez du bureau pour que le papier peint
+/// traverse les cartes, que les contrastes changent selon ce qu'il y a
+/// derrière, et qu'un texte secondaire devienne illisible sur une photo claire.
+/// La barre flottante peut se le permettre — elle est petite et éphémère ; une
+/// fenêtre qu'on lit pendant plusieurs minutes, non.
+///
+/// D'où la couche quasi opaque par-dessus, à la valeur du prototype
+/// (`rgba(20, 24, 33, 0.96)`) : il reste juste ce qu'il faut de verre pour que
+/// la fenêtre appartienne à macOS, et plus assez pour qu'elle dépende du fond
+/// d'écran.
+struct WindowBackground: View {
+    var body: some View {
+        ZStack {
+            GlassBackground()
+            Color(hex: 0x141821).opacity(0.96)
+        }
+    }
+}
+
+/// La barre de titre : la place des feux tricolores, et ce qu'on met à droite.
+///
+/// La fenêtre est en `fullSizeContentView`, donc le contenu passerait sous les
+/// feux sans cette réserve de 48 pt. Le titre lui-même reste celui de macOS —
+/// le redessiner donnerait deux titres à trois pixels d'écart.
+struct WindowChrome<Trailing: View>: View {
+    @ViewBuilder var trailing: Trailing
+
+    var body: some View {
+        HStack {
+            Spacer()
+            trailing
+        }
+        .frame(height: 48)
+        .padding(.horizontal, Style.windowPadding)
+    }
+}
+
+/// Le compteur d'étapes de l'accueil — « 2 / 5 ».
+struct StepCounter: View {
+    let current: Int
+    let total: Int
+
+    var body: some View {
+        Text("\(current) / \(total)")
+            .font(.system(size: 11, weight: .semibold))
+            .monospacedDigit()
+            .foregroundStyle(Style.accent)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(Style.accentDim)
+                    .overlay(Capsule().strokeBorder(Style.accentBorder, lineWidth: 1)))
+            .accessibilityLabel("Étape \(current) sur \(total)")
+    }
+}
+
+/// Le bouton principal : pilule turquoise, texte sombre.
+///
+/// `.borderedProminent` teinté ne donne pas ça — il garde le rayon système et
+/// une graisse de texte plus légère, si bien que l'action principale de
+/// l'accueil se lisait comme un bouton secondaire. Le contraste vient du texte
+/// **sombre** sur le turquoise : du blanc dessus passe sous le seuil lisible.
+struct SoflerPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(Style.onAccent)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 9)
+            .background(Capsule().fill(isEnabled ? Style.accent
+                                                 : Color.white.opacity(0.12)))
+            .shadow(color: isEnabled ? Style.accentGlow : .clear,
+                    radius: configuration.isPressed ? 4 : 10, y: 2)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .opacity(isEnabled ? 1 : 0.55)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+/// Bouton secondaire : même pilule, sans le remplissage.
+struct SoflerSecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12.5, weight: .medium))
+            .foregroundStyle(Color.secondary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(
+                Capsule()
+                    .fill(Color.white.opacity(configuration.isPressed ? 0.10 : 0.05))
+                    .overlay(Capsule().strokeBorder(Style.cardStroke, lineWidth: 1)))
+    }
+}
+
+/// Une pastille numérotée — « 1 », « 2 », « 3 ».
+///
+/// Carré arrondi bordé plutôt que disque plein : le disque plein se confond
+/// avec les puces d'autorisation accordée (`GrantedLine`), qui disent tout
+/// autre chose.
+struct NumberBadge: View {
+    let number: Int
+
+    var body: some View {
+        Text("\(number)")
+            .font(.system(size: 11, weight: .bold))
+            .monospacedDigit()
+            .foregroundStyle(Style.accent)
+            .frame(width: 22, height: 22)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Style.accentDim)
+                    .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(Style.accentBorder, lineWidth: 1)))
+    }
+}
+
 /// Un bloc de réglages : titre en capitales espacées, contenu sur une carte.
 ///
 /// Remplace `Section` dans un `Form` groupé, dont le rendu système jure avec le
 /// reste de l'application.
 struct Card<Content: View>: View {
     let title: String
+    /// Teintée turquoise, pour la carte qui porte le message essentiel d'un
+    /// écran. Une seule par écran : deux accents concurrents et plus rien ne
+    /// ressort.
+    var highlighted = false
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title.uppercased())
-                .font(.system(size: 10, weight: .bold))
-                .kerning(0.9)
-                .foregroundStyle(.tertiary)
+        VStack(alignment: .leading, spacing: 8) {
+            // Un titre vide n'imprime pas de ligne : certaines cartes se
+            // suffisent, et réserver la hauteur laisserait un blanc inexpliqué.
+            if !title.isEmpty {
+                Text(title.uppercased())
+                    .font(.system(size: 10.5, weight: .bold))
+                    .kerning(0.9)
+                    .foregroundStyle(Style.textTertiary)
+            }
 
             VStack(alignment: .leading, spacing: 12) { content }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(Style.cardPadding)
+                .padding(.horizontal, Style.cardPadding)
+                .padding(.vertical, 18)
                 .background(
                     RoundedRectangle(cornerRadius: Style.cardRadius, style: .continuous)
-                        .fill(Style.cardFill)
+                        .fill(highlighted ? Style.accent.opacity(0.05) : Style.cardFill)
                         .overlay(
                             RoundedRectangle(cornerRadius: Style.cardRadius,
                                              style: .continuous)
-                                .strokeBorder(Style.cardStroke, lineWidth: 1))
+                                .strokeBorder(highlighted ? Style.accentBorder
+                                                          : Style.cardStroke,
+                                              lineWidth: 1))
                 )
         }
     }

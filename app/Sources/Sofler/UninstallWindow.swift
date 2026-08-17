@@ -30,23 +30,11 @@ final class UninstallWindowController {
         // initiale se calcule à l'apparition.
         close()
         self.scope = scope
-        let hosting = NSHostingController(
-            rootView: UninstallView(onCancel: { [weak self] in self?.close() },
-                                    scope: scope))
-        let window = NSWindow(contentViewController: hosting)
-        window.title = scope.removesApp ? "Désinstaller Sofler" : "Retirer CrisperWhisper"
-        window.styleMask = [.titled, .closable, .fullSizeContentView]
-        window.titlebarAppearsTransparent = true
-        window.backgroundColor = .clear
-        window.isOpaque = false
-        // La même géométrie que l'accueil et les Réglages : trois surfaces,
-        // une seule fenêtre.
-        window.applySoflerGeometry()
-        window.center()
-        window.isReleasedWhenClosed = false
-        // Cf. Onboarding.swift : sans ça la fenêtre s'efface dès que Sofler
-        // n'est plus l'application active.
-        window.hidesOnDeactivate = false
+        let window = NSWindow.sofler(
+            title: scope.removesApp ? "Désinstaller Sofler" : "Retirer CrisperWhisper"
+        ) {
+            UninstallView(onCancel: { [weak self] in self?.close() }, scope: scope)
+        }
         self.window = window
 
         NSApp.activate(ignoringOtherApps: true)
@@ -106,7 +94,7 @@ private struct UninstallView: View {
             footer
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(GlassBackground().ignoresSafeArea())
+        .background(WindowBackground().ignoresSafeArea())
         // La sélection dépend de la portée, qui n'est pas connue à
         // l'initialisation d'un @State. Le drapeau évite de recocher ce que
         // l'utilisateur vient de décocher si la vue réapparaît.

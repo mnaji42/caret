@@ -19,24 +19,9 @@ final class PreferencesWindowController {
             return
         }
 
-        let hosting = NSHostingController(rootView: PreferencesView(history: history))
-        let window = NSWindow(contentViewController: hosting)
-        window.title = "Réglages de Sofler"
-        window.styleMask = [.titled, .closable, .fullSizeContentView]
-        window.titlebarAppearsTransparent = true
-        // Le fond est peint par la vue, avec le même verre que la barre : sans
-        // ça, macOS glisse son gris système derrière et les deux surfaces de
-        // l'application ne se ressemblent plus.
-        window.backgroundColor = .clear
-        window.isOpaque = false
-        // La même géométrie que l'accueil, au point près : les cartes de
-        // configuration sont littéralement les mêmes vues aux deux endroits.
-        window.applySoflerGeometry()
-        window.isReleasedWhenClosed = false
-        // Les réglages contiennent eux aussi des boutons qui ouvrent les
-        // Réglages Système. Sans ça, ils s'effacent au moment d'y aller, et on
-        // revient devant rien. Cf. Onboarding.swift, même cause.
-        window.hidesOnDeactivate = false
+        let window = NSWindow.sofler(title: "Réglages de Sofler") {
+            PreferencesView(history: history)
+        }
         self.window = window
 
         NSApp.activate(ignoringOtherApps: true)
@@ -87,7 +72,7 @@ private struct PreferencesView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .background(GlassBackground().ignoresSafeArea())
+        .background(WindowBackground().ignoresSafeArea())
         .tint(Style.accent)
     }
 

@@ -34,28 +34,13 @@ final class OnboardingWindowController {
             return
         }
 
-        let hosting = NSHostingController(
-            rootView: OnboardingView(onFinish: { [weak self] in self?.close() },
-                                     onOpenSettings: { [weak self] in
-                                         self?.close()
-                                         self?.openSettings?()
-                                     }))
-        let window = NSWindow(contentViewController: hosting)
-        window.title = "Bienvenue dans Sofler"
-        window.styleMask = [.titled, .closable, .fullSizeContentView]
-        window.titlebarAppearsTransparent = true
-        // Même verre que la barre et les réglages : trois surfaces, un seul
-        // dialecte visuel.
-        window.backgroundColor = .clear
-        window.isOpaque = false
-        window.applySoflerGeometry()
-        window.isReleasedWhenClosed = false
-        // Sans ça, la fenêtre disparaît de l'écran dès que Sofler cesse d'être
-        // l'application active — c'est-à-dire à l'instant précis où l'accueil
-        // envoie quelqu'un accorder une autorisation dans les Réglages
-        // Système. Il revient, et l'accueil s'est évaporé : il croit avoir
-        // fait fuir l'application, alors qu'elle tourne toujours.
-        window.hidesOnDeactivate = false
+        let window = NSWindow.sofler(title: "Bienvenue dans Sofler") {
+            OnboardingView(onFinish: { [weak self] in self?.close() },
+                           onOpenSettings: { [weak self] in
+                               self?.close()
+                               self?.openSettings?()
+                           })
+        }
         self.window = window
 
         NSApp.activate(ignoringOtherApps: true)
@@ -86,6 +71,17 @@ private enum Step: Int, CaseIterable {
         case .trigger: "Comment déclencher la dictée"
         case .engine: "Qui écrit le texte"
         case .finish: "Tout est prêt"
+        }
+    }
+
+    /// L'intitulé du bouton principal. Le premier écran annonce ce qui
+    /// commence — « Continuer » n'y voudrait rien dire, puisqu'on n'a encore
+    /// rien fait à poursuivre.
+    var actionLabel: String {
+        switch self {
+        case .welcome: "Commencer la configuration  →"
+        case .finish: "Terminer"
+        default: "Continuer  →"
         }
     }
 
@@ -129,18 +125,22 @@ private struct OnboardingView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header
+            WindowChrome {
+                StepCounter(current: step.rawValue + 1, total: Step.allCases.count)
+            }
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) { content }
-                    .padding(.horizontal, Style.windowPadding)
-                    .padding(.top, 18)
-                    .padding(.bottom, 12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 16) {
+                    header
+                    content
+                }
+                .padding(.horizontal, Style.windowPadding)
+                .padding(.bottom, 18)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             footer
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(GlassBackground().ignoresSafeArea())
+        .background(WindowBackground().ignoresSafeArea())
         // Enregistrée en continu : quitter l'application au milieu d'une étape
         // ne doit pas coûter les précédentes.
         .onChange(of: step) { _, now in prefs.onboardingStep = now.rawValue }
@@ -158,8 +158,7 @@ private struct OnboardingView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(.top, 26)
-        .padding(.horizontal, Style.windowPadding)
+        .padding(.bottom, 2)
     }
 
     @ViewBuilder
@@ -179,53 +178,55 @@ private struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 16) {
             Card(title: "le principe en trois points") {
                 principle(1, "Écrivez au son de votre voix",
-                          "Vous appuyez sur une touche, vous parlez, vous "
-                          + "appuyez à nouveau. Le texte s'insère à votre "
-                          + "curseur, dans l'application que vous avez devant "
-                          + "vous.")
+                          "Une touche, vous parlez, la même touche. Le texte "
+                          + "s'insère à votre curseur, dans l'application que "
+                          + "vous avez devant vous.")
                 Divider().opacity(0.25)
                 principle(2, "Rien ne sort de votre Mac",
-                          "Aucun compte, aucun serveur, aucune connexion "
-                          + "requise. **Il n'existe aucun réglage pour "
-                          + "autoriser l'envoi de ce que vous dictez — la "
-                          + "fonction n'existe pas.**")
+                          "Aucun compte, aucun serveur, aucune connexion. **Il "
+                          + "n'existe aucun réglage pour autoriser l'envoi de "
+                          + "ce que vous dictez.**")
                 Divider().opacity(0.25)
                 principle(3, "Vous choisissez le moteur",
-                          "Celui de macOS ne pèse rien et n'a rien à "
-                          + "télécharger. CrisperWhisper écrit les mots de "
-                          + "votre métier tels que vous les dites, en échange "
-                          + "de 1,6 Go et d'environ 3 Go en mémoire.")
+                          "Celui de macOS ne pèse rien. CrisperWhisper écrit "
+                          + "les mots de votre métier tels que vous les dites, "
+                          + "contre 1,6 Go et ~3 Go en mémoire.")
             }
 
-            Card(title: "deux façons de s'en servir") {
-                Text("**Au curseur.** Le texte atterrit là où votre curseur "
-                     + "clignote déjà — éditeur, navigateur, messagerie — sans "
-                     + "changer de fenêtre.")
-                    .font(.system(size: 12))
-                    .fixedSize(horizontal: false, vertical: true)
+            Card(title: "deux destinations") {
+                destination("Au curseur",
+                            "là où il clignote déjà, sans changer de fenêtre")
                 Divider().opacity(0.25)
-                Text("**Dans un fichier de notes.** Vous désignez un fichier, "
-                     + "et tout ce que vous dictez s'y ajoute, où que soit le "
-                     + "curseur. C'est ce qui permet de réfléchir à voix "
-                     + "haute : vous parlez pendant que vous travaillez, les "
-                     + "idées s'empilent, et vous les relisez après.")
+                destination("Dans un fichier de notes",
+                            "tout s'y ajoute, où que soit le curseur — pour "
+                            + "réfléchir à voix haute en travaillant")
+            }
+
+            // Sans titre : « ce que nous allons configurer » répéterait ce que
+            // la phrase dit déjà, en coûtant la ligne qui faisait déborder
+            // l'écran.
+            Card(title: "", highlighted: true) {
+                Text(.init("Nous allons choisir vos **langues**, accorder les "
+                           + "**deux accès système** requis, et faire un "
+                           + "**premier essai vocal**."))
                     .font(.system(size: 12))
                     .fixedSize(horizontal: false, vertical: true)
             }
-
-            Note("Trois écrans suffisent à pouvoir dicter. Les deux suivants "
-                 + "affinent, et se refont plus tard depuis les Réglages.")
         }
+    }
+
+    /// Une destination, sur une ligne : le nom, puis ce qu'elle fait.
+    private func destination(_ name: String, _ effect: String) -> some View {
+        Text(.init("**\(name)** — \(effect)."))
+            .font(.system(size: 12))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private func principle(_ number: Int, _ title: String,
                            _ detail: String) -> some View {
         HStack(alignment: .top, spacing: 11) {
-            Text("\(number)")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Style.accent)
-                .frame(width: 20, height: 20)
-                .background(Circle().fill(Style.accentDim))
+            NumberBadge(number: number)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(size: 13, weight: .semibold))
                 Text(.init(detail))
@@ -382,6 +383,8 @@ private struct OnboardingView: View {
 
     private var footer: some View {
         VStack(spacing: 0) {
+            Divider().opacity(0.5)
+
             if let blocker, step != .welcome {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.circle.fill")
@@ -391,11 +394,12 @@ private struct OnboardingView: View {
                     // abandonner quelqu'un à l'étape des autorisations.
                     Text(blocker.errorDescription ?? "")
                         .font(.system(size: 11))
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
                 }
                 .foregroundStyle(Style.warning)
                 .padding(.horizontal, Style.windowPadding)
-                .padding(.bottom, 6)
+                .padding(.top, 10)
             }
 
             HStack(spacing: 12) {
@@ -403,18 +407,19 @@ private struct OnboardingView: View {
                     Button("Retour") {
                         step = Step(rawValue: step.rawValue - 1) ?? .welcome
                     }
+                    .buttonStyle(SoflerSecondaryButtonStyle())
                 }
                 Spacer()
-                HStack(spacing: 5) {
+                HStack(spacing: 6) {
                     ForEach(Step.allCases, id: \.self) { each in
                         Circle()
                             .fill(each == step ? Style.accent
-                                               : Color.secondary.opacity(0.3))
-                            .frame(width: 5, height: 5)
+                                               : Color.secondary.opacity(0.28))
+                            .frame(width: 6, height: 6)
                     }
                 }
                 Spacer()
-                Button(step == .finish ? "Terminer" : "Continuer") {
+                Button(step.actionLabel) {
                     if step == .finish {
                         apply()
                         onFinish()
@@ -422,13 +427,12 @@ private struct OnboardingView: View {
                         step = Step(rawValue: step.rawValue + 1) ?? .finish
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Style.accent)
+                .buttonStyle(SoflerPrimaryButtonStyle())
                 .disabled(blocker != nil)
                 .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, Style.windowPadding)
-            .padding(.vertical, 18)
+            .padding(.vertical, 16)
         }
     }
 
