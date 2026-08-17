@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import SoflerCore
 
 extension Notification.Name {
     /// Le déclencheur a changé : le tap clavier doit être reconstruit.
@@ -44,6 +45,7 @@ final class Preferences {
         static let onboarded = "sofler.onboarded"
         static let updateCheck = "sofler.update.check"
         static let lastValidEngine = "sofler.engine.lastValid"
+        static let habits = "sofler.habits"
         /// Marque qu'une installation antérieure au multi-langues a été
         /// reprise. Sert à ne pas changer sous les pieds de quelqu'un des
         /// défauts qui n'ont bougé que pour les installations neuves.
@@ -219,6 +221,33 @@ final class Preferences {
 
     /// Les langues déclarées, en plus de la principale.
     var secondaryLanguages: [String] { Array(selectedLanguages.dropFirst()) }
+
+    /// Ce que l'utilisateur a dit de son usage, à l'écran 2 de l'accueil.
+    ///
+    /// Persisté, alors que ça ne pilote aucun comportement : c'est le seul
+    /// moyen pour l'écran 4 de justifier sa recommandation quand on y revient
+    /// après avoir quitté l'application en cours de route. Un conseil qui
+    /// change entre deux lancements parce que sa prémisse a été oubliée est
+    /// pire qu'un conseil absent.
+    var habits: UsageHabits {
+        didSet {
+            guard let data = try? JSONEncoder().encode(habits) else { return }
+            defaults.set(data, forKey: Key.habits)
+        }
+    }
+
+    /// Le moteur conseillé, compte tenu des langues retenues.
+    ///
+    /// La couverture est mesurée sur **toutes** les langues déclarées, pas
+    /// seulement la principale : conseiller un moteur qui n'en couvre qu'une
+    /// partie reviendrait à promettre un repli silencieux à la première
+    /// bascule.
+    var recommendation: EngineRecommendation {
+        EngineRecommendation.advise(
+            habits: habits,
+            primaryBase: Language.named(primaryLanguage).base,
+            crisperCoversAll: activeLanguages.allSatisfy(\.isCoveredByCrisperWhisper))
+    }
 
     /// Le catalogue restreint à ce que l'utilisateur a retenu, dans son ordre.
     var activeLanguages: [Language] { selectedLanguages.map(Language.named) }
@@ -562,6 +591,10 @@ final class Preferences {
         // arbitraire ferait dicter avec autre chose que ce qui est affiché.
         lastValidEngine = EngineChoice(rawValue: defaults.string(forKey: Key.lastValidEngine) ?? "")
             ?? (resolvedFinal == .crisperWhisper ? .crisperWhisper : resolvedApple)
+
+        habits = defaults.data(forKey: Key.habits)
+            .flatMap { try? JSONDecoder().decode(UsageHabits.self, from: $0) }
+            ?? UsageHabits()
 
         corpusEngines = defaults.stringArray(forKey: Key.corpusEngines)
             .map { Set($0.compactMap(EngineChoice.init(rawValue:))) }
