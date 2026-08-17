@@ -33,6 +33,7 @@ final class Preferences {
         static let language = "sofler.language"          // hérité, migré vers languages
         static let languages = "sofler.languages.selected"
         static let noteFile = "sofler.notes.file"
+        static let destination = "sofler.dictation.destination"
         static let livePreview = "sofler.preview.live"
         static let corpus = "sofler.corpus.enabled"
         static let corpusAudio = "sofler.corpus.audio"
@@ -317,6 +318,36 @@ final class Preferences {
         didSet { defaults.set(noteFile?.path, forKey: Key.noteFile) }
     }
 
+    /// Où va le texte : au curseur, ou dans le fichier de notes.
+    ///
+    /// Persistée, alors qu'elle ne l'était pas : la destination était remise au
+    /// curseur à chaque lancement. Quelqu'un qui travaille au fichier de notes
+    /// des journées entières devait donc y revenir après chaque redémarrage,
+    /// sans que rien ne le lui rappelle — et le découvrait en constatant que sa
+    /// dictée s'était écrite dans la fenêtre de devant.
+    ///
+    /// La contrepartie est réelle et assumée : au lancement suivant, le texte
+    /// peut partir ailleurs que là où l'on regarde. C'est pourquoi le menu de
+    /// la barre porte en permanence la ligne « ▸ Écrit dans … » tant que la
+    /// destination est un fichier.
+    enum Destination: String, CaseIterable, Codable, Sendable {
+        case caret, notes
+    }
+
+    var destination: Destination {
+        didSet { defaults.set(destination.rawValue, forKey: Key.destination) }
+    }
+
+    /// La destination effective, une fois vérifié qu'elle est tenable.
+    ///
+    /// « Notes » sans fichier mémorisé n'est pas une destination : c'est un
+    /// réglage qui n'a pas fini d'être posé. On retombe au curseur plutôt que
+    /// de perdre la dictée.
+    var effectiveTarget: DictationTarget {
+        guard destination == .notes, let noteFile else { return .caret }
+        return .file(noteFile)
+    }
+
     /// Aperçu en direct pendant la dictée, par le moteur système.
     ///
     /// Réglable depuis la barre elle-même : c'est là qu'on s'aperçoit qu'il
@@ -541,6 +572,10 @@ final class Preferences {
         noteFile = defaults.string(forKey: Key.noteFile)
             .map { URL(fileURLWithPath: $0) }
             .flatMap { FileManager.default.isWritableFile(atPath: $0.path) ? $0 : nil }
+        // Au curseur par défaut : c'est ce qu'on attend d'une dictée, et le
+        // fichier de notes suppose d'en avoir désigné un.
+        destination = Destination(rawValue: defaults.string(forKey: Key.destination) ?? "")
+            ?? .caret
         livePreviewEnabled = defaults.object(forKey: Key.livePreview) as? Bool ?? true
         // Fermée par défaut — rien n'est archivé sans un geste explicite.
         // Mais une fois ouverte, complète : conserver l'audio et transcrire

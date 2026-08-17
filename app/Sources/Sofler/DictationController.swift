@@ -48,7 +48,12 @@ final class DictationController {
     /// basculer en pleine phrase redirige donc la dictée en cours, dans les
     /// deux sens. C'est le comportement attendu — on se rend compte en parlant
     /// que ça ne doit pas aller là.
-    var target: DictationTarget = .caret
+    ///
+    /// **Lue** dans les préférences, jamais recopiée — la même règle que le
+    /// mode, la langue et le lexique juste au-dessus, et pour la même raison.
+    /// Elle était un état local remis au curseur à chaque lancement, ce qui
+    /// obligeait qui travaille au fichier de notes à y revenir tous les matins.
+    var target: DictationTarget { Preferences.shared.effectiveTarget }
 
     /// Fichier des notes, mémorisé même quand on écrit au curseur.
     var noteFile: URL? { Preferences.shared.noteFile }
@@ -407,11 +412,11 @@ final class DictationController {
     /// ailleurs.
     func setNotesTarget(_ wantsNotes: Bool) {
         guard wantsNotes else {
-            target = .caret
+            Preferences.shared.destination = .caret
             return
         }
-        if let file = noteFile {
-            target = .file(file)
+        if noteFile != nil {
+            Preferences.shared.destination = .notes
             return
         }
         guard state != .recording else {
@@ -436,14 +441,14 @@ final class DictationController {
         }
         guard let chosen else { return nil }
         Preferences.shared.noteFile = chosen
-        target = .file(chosen)
+        Preferences.shared.destination = .notes
         NSLog("sofler: notes dans %@", chosen.path)
         return chosen
     }
 
     /// Revient au curseur. Le fichier de notes reste mémorisé.
     func unlockTarget() {
-        target = .caret
+        Preferences.shared.destination = .caret
     }
 
     // MARK: - Collecte
