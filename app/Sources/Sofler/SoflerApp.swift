@@ -23,6 +23,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         render(.idle)
 
+        // L'accueil ne connaît pas la fenêtre des Réglages, et n'a aucune
+        // raison de la connaître : son bouton « Personnaliser… » passe par ici.
+        onboarding.openSettings = { [weak self] in
+            guard let self else { return }
+            preferences.show(history: controller.history)
+        }
+
         let prefs = Preferences.shared
         // Un modèle de 3 Go ne reste pas chargé « au cas où » : le service
         // local ne tourne que s'il écrit ou s'il est coché dans une collecte
@@ -323,6 +330,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func refreshMenu() async {
         let menu = NSMenu()
 
+        // Configuration inachevée : le menu se réduit à ce qui a du sens.
+        //
+        // Il s'ouvre quand même, et c'est le point important. Les documents
+        // demandaient d'intercepter aussi ce clic pour rouvrir l'accueil —
+        // ce serait retirer le seul chemin vers « Quitter », et enfermer
+        // quelqu'un qui refuse l'accessibilité en connaissance de cause dans
+        // une fenêtre qui revient à chaque tentative de fermer l'application.
+        if SetupRecoveryGuard.shouldIntercept {
+            let header = NSMenuItem(title: "Sofler — configuration à terminer",
+                                    action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            menu.addItem(header)
+            menu.addItem(.separator())
+
+            let resume = NSMenuItem(title: "Terminer la configuration…",
+                                    action: #selector(openOnboarding),
+                                    keyEquivalent: "")
+            resume.target = self
+            menu.addItem(resume)
+
+            menu.addItem(.separator())
+            menu.addItem(NSMenuItem(title: "Quitter Sofler",
+                                    action: #selector(NSApplication.terminate(_:)),
+                                    keyEquivalent: "q"))
+            statusItem.menu = menu
+            return
+        }
+
         let status: String = switch controller.state {
         case .idle: "Prêt"
         case .recording: "Enregistrement…"
@@ -527,6 +562,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Actions
 
     @objc private func triggerDictation() {
+        // La dictée ne peut rien produire tant que le socle minimal n'est pas
+        // posé : plutôt qu'un échec de plus, on rouvre l'écran qui l'explique,
+        // là où la personne s'était arrêtée.
+        guard !SetupRecoveryGuard.intercept(.dictation, reopening: onboarding) else {
+            return
+        }
         controller.toggle()
     }
 
@@ -569,6 +610,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openPreferences() {
+        guard !SetupRecoveryGuard.intercept(.settings, reopening: onboarding) else {
+            return
+        }
         preferences.show(history: controller.history)
     }
 

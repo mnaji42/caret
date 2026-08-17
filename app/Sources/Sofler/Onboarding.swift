@@ -4,14 +4,19 @@ import SwiftUI
 /// L'accueil du premier lancement.
 ///
 /// Sofler ne peut pas se contenter d'apparaître dans la barre de menus. Il lui
-/// faut le micro et l'accessibilité, et son moteur intégré exige macOS 26 —
-/// des conditions qu'une app sans fenêtre n'a aucun moyen d'expliquer une fois
-/// lancée et invisible. Sans accueil, le premier lancement se solde par une
-/// icône muette et une dictée qui ne fait rien.
+/// faut le micro et l'accessibilité, et son moteur intégré exige des modèles
+/// qui se téléchargent — des conditions qu'une app sans fenêtre n'a aucun moyen
+/// d'expliquer une fois lancée et invisible. Sans accueil, le premier lancement
+/// se solde par une icône muette et une dictée qui ne fait rien.
 ///
-/// Trois écrans, pas six. La version précédente en comptait six, dont quatre
-/// ne portaient qu'un titre et deux phrases : dans un accueil, une page vide
-/// n'est pas de la clarté, c'est un clic de plus avant d'essayer.
+/// ## Cinq étapes, et aucune n'est une page vide
+///
+/// Une version précédente en comptait six, dont quatre ne portaient qu'un titre
+/// et deux phrases ; celle d'après en comptait cinq mais réimplémentait les
+/// questions que les Réglages posaient déjà, si bien que les deux avaient
+/// divergé. Celle-ci n'écrit **aucun** réglage de son côté : chaque étape
+/// instancie les mêmes vues que les Réglages, et sa seule responsabilité est
+/// l'ordre dans lequel on les rencontre.
 @MainActor
 final class OnboardingWindowController {
     private var window: NSWindow?
@@ -30,7 +35,11 @@ final class OnboardingWindowController {
         }
 
         let hosting = NSHostingController(
-            rootView: OnboardingView(onFinish: { [weak self] in self?.close() }))
+            rootView: OnboardingView(onFinish: { [weak self] in self?.close() },
+                                     onOpenSettings: { [weak self] in
+                                         self?.close()
+                                         self?.openSettings?()
+                                     }))
         let window = NSWindow(contentViewController: hosting)
         window.title = "Bienvenue dans Sofler"
         window.styleMask = [.titled, .closable, .fullSizeContentView]
@@ -53,439 +62,385 @@ final class OnboardingWindowController {
         window.makeKeyAndOrderFront(nil)
     }
 
+    /// Ouvre les Réglages, posé par le delegate : l'accueil ne connaît pas la
+    /// fenêtre des Réglages et n'a aucune raison de la connaître.
+    var openSettings: (() -> Void)?
+
     private func close() {
         window?.close()
         window = nil
     }
 }
 
-// MARK: - Étapes
+// MARK: - Les étapes
 
 private enum Step: Int, CaseIterable {
-    case presentation, language, permissions, tryIt, finish
+    case welcome, languages, trigger, engine, finish
 
-    @MainActor
     var title: String {
         switch self {
-        case .presentation: "Bienvenue dans Sofler"
-        // Avant tout le reste : c'est elle qui décide du modèle à récupérer,
-        // et ce téléchargement doit être fini avant le premier essai.
-        case .language: "Dans quelle langue dictez-vous ?"
-        // Le nombre dépend du moteur : la reconnaissance vocale ne s'ajoute
-        // que pour celui de la Dictée. Un titre qui annonce « deux » devant
-        // trois cases se lit comme un défaut d'attention.
-        case .permissions: PermissionsMonitor.shared.neededCount == 3
-            ? "Trois autorisations" : "Deux autorisations"
-        case .tryIt: "Comment Sofler écrit"
-        // Séparée de la précédente depuis que celle-ci est exactement l'onglet
-        // Transcription des Réglages : y laisser le démarrage automatique
-        // aurait mélangé un réglage général à une page qui n'en contient
-        // aucun, et empêché de partager la vue.
-        case .finish: "Retrouver Sofler"
+        case .welcome: "Bienvenue dans Sofler"
+        // La langue avant tout le reste : c'est elle qui décide du modèle à
+        // récupérer, et ce téléchargement doit être fini avant le premier essai.
+        case .languages: "Vos langues"
+        case .trigger: "Comment déclencher la dictée"
+        case .engine: "Qui écrit le texte"
+        case .finish: "Tout est prêt"
         }
     }
-}
 
-private var systemVersionLabel: String {
-    let v = ProcessInfo.processInfo.operatingSystemVersion
-    return "macOS \(v.majorVersion).\(v.minorVersion)"
+    var subtitle: String? {
+        switch self {
+        case .welcome:
+            "La dictée locale, pensée pour vos mots, votre métier et vos "
+                + "langues mêlées."
+        case .languages:
+            "Sofler récupérera les modèles correspondants pendant que vous "
+                + "configurez le reste."
+        case .trigger:
+            "Deux autorisations, puis un premier essai."
+        case .engine:
+            "Ce choix se change à tout moment, et n'engage à rien."
+        case .finish:
+            nil
+        }
+    }
 }
 
 // MARK: - Fenêtre
 
 private struct OnboardingView: View {
     let onFinish: () -> Void
+    let onOpenSettings: () -> Void
 
-    @State private var step: Step = .presentation
-    @State private var monitor = PermissionsMonitor.shared
-    @State private var assets = SpeechAssets.shared
     @State private var prefs = Preferences.shared
-    /// Ce que la dictée d'essai vient écrire. Le champ n'est pas rempli par le
-    /// code : le texte y arrive par le même chemin que dans n'importe quelle
-    /// autre application, ce qui est précisément ce qu'on cherche à prouver.
-    @State private var trial = ""
-    /// Coché d'avance, appliqué à la fin. Voir la carte « retrouver Sofler ».
-    @State private var launchAtLogin = true
+    @State private var step: Step
+    @State private var launchAtLogin = LoginItem.isEnabled
 
-    /// Le déclencheur réellement actif — un seul l'est à la fois. Annoncer les
-    /// deux laisserait croire qu'ils fonctionnent tous les deux.
-    private var triggerLabel: String {
-        prefs.triggerKind == .option
-            ? prefs.triggerSide.label
-            : prefs.dictateShortcut.label
+    init(onFinish: @escaping () -> Void, onOpenSettings: @escaping () -> Void) {
+        self.onFinish = onFinish
+        self.onOpenSettings = onOpenSettings
+        // Reprend là où on s'était arrêté. Rouvrir sur la page de bienvenue
+        // quelqu'un qui était à l'étape des autorisations lui ferait relire ce
+        // qu'il vient de lire, et douter d'avoir progressé.
+        _step = State(initialValue:
+            Step(rawValue: Preferences.shared.onboardingStep) ?? .welcome)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(step.title)
-                .font(.system(size: 22, weight: .semibold))
-                .padding(.top, 28)
-                .padding(.horizontal, 28)
-
+            header
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) { content }
-                    .padding(.horizontal, 28)
+                    .padding(.horizontal, Style.windowPadding)
                     .padding(.top, 18)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 12)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-
             footer
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(GlassBackground().ignoresSafeArea())
+        // Enregistrée en continu : quitter l'application au milieu d'une étape
+        // ne doit pas coûter les précédentes.
+        .onChange(of: step) { _, now in prefs.onboardingStep = now.rawValue }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(step.title)
+                .font(.system(size: 24, weight: .bold))
+                .kerning(-0.4)
+            if let subtitle = step.subtitle {
+                Text(subtitle)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.top, 26)
+        .padding(.horizontal, Style.windowPadding)
     }
 
     @ViewBuilder
     private var content: some View {
         switch step {
-        case .presentation: presentationStep
-        case .language: languageStep
-        case .permissions: permissionsStep
-        case .tryIt: tryStep
+        case .welcome: welcomeStep
+        case .languages: languagesStep
+        case .trigger: triggerStep
+        case .engine: engineStep
         case .finish: finishStep
         }
     }
 
-    // MARK: 1 — Présentation
+    // MARK: 1 — Bienvenue
 
-    private var presentationStep: some View {
+    private var welcomeStep: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Vous appuyez sur une touche, vous parlez, vous appuyez à "
-                 + "nouveau. Le texte s'écrit.")
-                .font(.system(size: 14))
-                .fixedSize(horizontal: false, vertical: true)
+            Card(title: "le principe en trois points") {
+                principle(1, "Écrivez au son de votre voix",
+                          "Vous appuyez sur une touche, vous parlez, vous "
+                          + "appuyez à nouveau. Le texte s'insère à votre "
+                          + "curseur, dans l'application que vous avez devant "
+                          + "vous.")
+                Divider().opacity(0.25)
+                principle(2, "Rien ne sort de votre Mac",
+                          "Aucun compte, aucun serveur, aucune connexion "
+                          + "requise. **Il n'existe aucun réglage pour "
+                          + "autoriser l'envoi de ce que vous dictez — la "
+                          + "fonction n'existe pas.**")
+                Divider().opacity(0.25)
+                principle(3, "Vous choisissez le moteur",
+                          "Celui de macOS ne pèse rien et n'a rien à "
+                          + "télécharger. CrisperWhisper écrit les mots de "
+                          + "votre métier tels que vous les dites, en échange "
+                          + "de 1,6 Go et d'environ 3 Go en mémoire.")
+            }
 
-            // Les deux destinations sur le même plan. Le mode notes est ce qui
-            // sépare Sofler d'une dictée ordinaire : ne le mentionner qu'en
-            // passant reviendrait à cacher la moitié de l'application.
             Card(title: "deux façons de s'en servir") {
                 Text("**Au curseur.** Le texte atterrit là où votre curseur "
                      + "clignote déjà — éditeur, navigateur, messagerie — sans "
                      + "changer de fenêtre.")
                     .font(.system(size: 12))
                     .fixedSize(horizontal: false, vertical: true)
-
                 Divider().opacity(0.25)
-
                 Text("**Dans un fichier de notes.** Vous désignez un fichier, "
                      + "et tout ce que vous dictez s'y ajoute, où que soit le "
                      + "curseur. C'est ce qui permet de réfléchir à voix "
                      + "haute : vous parlez pendant que vous travaillez, les "
-                     + "idées s'empilent dans le fichier, et vous les relisez "
-                     + "après.")
+                     + "idées s'empilent, et vous les relisez après.")
                     .font(.system(size: 12))
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Note("La destination se change d'un clic sur la barre, même en "
-                 + "plein milieu d'une phrase : elle n'est lue qu'au moment où "
-                 + "vous arrêtez de parler.")
-
-            Card(title: "rien ne sort de votre Mac") {
-                Note("Votre voix est transcrite sur place, par votre machine. "
-                     + "Sofler n'a pas de compte, pas de serveur, et n'envoie "
-                     + "nulle part ce que vous dictez. Il n'y a aucun réglage "
-                     + "pour l'y autoriser — la fonction n'existe pas.")
-            }
+            Note("Trois écrans suffisent à pouvoir dicter. Les deux suivants "
+                 + "affinent, et se refont plus tard depuis les Réglages.")
         }
     }
 
-    // MARK: 2 — Autorisations
-
-    private var permissionsStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Ce que cette machine sait faire ne bloque pas : ça ne se corrige
-            // pas dans l'instant, et griser « Continuer » dessus enfermerait
-            // quelqu'un dans un écran dont il ne peut plus sortir.
-            //
-            // Et c'est **mesuré**. La version précédente lisait le numéro de
-            // macOS : elle annonçait « le moteur intégré demande macOS 26 » et
-            // proposait une mise à jour système sur des Mac où la Dictée
-            // d'Apple dicte parfaitement — un avertissement inquiétant, une
-            // action inutile, et rien de vrai.
-            Card(title: "votre Mac") {
-                StatusRow(ok: usableSystemEngine != nil, label: systemVersionLabel,
-                          detail: usableSystemEngine.map {
-                              "\($0.versionLabel ?? $0.label) — prêt à écrire"
-                          } ?? "aucun moteur de macOS utilisable ici",
-                          warningOnly: true)
-                if usableSystemEngine == nil {
-                    Note(LegacySpeechEngine.unavailabilityReason(for: prefs.language)
-                         ?? "Aucune version du moteur de macOS n'est utilisable "
-                            + "ici.", warning: true)
-                    ButtonRow {
-                        Button("Ouvrir Réglages › Clavier") {
-                            NSWorkspace.shared.open(URL(string:
-                                "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
-                        }
-                    }
-                    Note("CrisperWhisper s'installe à l'écran suivant et ne "
-                         + "dépend d'aucun moteur de macOS.")
-                }
-            }
-
-            Card(title: "ce que Sofler doit pouvoir faire") {
-                PermissionsChecklist(explains: true)
-            }
-
-            if !monitor.allGranted {
-                // Le compte suit la machine : la reconnaissance vocale ne
-                // s'ajoute que là où la Dictée sert réellement. Le titre de la
-                // page le savait déjà, cette note annonçait « les deux » devant
-                // trois cases.
-                Note("« Continuer » s'activera dès que \(monitor.neededCount == 3 ? "les trois" : "les deux") seront "
-                     + "accordées.")
-            }
-        }
-    }
-
-    /// La version de macOS qui écrirait si l'on dictait maintenant.
-    private var usableSystemEngine: EngineChoice? {
-        EngineChoice.systemEngine(preferring: prefs.engine, for: prefs.language)
-    }
-
-    // MARK: 2 — Langue, et le modèle qui va avec
-
-    /// La langue d'abord, parce qu'elle décide de ce qu'il faut télécharger.
-    ///
-    /// Elle arrivait au milieu des réglages de transcription, après les
-    /// autorisations et juste avant le champ d'essai — c'est-à-dire trop tard :
-    /// le modèle de reconnaissance de macOS est fourni par locale, et il faut
-    /// savoir laquelle avant de pouvoir aller le chercher. Poser la question
-    /// ici laisse au téléchargement le temps de se faire pendant qu'on accorde
-    /// le micro et l'accessibilité, au lieu de l'ajouter à la fin.
-    private var languageStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Card(title: "langue") {
-                PillPicker(options: prefs.activeLanguages.map { ($0.code, $0.badge) },
-                           selection: $prefs.primaryLanguage)
-                Note("Un seul choix à la fois : les modèles imposent une langue "
-                     + "par passage, et « automatique » se trompe précisément "
-                     + "sur les phrases qui en mêlent deux. Vous en changerez "
-                     + "quand vous voudrez — Sofler récupérera l'autre modèle à "
-                     + "ce moment-là.")
-            }
-
-            // Proposer de télécharger un modèle pour un moteur que cette
-            // machine ne peut pas faire tourner n'a aucun sens : le
-            // téléchargement échouera, et l'échec inquiétera pour rien. La
-            // carte n'apparaît que si le moteur de macOS 26 est réellement
-            // disponible ici.
-            if EngineChoice.apple.isAvailable(for: prefs.language) {
-                Card(title: "modèle de reconnaissance") {
-                    if EngineChoice.appleLegacy.isAvailable(for: prefs.language) {
-                        Note("Sofler peut déjà écrire : la version **Dictée** "
-                             + "est prête et n'a rien à télécharger. Ce "
-                             + "modèle-ci est celui de la version **Apple "
-                             + "Intelligence**, qui transcrit les passages "
-                             + "longs plus finement — vous pourrez basculer de "
-                             + "l'une à l'autre à l'écran suivant.")
-                    }
-                    ForEach(prefs.activeLanguages) { entry in
-                        SpeechModelRow(language: entry.code, label: entry.displayName)
-                        if entry.code != prefs.selectedLanguages.last {
-                            Divider().opacity(0.2)
-                        }
-                    }
-                    Note("macOS fournit ces modèles mais ne les embarque pas : "
-                         + "sur une installation neuve il faut aller les "
-                         + "chercher, une fois. Celui de votre langue se "
-                         + "télécharge tout seul ; les autres attendent que "
-                         + "vous en ayez besoin.")
-                }
-            } else if EngineChoice.appleLegacy.isAvailable(for: prefs.language) {
-                Card(title: "moteur de dictée") {
-                    StatusRow(ok: true, label: EngineChoice.appleLegacy.fullLabel,
-                              detail: "prêt")
-                    Note("Cette machine n'a pas la version **Apple "
-                         + "Intelligence** du moteur de macOS, mais elle a "
-                         + "celle de la **Dictée** — et elle n'a rien à "
-                         + "télécharger. Sofler s'en servira.")
-                }
-            } else {
-                Card(title: "moteur de dictée") {
-                    Note(LegacySpeechEngine.unavailabilityReason(for: prefs.language)
-                         ?? "Aucun moteur de macOS n'est utilisable ici.",
-                         warning: true)
-                    ButtonRow {
-                        Button("Ouvrir Réglages › Clavier") {
-                            NSWorkspace.shared.open(URL(string:
-                                "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
-                        }
-                    }
-                    Note("CrisperWhisper s'installe deux écrans plus loin et "
-                         + "ne dépend d'aucun moteur de macOS.")
-                }
-            }
-        }
-        // On regarde, on ne télécharge pas. La langue affichée est un défaut,
-        // pas un choix : lancer plusieurs centaines de mégaoctets sur une
-        // préférence que personne n'a encore touchée, c'est décider à la place
-        // de quelqu'un qui n'a pas eu le temps de lire la question.
-        .task { await assets.check(prefs.language) }
-        // Là, en revanche, c'est un geste : la langue vient d'être choisie.
-        .onChange(of: prefs.language) { _, chosen in
-            Task { await assets.ensure(chosen) }
-        }
-    }
-
-    // MARK: 3 — Moteur, puis essai
-
-    /// Exactement l'onglet Transcription des Réglages, plus le champ d'essai.
-    ///
-    /// C'était une deuxième implémentation des mêmes questions, et elle avait
-    /// perdu en route le mode mot à mot, le vocabulaire et la langue. Un
-    /// accueil qui ne montre pas une fonctionnalité est un accueil après
-    /// lequel on ne la découvre jamais.
-    private var tryStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Deux moteurs, et une seule question : les mots de votre "
-                 + "métier, les noms propres, les mots anglais — voulez-vous "
-                 + "qu'ils s'écrivent tels que vous les dites ?")
-                .font(.system(size: 13))
-                .fixedSize(horizontal: false, vertical: true)
-
-            TranscriptionSettings()
-
-            Card(title: "essayez maintenant") {
-                Note("Cliquez dans le cadre, tapez "
-                     + "**\(triggerLabel)**, dites une phrase, puis "
-                     + "tapez à nouveau. Le texte s'écrira ici — exactement "
-                     + "comme il le fera dans vos applications.")
-                TextEditor(text: $trial)
+    private func principle(_ number: Int, _ title: String,
+                           _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: 11) {
+            Text("\(number)")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Style.accent)
+                .frame(width: 20, height: 20)
+                .background(Circle().fill(Style.accentDim))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.system(size: 13, weight: .semibold))
+                Text(.init(detail))
                     .font(.system(size: 12))
-                    .scrollContentBackground(.hidden)
-                    .padding(6)
-                    .frame(height: 90)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.black.opacity(0.18))
-                            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .strokeBorder(Style.cardStroke, lineWidth: 1)))
-                if !trial.isEmpty {
-                    Note("C'est bien votre voix qui a écrit ça. Vous pouvez "
-                         + "effacer et recommencer autant que vous voulez.")
-                }
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
-    // MARK: 4 — Réglages généraux
+    // MARK: 2 — Langues et usage
 
-    /// Ce qui ne relève d'aucun moteur : où trouver l'application, et
-    /// faut-il la lancer toute seule.
+    private var languagesStep: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Card(title: "langues de dictée") {
+                LanguagePicker()
+                Note("La première de la liste est celle avec laquelle Sofler "
+                     + "dicte. Vous en changerez d'un clic depuis les Réglages "
+                     + "ou la barre flottante.")
+            }
+            UsageHabitsCard()
+        }
+    }
+
+    // MARK: 3 — Déclencheur, autorisations, essai
+
+    /// L'étape charnière : c'est elle qui rend Sofler utilisable, et c'est la
+    /// dernière que la garde d'accès exige.
+    private var triggerStep: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            TriggerCard(showTrialSandbox: true)
+            AppleEngineCard()
+            Note("Ce moteur assure l'aperçu en direct sous la barre pendant "
+                 + "que vous parlez, et écrit le texte final tant que vous "
+                 + "n'avez pas choisi autre chose à l'écran suivant.")
+        }
+    }
+
+    // MARK: 4 — Moteur final
+
+    private var engineStep: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            FinalEngineCard(showsRecommendation: true, isOnboarding: true)
+        }
+    }
+
+    // MARK: 5 — Récapitulatif
+
     private var finishStep: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Card(title: "retrouver Sofler") {
-                Note("Il vit dans la barre de menus, en haut à droite : un "
-                     + "caret entouré d'ondes pendant qu'il écoute.")
-                Note(prefs.triggerKind == .option
-                     ? "Maintenez **⌥** une seconde pour ouvrir les réglages."
-                     : "Les réglages s'ouvrent depuis ce menu.")
+            Card(title: "votre configuration") {
+                summary("Langue", prefs.primary.badge)
+                summary("Déclencheur", prefs.triggerKind == .option
+                        ? "Touche \(prefs.triggerSide.label)"
+                        : prefs.dictateShortcut.label)
+                summary("Moteur", prefs.engine.fullLabel)
+                summary("Destination", prefs.destination == .notes
+                        ? (prefs.noteFile?.lastPathComponent ?? "fichier de notes")
+                        : "au curseur")
             }
 
-            Card(title: "ouverture de session") {
-                // Proposé et coché, pas imposé en silence. Appliqué au clic
-                // sur « Terminer » : cocher une case n'est pas encore une
-                // décision, finir l'accueil en est une.
-                FeatureSwitch(title: "Lancer Sofler à l'ouverture de session",
-                              isOn: $launchAtLogin)
-                Note("Sans ça, la touche Option ne fera rien après chaque "
-                     + "redémarrage, jusqu'à ce que vous pensiez à rouvrir "
-                     + "l'application — et rien ne dira que c'est la raison. "
-                     + "Se change à tout moment dans les réglages.")
+            Card(title: "bon à savoir") {
+                tip("menubar.rectangle", "Sofler vit dans la barre de menus",
+                    prefs.triggerKind == .option
+                        ? "Un caret entouré d'ondes pendant qu'il écoute. "
+                          + "**Maintenir ⌥ une seconde** ouvre les Réglages."
+                        : "Un caret entouré d'ondes pendant qu'il écoute. Les "
+                          + "Réglages s'ouvrent depuis ce menu.")
+                Divider().opacity(0.25)
+                tip("clock.arrow.circlepath", "Vous ne perdez jamais une dictée",
+                    "Même sans curseur actif, le texte part dans l'historique "
+                    + "local du menu, où il reste copiable. Et si un moteur "
+                    + "échoue, l'audio est conservé : « Réessayer » relance "
+                    + "sans vous faire tout redire.")
+                Divider().opacity(0.25)
+                tip("folder", "La destination se change en pleine phrase",
+                    "Un clic sur la barre flottante bascule entre le curseur "
+                    + "et votre fichier de notes — la destination n'est lue "
+                    + "qu'au moment où vous arrêtez de parler.")
             }
 
-            Card(title: "revenir sur tout ça") {
-                Note("Rien de ce que vous venez de choisir n'est définitif. "
-                     + "Le moteur, le modèle, la langue et le mode se "
-                     + "changent depuis **Réglages › Transcription**, qui est "
-                     + "la même page que celle que vous venez de voir. "
-                     + "CrisperWhisper et ses modèles se téléchargent ou se "
-                     + "retirent quand vous voulez, et **Désinstaller "
-                     + "Sofler…** dans le menu retire tout, en vous laissant "
-                     + "cocher ce qui part.")
+            SettingsToggleRow(
+                title: "Lancer Sofler à l'ouverture de session",
+                description: "Disponible dans la barre de menus dès le "
+                    + "démarrage de votre Mac.",
+                note: "Sans ça, la touche de dictée ne fera rien après chaque "
+                    + "redémarrage, jusqu'à ce que vous pensiez à rouvrir "
+                    + "l'application — et rien ne dira que c'est la raison.",
+                isOn: $launchAtLogin)
+
+            ButtonRow {
+                Button("Personnaliser dans les Réglages…") {
+                    apply()
+                    onOpenSettings()
+                }
+            }
+            Note("Tout ce que vous venez de choisir se retrouve dans les "
+                 + "Réglages, dans les mêmes cartes que celles que vous venez "
+                 + "de voir. **Désinstaller Sofler…** y retire tout, en vous "
+                 + "laissant cocher ce qui part.")
+        }
+    }
+
+    private func summary(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label)
+                .font(.system(size: 11.5))
+                .foregroundStyle(.tertiary)
+                .frame(width: 90, alignment: .leading)
+            Text(value)
+                .font(.system(size: 12, weight: .medium))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func tip(_ symbol: String, _ title: String,
+                     _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: symbol)
+                .font(.system(size: 13))
+                .foregroundStyle(Style.accent)
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.system(size: 12.5, weight: .semibold))
+                Text(.init(detail))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
-    // MARK: Pied
+    // MARK: - Pied
 
-    /// Bloqué tant que le micro et l'accessibilité manquent — mais seulement
-    /// sur l'écran qui les présente. Bloquer ailleurs punirait sans expliquer.
-    /// Attendre la fin du téléchargement, pas son succès.
+    /// Ce qui manque pour passer à l'étape suivante, ou `nil`.
     ///
-    /// Laisser passer pendant qu'il descend mènerait à la page d'essai avec un
-    /// moteur qui n'écrit rien — précisément la confusion qu'on cherche à
-    /// supprimer. Mais bloquer sur un échec enfermerait quelqu'un dans un
-    /// écran dont rien ne le sort : un réseau coupé n'est pas une raison de
-    /// perdre l'accueil, et CrisperWhisper reste installable à l'écran suivant.
-    /// Chaque étape garde sa propre condition.
-    ///
-    /// La langue bloque tant que son modèle n'est pas là : passer outre
-    /// mènerait à la page d'essai avec un moteur qui n'écrit rien, ce qui est
-    /// la confusion que tout ceci existe pour supprimer. Un système qui ne
-    /// propose pas la langue ne bloque pas — rien ne l'y rendrait disponible,
-    /// et CrisperWhisper reste installable plus loin.
-    private var canContinue: Bool {
+    /// Chaque étape délègue à ses propres composants : ce sont eux qui savent
+    /// ce qui leur manque, et ils le savent d'une seule façon, partagée avec
+    /// les Réglages.
+    private var blocker: ComponentValidationError? {
         switch step {
-        case .language:
-            // La version Dictée ne dépend d'aucun téléchargement : si elle est
-            // là, la page est satisfaite quoi qu'il arrive au modèle de l'autre
-            // version. Bloquer dessus enfermerait sur une machine qui sait
-            // parfaitement dicter.
-            //
-            // Et la seconde condition se mesure — `SpeechTranscriber.isAvailable`
-            // — au lieu de lire le numéro de macOS : une machine virtuelle en
-            // macOS 26 n'a pas ce moteur, et attendre un modèle qu'elle ne
-            // saura jamais installer bloquait l'accueil pour de bon.
-            EngineChoice.appleLegacy.isAvailable(for: prefs.language)
-                || !EngineChoice.apple.isAvailable(for: prefs.language)
-                || assets.isSettled(prefs.language)
-        case .permissions:
-            monitor.allGranted
-        default:
-            true
+        case .welcome: nil
+        case .languages: LanguagePicker.validate()
+        // Le moteur macOS ne bloque pas : sur une machine sans aucun moteur
+        // système, CrisperWhisper s'installe à l'écran suivant et n'a besoin de
+        // rien de tout ça. Bloquer ici enfermerait dans une page dont rien ne
+        // sort.
+        case .trigger: TriggerCard.validate()
+        case .engine: FinalEngineCard.validate()
+        case .finish: nil
         }
     }
 
     private var footer: some View {
-        HStack(spacing: 12) {
-            if step != .presentation {
-                Button("Retour") {
-                    step = Step(rawValue: step.rawValue - 1) ?? .presentation
+        VStack(spacing: 0) {
+            if let blocker, step != .welcome {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 11))
+                    // Dit ce qui manque, au lieu de griser sans expliquer. Un
+                    // bouton inactif muet est la façon la plus sûre de faire
+                    // abandonner quelqu'un à l'étape des autorisations.
+                    Text(blocker.errorDescription ?? "")
+                        .font(.system(size: 11))
+                    Spacer()
                 }
+                .foregroundStyle(Style.warning)
+                .padding(.horizontal, Style.windowPadding)
+                .padding(.bottom, 6)
             }
 
-            Spacer()
-
-            HStack(spacing: 5) {
-                ForEach(Step.allCases, id: \.self) { s in
-                    Circle()
-                        .fill(s == step ? Style.accent : Color.secondary.opacity(0.3))
-                        .frame(width: 5, height: 5)
+            HStack(spacing: 12) {
+                if step != .welcome {
+                    Button("Retour") {
+                        step = Step(rawValue: step.rawValue - 1) ?? .welcome
+                    }
                 }
-            }
-
-            Spacer()
-
-            Button(step == .finish ? "Terminer" : "Continuer") {
-                if step == .finish {
-                    LoginItem.set(launchAtLogin)
-                    prefs.onboarded = true
-                    onFinish()
-                } else {
-                    step = Step(rawValue: step.rawValue + 1) ?? .finish
+                Spacer()
+                HStack(spacing: 5) {
+                    ForEach(Step.allCases, id: \.self) { each in
+                        Circle()
+                            .fill(each == step ? Style.accent
+                                               : Color.secondary.opacity(0.3))
+                            .frame(width: 5, height: 5)
+                    }
                 }
+                Spacer()
+                Button(step == .finish ? "Terminer" : "Continuer") {
+                    if step == .finish {
+                        apply()
+                        onFinish()
+                    } else {
+                        step = Step(rawValue: step.rawValue + 1) ?? .finish
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Style.accent)
+                .disabled(blocker != nil)
+                .keyboardShortcut(.defaultAction)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Style.accent)
-            .disabled(!canContinue)
-            .keyboardShortcut(.defaultAction)
+            .padding(.horizontal, Style.windowPadding)
+            .padding(.vertical, 18)
         }
-        .padding(.horizontal, 28)
-        .padding(.vertical, 18)
+    }
+
+    /// Applique ce que l'accueil a différé, et clôt la configuration.
+    ///
+    /// Le démarrage automatique est le seul réglage que l'accueil n'écrit pas
+    /// en direct : cocher une case n'est pas encore une décision, finir
+    /// l'accueil en est une. Tout le reste a été enregistré par les composants
+    /// au fil de l'eau.
+    private func apply() {
+        LoginItem.set(launchAtLogin)
+        prefs.onboarded = true
     }
 }
 
@@ -493,9 +448,9 @@ private struct OnboardingView: View {
 
 /// Une langue, l'état de son modèle, et de quoi le récupérer.
 ///
-/// Calquée sur la ligne d'un modèle CrisperWhisper : même lecture, même
-/// promesse. Tant qu'une pastille n'est pas verte, il manque quelque chose, et
-/// le bouton dit quoi faire plutôt que de laisser deviner.
+/// Conservée pour les Réglages Système et les diagnostics : `AppleEngineCard`
+/// porte désormais le cas courant, mais cette ligne reste la façon la plus
+/// compacte de montrer l'état d'**une** langue précise.
 struct SpeechModelRow: View {
     let language: String
     let label: String
@@ -543,7 +498,7 @@ struct SpeechModelRow: View {
                           warningOnly: true)
                 Text(message)
                     .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(Style.collecting)
+                    .foregroundStyle(Style.warning)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                 ButtonRow {

@@ -44,6 +44,7 @@ final class Preferences {
         static let shortcut = "sofler.shortcut"
         static let corpusEngines = "sofler.corpus.engines"
         static let onboarded = "sofler.onboarded"
+        static let onboardingStep = "sofler.onboarding.step"
         static let updateCheck = "sofler.update.check"
         static let lastValidEngine = "sofler.engine.lastValid"
         static let habits = "sofler.habits"
@@ -65,6 +66,19 @@ final class Preferences {
     /// reviendrait à le rouvrir à chaque lancement chez ces gens-là.
     var onboarded: Bool {
         didSet { defaults.set(onboarded, forKey: Key.onboarded) }
+    }
+
+    /// L'étape d'accueil atteinte, quand il n'a pas été mené à terme.
+    ///
+    /// Enregistrée en continu, pas seulement à la fermeture : quelqu'un qui
+    /// quitte Sofler au milieu de l'étape 3 — ce qui arrive précisément là,
+    /// puisque c'est l'étape qui envoie dans les Réglages Système accorder
+    /// l'accessibilité — doit revenir là où il était, et non repartir de la
+    /// page de bienvenue qu'il a déjà lue.
+    ///
+    /// Ne veut plus rien dire une fois `onboarded` vrai, et n'est plus lue.
+    var onboardingStep: Int {
+        didSet { defaults.set(onboardingStep, forKey: Key.onboardingStep) }
     }
 
     /// Sofler doit-il regarder tout seul s'il existe une version plus récente ?
@@ -582,6 +596,7 @@ final class Preferences {
         // avec tous les moteurs, parce qu'une collecte amputée ne répond pas
         // à la question qu'on se pose en l'activant.
         onboarded = defaults.bool(forKey: Key.onboarded)
+        onboardingStep = defaults.integer(forKey: Key.onboardingStep)
         checksForUpdates = defaults.bool(forKey: Key.updateCheck)
         corpusEnabled = defaults.bool(forKey: Key.corpus)
         corpusKeepsAudio = defaults.object(forKey: Key.corpusAudio) as? Bool ?? true
