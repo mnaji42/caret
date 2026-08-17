@@ -50,32 +50,20 @@ private struct PreferencesView: View {
     let history: TranscriptionHistory
     @State private var tab: Tab = .general
 
-    /// Trois questions, dans l'ordre où on se les pose : *comment je
-    /// déclenche et où ça va*, *avec quoi ça transcrit*, *ce que je garde*.
-    ///
-    /// La version précédente séparait « Moteur » et « Dictée », ce qui
-    /// obligeait à choisir la langue sur une page et le moteur sur une autre
-    /// alors que l'une ne sert qu'à l'autre.
+    /// Six onglets, dans l'ordre où l'on se pose les questions : *ce qui vaut
+    /// pour toute l'application*, *comment on déclenche*, *avec quoi ça
+    /// transcrit*, puis les trois réserves — mots, historique, corpus.
     enum Tab: String, CaseIterable {
-        case general, transcription, vocabulary, collection, history
+        case general, recording, engine, lexicon, history, collection
 
         var label: String {
             switch self {
             case .general: "Général"
-            case .transcription: "Transcription"
-            case .vocabulary: "Vocabulaire"
-            case .collection: "Collecte"
+            case .recording: "Dictée"
+            case .engine: "Moteur IA"
+            case .lexicon: "Lexique"
             case .history: "Historique"
-            }
-        }
-
-        var symbol: String {
-            switch self {
-            case .general: "slider.horizontal.3"
-            case .transcription: "waveform"
-            case .vocabulary: "text.book.closed"
-            case .collection: "tray.full"
-            case .history: "clock"
+            case .collection: "Collecte"
             }
         }
     }
@@ -87,13 +75,15 @@ private struct PreferencesView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     switch tab {
                     case .general: GeneralTab()
-                    case .transcription: TranscriptionTab()
-                    case .vocabulary: VocabularySettings()
-                    case .collection: CollectionTab()
+                    case .recording: RecordingTab()
+                    case .engine: TranscriptionSettings()
+                    case .lexicon: VocabularySettings()
                     case .history: HistoryTab(history: history)
+                    case .collection: CollectionTab()
                     }
                 }
-                .padding(20)
+                .padding(.horizontal, Style.windowPadding)
+                .padding(.bottom, 24)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
@@ -103,19 +93,27 @@ private struct PreferencesView: View {
 
     /// Les onglets reprennent la forme des pastilles de la barre plutôt que le
     /// `TabView` système, dont la barre d'outils grise casse la continuité.
+    ///
+    /// **Sans icônes, et c'est mesuré.** Les six libellés font environ 55
+    /// caractères ; à 12 pt semi-gras (~6,5 pt par caractère) plus six fois
+    /// 24 pt de marges, la barre occupe ~502 pt sur les 520 pt utiles. Ajouter
+    /// un symbole par onglet coûte 16 pt chacun et porte le total à ~598 pt :
+    /// la barre déborderait de la fenêtre. Les documents de conception
+    /// demandaient les deux ; il fallait choisir, et un libellé se lit sans
+    /// avoir rien appris là où une icône se devine.
+    ///
+    /// « Dictée » plutôt qu'« Enregistrement » pour la même raison : c'est le
+    /// libellé le plus long, et le raccourcir rend la marge confortable.
     private var tabBar: some View {
         HStack {
             Spacer()
             HStack(spacing: 2) {
                 ForEach(Tab.allCases, id: \.self) { item in
                     let active = item == tab
-                    Label(item.label, systemImage: item.symbol)
+                    Text(item.label)
                         .font(.system(size: 12, weight: active ? .semibold : .medium))
-                        .foregroundStyle(active
-                            ? Color(nsColor: NSColor.systemTeal
-                                .blended(withFraction: 0.25, of: .white) ?? .systemTeal)
-                            : Color.secondary)
-                        .padding(.horizontal, 12)
+                        .foregroundStyle(active ? Style.accent : Color.secondary)
+                        .padding(.horizontal, 10)
                         .frame(height: 24)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -131,13 +129,34 @@ private struct PreferencesView: View {
                                                     lineWidth: 1)))
             Spacer()
         }
-        .padding(.bottom, 14)
+        .padding(.top, 14)
+        .padding(.bottom, 16)
     }
 }
 
 // MARK: - Général
 
 private struct GeneralTab: View {
+    var body: some View {
+        // La langue d'abord : c'est elle qui décide de ce que les moteurs
+        // peuvent faire, et elle vaut pour toute l'application.
+        PrimaryLanguageSelector()
+
+        DestinationCard()
+
+        UpdateCard()
+
+        LoginItemCard()
+    }
+}
+
+// MARK: - Dictée
+
+/// Comment on déclenche, ce qu'on entend pendant, et ce qu'on voit.
+///
+/// Tout ce qui touche à l'acte de dicter, par opposition à l'onglet Général,
+/// qui porte ce qui vaut pour l'application entière.
+private struct RecordingTab: View {
     @State private var prefs = Preferences.shared
     @State private var soundsEnabled = Feedback.soundsEnabled
 
@@ -147,38 +166,34 @@ private struct GeneralTab: View {
         // question avec deux implémentations, et elles avaient déjà divergé.
         TriggerCard(showTrialSandbox: false)
 
-        DestinationCard()
+        Card(title: "Aperçu en direct") {
+            SettingsToggleRow(
+                title: "Afficher le texte reconnu pendant que vous parlez",
+                description: "Sous la barre flottante, en italique.",
+                note: "Indicatif : le moteur d'aperçu n'a pas votre vocabulaire "
+                    + "technique, donc le texte finalement inséré peut différer.",
+                isOn: $prefs.livePreviewEnabled,
+                isCard: false)
 
-        Card(title: "Retours pendant la dictée") {
-            FeatureSwitch(title: "Aperçu en direct dans la barre",
-                          isOn: $prefs.livePreviewEnabled)
-            Note("Affiche sous la barre ce que le moteur de macOS entend "
-                 + "pendant que vous parlez. Indicatif : il n'a pas votre "
-                 + "vocabulaire technique, donc le texte inséré peut différer.")
-            FeatureSwitch(title: "Sons de début et de fin", isOn: $soundsEnabled)
+            // Le moteur de l'aperçu n'a de sens à régler que si l'aperçu
+            // tourne. L'afficher éteint donnerait un réglage sans effet.
+            if prefs.livePreviewEnabled {
+                Divider().opacity(0.25)
+                AppleEngineCard(isSubCard: true)
+            }
+        }
+
+        Card(title: "Retours sonores") {
+            SettingsToggleRow(
+                title: "Sons de début et de fin",
+                description: "Deux clics discrets, pour savoir que l'écoute a "
+                    + "démarré sans regarder l'écran.",
+                isOn: $soundsEnabled,
+                isCard: false)
                 .onChange(of: soundsEnabled) { _, new in Feedback.soundsEnabled = new }
         }
 
         MicrophoneModeCard()
-
-        LoginItemCard()
-
-        // Le micro et l'accessibilité sont désormais portés par `TriggerCard`,
-        // plus haut dans cette même page : les répéter ici ferait lire deux
-        // fois le même état, et douter duquel des deux dit vrai.
-        //
-        // Reste la reconnaissance vocale, qui ne relève pas du déclencheur mais
-        // du moteur — et seulement quand ce moteur est réellement en jeu.
-        if PermissionsMonitor.shared.requiresSpeech {
-            Card(title: "Moteur de la Dictée") {
-                SpeechAccessRow()
-                Note("Ce droit n'est demandé que parce que la **Dictée** de "
-                     + "macOS est en service ici — pour écrire, pour l'aperçu "
-                     + "en direct, ou pour la collecte.")
-            }
-        }
-
-        UpdateCard()
     }
 }
 
@@ -228,8 +243,11 @@ private struct LoginItemCard: View {
 
     var body: some View {
         Card(title: "Démarrage") {
-            FeatureSwitch(title: "Lancer Sofler à l'ouverture de session",
-                          isOn: $enabled)
+            SettingsToggleRow(
+                title: "Lancer Sofler à l'ouverture de session",
+                description: "Disponible dans la barre de menus dès le "
+                    + "démarrage de votre Mac.",
+                isOn: $enabled, isCard: false)
                 .onChange(of: enabled) { _, wanted in
                     let actual = LoginItem.set(wanted)
                     refused = actual != wanted
@@ -258,14 +276,6 @@ private struct LoginItemCard: View {
 
 // MARK: - Transcription
 
-/// L'onglet Transcription n'est plus qu'un appel : tout son contenu est
-/// partagé avec l'accueil. Cf. TranscriptionSettings.
-private struct TranscriptionTab: View {
-    var body: some View {
-        TranscriptionSettings()
-    }
-}
-
 // MARK: - Collecte
 
 private struct CollectionTab: View {
@@ -281,7 +291,11 @@ private struct CollectionTab: View {
 
     var body: some View {
         Card(title: "Collecte") {
-            FeatureSwitch(title: "Archiver mes dictées", isOn: $prefs.corpusEnabled)
+            SettingsToggleRow(
+                title: "Archiver mes dictées",
+                description: "Chaque dictée est conservée localement avec le "
+                    + "texte de chaque moteur, produit à partir du même audio.",
+                isOn: $prefs.corpusEnabled, isCard: false)
             Note("À chaque dictée, Sofler garde le texte produit par chaque "
                  + "moteur à partir du **même** audio. Ça sert à une seule "
                  + "chose : vous permettre de comparer les moteurs sur votre "
@@ -374,9 +388,14 @@ private struct HistoryTab: View {
 
     var body: some View {
         Card(title: "Transcriptions récentes") {
-            FeatureSwitch(title: "Conserver l'historique", isOn: Binding(
-                get: { history.isEnabled },
-                set: { history.isEnabled = $0; entries = history.entries }))
+            SettingsToggleRow(
+                title: "Conserver l'historique",
+                description: "Les dernières transcriptions restent copiables "
+                    + "depuis le menu. Le texte seul, jamais l'audio.",
+                isOn: Binding(
+                    get: { history.isEnabled },
+                    set: { history.isEnabled = $0; entries = history.entries }),
+                isCard: false)
 
             if !history.isEnabled {
                 Note("Rien n'est écrit. Les transcriptions passées ne sont pas "

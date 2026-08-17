@@ -70,6 +70,48 @@ struct DestinationCard: View, ValidatingComponent {
                    + "voix haute pendant que vous travaillez ailleurs."
                  : "Le texte atterrit là où votre curseur clignote déjà — "
                    + "éditeur, navigateur, messagerie — sans changer de fenêtre.")
+
+            diagnostics
+        }
+    }
+
+    /// Ce que Sofler perçoit du document au premier plan.
+    ///
+    /// La barre flottante sait basculer sur « notes » sans fichier mémorisé :
+    /// elle tente alors de reconnaître le document ouvert devant, pour éviter
+    /// un sélecteur en pleine dictée. Quand cette reconnaissance échoue, il n'y
+    /// a aucun moyen de savoir pourquoi — d'où ce rapport, qui vivait dans le
+    /// menu de la barre et n'y avait plus sa place.
+    ///
+    /// Replié : c'est un outil de dépannage, et il ne concerne personne tant
+    /// que rien ne cloche.
+    private var diagnostics: some View {
+        DisclosureGroup {
+            Note("Sofler tente de reconnaître le document au premier plan par "
+                 + "l'accessibilité. Ce rapport dit ce qu'il voit — utile "
+                 + "seulement si un fichier ouvert devant vous n'est pas "
+                 + "détecté.")
+            ButtonRow {
+                Button("Afficher le rapport") {
+                    // Capturé **avant** d'activer Sofler : activer changerait
+                    // l'application au premier plan, donc ce qu'on observe.
+                    let report = TargetWriter.diagnostics()
+                    NSApp.activate(ignoringOtherApps: true)
+                    let alert = NSAlert()
+                    alert.messageText = "Détection du fichier"
+                    alert.informativeText = report
+                    alert.addButton(withTitle: "Copier")
+                    alert.addButton(withTitle: "Fermer")
+                    if alert.runModal() == .alertFirstButtonReturn {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(report, forType: .string)
+                    }
+                }
+            }
+        } label: {
+            Text("Un fichier ouvert n'est pas détecté ?")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
         }
     }
 

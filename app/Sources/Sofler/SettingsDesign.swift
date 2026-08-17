@@ -325,28 +325,6 @@ struct ButtonRow<Content: View>: View {
 }
 
 
-/// Interrupteur d'une fonctionnalité entière, par opposition à une case qui
-/// coche une option.
-///
-/// La distinction n'est pas décorative : une case à cocher se lit comme « ce
-/// détail est retenu », un interrupteur comme « cette fonctionnalité est en
-/// marche ». Confondre les deux fait qu'on active une collecte de données en
-/// croyant cocher une préférence.
-struct FeatureSwitch: View {
-    let title: String
-    @Binding var isOn: Bool
-
-    var body: some View {
-        HStack {
-            Text(title).font(.system(size: 13, weight: .medium))
-            Spacer(minLength: 16)
-            Toggle("", isOn: $isOn)
-                .toggleStyle(SoflerSwitch())
-                .labelsHidden()
-        }
-    }
-}
-
 /// L'interrupteur du projet, dessiné plutôt qu'emprunté au système.
 ///
 /// `Toggle(.switch)` se désature quand la fenêtre n'est plus au premier plan.

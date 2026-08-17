@@ -410,69 +410,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menu.addItem(.separator())
 
-        // Destination : le point le plus important à rendre visible, puisque
-        // verrouillé, le texte n'apparaît plus là où on regarde.
+        // La destination, en lecture seule.
+        //
+        // Le *choix* du fichier a quitté ce menu pour `DestinationCard`, dans
+        // l'onglet Général : un menu de barre qu'on doit parcourir pour
+        // retrouver un sélecteur de fichier a cessé d'être un menu.
+        //
+        // Mais l'**indication** reste, et c'est délibéré — les documents
+        // demandaient de retirer la section entière. Verrouillé sur un
+        // fichier, le texte n'apparaît plus là où on regarde, et hors dictée
+        // rien d'autre ne le signale. C'est le seul filet contre une demi-heure
+        // de dictée écrite dans un fichier qu'on avait oublié.
         if let url = controller.target.fileURL {
             let locked = NSMenuItem(title: "▸ Écrit dans \(url.lastPathComponent)",
-                                    action: nil, keyEquivalent: "")
-            locked.isEnabled = false
-            locked.toolTip = url.path
-            menu.addItem(locked)
-
-            let unlock = NSMenuItem(title: "Revenir au curseur",
-                                    action: #selector(unlockTarget), keyEquivalent: "")
-            unlock.target = self
-            unlock.toolTip = "Le fichier reste mémorisé : un clic sur « Notes » "
-                + "dans la barre y revient."
-            menu.addItem(unlock)
-
-            let change = NSMenuItem(title: "Changer le fichier de notes…",
-                                    action: #selector(chooseNoteFile), keyEquivalent: "")
-            change.target = self
-            menu.addItem(change)
-
-            let reveal = NSMenuItem(title: "Afficher dans le Finder",
                                     action: #selector(revealTarget), keyEquivalent: "")
-            reveal.target = self
-            menu.addItem(reveal)
-        } else if let note = controller.noteFile {
-            // Le fichier survit au retour au curseur : le proposer ici évite
-            // de le rechoisir, et dit lequel c'est.
-            let resume = NSMenuItem(title: "Écrire dans les notes (\(note.lastPathComponent))",
-                                    action: #selector(useNotes), keyEquivalent: "")
-            resume.target = self
-            resume.toolTip = note.path
-            menu.addItem(resume)
-
-            let change = NSMenuItem(title: "Changer le fichier de notes…",
-                                    action: #selector(chooseNoteFile), keyEquivalent: "")
-            change.target = self
-            menu.addItem(change)
-        } else {
-            let lock = NSMenuItem(title: "Choisir le fichier de notes…",
-                                  action: #selector(chooseNoteFile), keyEquivalent: "")
-            lock.target = self
-            let diag = NSMenuItem(title: "Pourquoi mon fichier n'est pas détecté ?",
-                                  action: #selector(showTargetDiagnostics),
-                                  keyEquivalent: "")
-            diag.target = self
-            defer { menu.addItem(diag) }
-            lock.toolTip = "Tout ce qui est dicté sera ajouté à ce fichier, "
-                + "où que soit le curseur."
-            menu.addItem(lock)
+            locked.target = self
+            locked.toolTip = "\(url.path)\n\nSe change dans Réglages › Général."
+            menu.addItem(locked)
+            menu.addItem(.separator())
         }
-        menu.addItem(.separator())
-
-        for mode in TranscriptionMode.allCases {
-            let item = NSMenuItem(title: mode.label,
-                                  action: #selector(selectMode(_:)), keyEquivalent: "")
-
-            item.target = self
-            item.representedObject = mode.rawValue
-            item.state = controller.mode == mode ? .on : .off
-            menu.addItem(item)
-        }
-        menu.addItem(.separator())
 
         // Section toujours présente, même vide : masquée, elle est
         // indécouvrable — on ne cherche pas une fonction dont rien n'indique
@@ -643,38 +599,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { await refreshMenu() }
     }
 
-    /// Montre ce que Sofler perçoit, sans passer par les journaux système.
-    @objc private func showTargetDiagnostics() {
-        // Capturer avant d'activer Sofler : activer changerait l'application
-        // au premier plan, donc ce qu'on cherche à observer.
-        let report = TargetWriter.diagnostics()
-        NSApp.activate(ignoringOtherApps: true)
-        let alert = NSAlert()
-        alert.messageText = "Détection du fichier"
-        alert.informativeText = report
-        alert.addButton(withTitle: "Copier")
-        alert.addButton(withTitle: "Fermer")
-        if alert.runModal() == .alertFirstButtonReturn {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(report, forType: .string)
-        }
-    }
-
-    @objc private func chooseNoteFile() {
-        controller.chooseNoteFile()
-        Task { await refreshMenu() }
-    }
-
-    @objc private func useNotes() {
-        controller.setNotesTarget(true)
-        Task { await refreshMenu() }
-    }
-
-    @objc private func unlockTarget() {
-        controller.unlockTarget()
-        Task { await refreshMenu() }
-    }
-
     @objc private func revealTarget() {
         guard let url = controller.target.fileURL else { return }
         NSWorkspace.shared.activateFileViewerSelecting([url])
@@ -711,13 +635,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
         }
         Permissions.openAccessibilitySettings()
-    }
-
-    @objc private func selectMode(_ sender: NSMenuItem) {
-        guard let raw = sender.representedObject as? String,
-              let mode = TranscriptionMode(rawValue: raw) else { return }
-        controller.mode = mode
-        Task { await refreshMenu() }
     }
 }
 
