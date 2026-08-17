@@ -143,46 +143,10 @@ private struct GeneralTab: View {
     @State private var noteFile: URL? = Preferences.shared.noteFile
 
     var body: some View {
-        Card(title: "Déclencheur") {
-            // Un seul déclencheur actif. Les deux coexistaient, et quelqu'un
-            // qui se donnait la peine de choisir ⌘K voyait Option continuer de
-            // déclencher dans son dos.
-            Row(label: "Dicter avec") {
-                PillPicker(options: [(Preferences.TriggerKind.option, "Touche Option"),
-                                     (Preferences.TriggerKind.shortcut, "Raccourci clavier")],
-                           selection: $prefs.triggerKind)
-            }
-
-            if prefs.triggerKind == .option {
-                Row(label: "Laquelle") {
-                    // Les libellés viennent de `Side.label` : « Droite » et
-                    // « Gauche » seuls se lisaient comme des touches fléchées,
-                    // ce qui ne se voit plus quand on connaît l'application.
-                    PillPicker(options: ModifierKeyMonitor.Side.allCases.map {
-                                   ($0, $0.label)
-                               },
-                               selection: $prefs.triggerSide)
-                }
-                Note("Tapez la touche seule pour démarrer, à nouveau pour "
-                     + "arrêter. Option reste utilisable normalement : rien ne "
-                     + "se déclenche si une autre touche est pressée "
-                     + "entre-temps.\n\n"
-                     + "**Maintenir Option une seconde** ouvre ces réglages.")
-                Note("Demande l'autorisation d'Accessibilité.")
-            } else {
-                Row(label: "Raccourci") {
-                    ShortcutRecorder(shortcut: $prefs.dictateShortcut) { _ in }
-                        .frame(width: 150, height: 26)
-                }
-                Note("Cliquez puis tapez la combinaison voulue. macOS refuse "
-                     + "les raccourcis sans Contrôle ni Commande.")
-                Note("La touche Option ne déclenche plus rien, et ne maintient "
-                     + "plus l'ouverture des réglages — ils restent "
-                     + "accessibles depuis le menu. En contrepartie, un "
-                     + "raccourci fonctionne **sans l'autorisation "
-                     + "d'Accessibilité**.")
-            }
-        }
+        // La même vue que l'accueil, sans la zone d'essai : on ne découvre pas
+        // la dictée depuis les Réglages. Les deux écrans posaient la même
+        // question avec deux implémentations, et elles avaient déjà divergé.
+        TriggerCard(showTrialSandbox: false)
 
         Card(title: "Où va le texte") {
             Note("Par défaut au curseur de l'application active. Le bouton "
@@ -224,12 +188,19 @@ private struct GeneralTab: View {
 
         LoginItemCard()
 
-        // Avant la version : c'est ce qu'on vient vérifier quand quelque chose
-        // ne marche pas. Une autorisation peut être révoquée par une mise à
-        // jour de macOS, par un déplacement de l'application, ou parce qu'on a
-        // cliqué trop vite le premier jour — et l'accueil, lui, est fermé.
-        Card(title: "Autorisations") {
-            PermissionsChecklist()
+        // Le micro et l'accessibilité sont désormais portés par `TriggerCard`,
+        // plus haut dans cette même page : les répéter ici ferait lire deux
+        // fois le même état, et douter duquel des deux dit vrai.
+        //
+        // Reste la reconnaissance vocale, qui ne relève pas du déclencheur mais
+        // du moteur — et seulement quand ce moteur est réellement en jeu.
+        if PermissionsMonitor.shared.requiresSpeech {
+            Card(title: "Moteur de la Dictée") {
+                SpeechAccessRow()
+                Note("Ce droit n'est demandé que parce que la **Dictée** de "
+                     + "macOS est en service ici — pour écrire, pour l'aperçu "
+                     + "en direct, ou pour la collecte.")
+            }
         }
 
         VersionCard()
