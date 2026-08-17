@@ -77,13 +77,16 @@ final class LegacySpeechEngine: SpeechEngine, @unchecked Sendable {
     @MainActor
     static func unavailabilityReason(for language: String) -> String? {
         if isAvailable(for: language) { return nil }
-        let others = Preferences.languages.map(\.0).filter { $0 != language }
+        // Les autres langues déclarées par l'utilisateur, et non un couple
+        // codé en dur : c'est parmi celles-là qu'il reconnaîtra « ah oui,
+        // l'espagnol marche », et le message n'a d'intérêt que s'il parle
+        // d'une langue qui le concerne.
+        let others = Preferences.shared.selectedLanguages.filter { $0 != language }
         let elsewhere = others.first { isAvailable(for: $0) }
-        let name = Preferences.languages.first { $0.0 == language }?.1 ?? language
+        let name = Language.named(language).displayName
 
         if let elsewhere {
-            let working = Preferences.languages.first { $0.0 == elsewhere }?.1
-                ?? elsewhere
+            let working = Language.named(elsewhere).displayName
             return "La Dictée de macOS fonctionne ici en \(working), mais pas "
                 + "encore en \(name) : ses modèles ne sont pas installés. "
                 + "Ajoutez la langue dans Réglages Système › Clavier › Dictée, "

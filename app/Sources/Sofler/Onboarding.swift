@@ -39,8 +39,7 @@ final class OnboardingWindowController {
         // dialecte visuel.
         window.backgroundColor = .clear
         window.isOpaque = false
-        window.setContentSize(NSSize(width: 580, height: 620))
-        window.center()
+        window.applySoflerGeometry()
         window.isReleasedWhenClosed = false
         // Sans ça, la fenêtre disparaît de l'écran dès que Sofler cesse d'être
         // l'application active — c'est-à-dire à l'instant précis où l'accueil
@@ -259,8 +258,8 @@ private struct OnboardingView: View {
     private var languageStep: some View {
         VStack(alignment: .leading, spacing: 16) {
             Card(title: "langue") {
-                PillPicker(options: Preferences.languages.map { ($0.0, $0.1) },
-                           selection: $prefs.language)
+                PillPicker(options: prefs.activeLanguages.map { ($0.code, $0.badge) },
+                           selection: $prefs.primaryLanguage)
                 Note("Un seul choix à la fois : les modèles imposent une langue "
                      + "par passage, et « automatique » se trompe précisément "
                      + "sur les phrases qui en mêlent deux. Vous en changerez "
@@ -283,9 +282,9 @@ private struct OnboardingView: View {
                              + "longs plus finement — vous pourrez basculer de "
                              + "l'une à l'autre à l'écran suivant.")
                     }
-                    ForEach(Preferences.languages, id: \.0) { code, label in
-                        SpeechModelRow(language: code, label: label)
-                        if code != Preferences.languages.last?.0 {
+                    ForEach(prefs.activeLanguages) { entry in
+                        SpeechModelRow(language: entry.code, label: entry.displayName)
+                        if entry.code != prefs.selectedLanguages.last {
                             Divider().opacity(0.2)
                         }
                     }

@@ -33,8 +33,8 @@ struct TranscriptionSettings: View {
 
     var body: some View {
         Card(title: "Langue") {
-            PillPicker(options: Preferences.languages.map { ($0.0, $0.1) },
-                       selection: $prefs.language)
+            PillPicker(options: prefs.activeLanguages.map { ($0.code, $0.badge) },
+                       selection: $prefs.primaryLanguage)
             Note("Vaut pour tous les moteurs. Un seul choix à la fois : les "
                  + "modèles imposent une langue par passage, et « automatique » "
                  + "se trompe précisément sur les phrases qui en mêlent deux.")
@@ -49,11 +49,9 @@ struct TranscriptionSettings: View {
             // système, qui sont là dès que la dictée fonctionne.
             if EngineChoice.apple.isAvailable(for: prefs.language) {
                 Divider().opacity(0.25)
-                SpeechModelRow(language: prefs.language,
-                               label: Preferences.languages
-                                   .first { $0.0 == prefs.language }?.1
-                                   ?? prefs.language)
-                    .id(prefs.language)
+                SpeechModelRow(language: prefs.primaryLanguage,
+                               label: prefs.primary.displayName)
+                    .id(prefs.primaryLanguage)
             }
         }
 

@@ -1,94 +1,6 @@
 import AVFoundation
 import AppKit
-
-/// Une transcription, quel que soit le moteur qui l'a produite.
-///
-/// Toutes les transcriptions d'une même dictée viennent du **même** audio :
-/// c'est ce qui rend la comparaison honnête.
-struct CorpusTranscription: Codable {
-    /// Famille du moteur : `apple`, `crisperwhisper`, `whisper`…
-    var engine: String
-    /// Modèle précis quand il y en a un ; la locale pour un moteur système.
-    var model: String?
-    /// `intended`, `verbatim`, ou absent quand le moteur n'a qu'un rendu.
-    var mode: String?
-    var text: String
-    /// Temps mur du moteur. Absent pour un texte capté en flux pendant la
-    /// dictée, où la notion n'a pas de sens.
-    var latencyMs: Double?
-    /// Vrai pour celle qui a été réellement insérée chez l'utilisateur.
-    var inserted: Bool
-}
-
-/// Une dictée, telle qu'archivée pour comparer les moteurs.
-///
-/// La liste est ouverte : on peut en ajouter un quatrième ou un cinquième sans
-/// toucher au format. La version précédente nommait un champ par moteur
-/// (`textIntended`, `textApple`), ce qui ne survivait pas au premier moteur
-/// supplémentaire — les entrées d'alors ont été converties.
-struct CorpusEntry: Codable {
-    /// Ce qu'il est advenu de la dictée.
-    ///
-    /// Le corpus n'archivait que les succès : une transcription vide ou en
-    /// échec sortait avant l'archivage. C'était perdre exactement ce qu'on
-    /// cherche. Une dictée où CrisperWhisper ne produit rien pendant que macOS
-    /// écrit la phrase juste est l'observation la plus tranchante qui soit
-    /// pour arbitrer deux moteurs — et c'est la seule qui ne laissait aucune
-    /// trace, y compris quand la panne durait des semaines.
-    ///
-    /// Une dictée **annulée** n'en fait pas partie : appuyer sur Échap dit
-    /// qu'on ne veut pas de ce qu'on vient de dire, et l'archiver contre cet
-    /// avis serait une trahison. Le cas ne se pose d'ailleurs pas : `cancel()`
-    /// n'atteint jamais la transcription.
-    enum Outcome: String, Codable {
-        /// Le texte a été écrit chez l'utilisateur.
-        case inserted
-        /// Le moteur a répondu sans erreur, et sans un mot.
-        case empty
-        /// Le moteur a échoué. La raison est dans `failure`.
-        case failed
-    }
-
-    var id: String
-    var date: Date
-    var durationSeconds: Double
-    var language: String
-    var destination: String
-    /// Lexique envoyé aux moteurs qui en acceptent un ; `nil` = celui du moteur.
-    var lexicon: [String]?
-    var transcriptions: [CorpusTranscription]
-    /// **Optionnel, et pas une valeur par défaut.** Mesuré : `Codable`
-    /// synthétisé ne se rabat pas sur la valeur par défaut d'une propriété
-    /// quand la clé manque, il lève `keyNotFound`. Déclarer
-    /// `var outcome: Outcome = .inserted` rendait donc illisible **toute**
-    /// ligne écrite avant ce champ — et comme la relecture avale ses erreurs
-    /// avec un `try?`, le corpus aurait simplement paru se vider.
-    ///
-    /// Lire par `outcome`, jamais par ce champ : une ligne d'avant ne pouvait
-    /// décrire qu'une insertion réussie, seule issue archivée à l'époque.
-    var storedOutcome: Outcome?
-    /// Le message d'échec, quand il y en a un.
-    var failure: String?
-
-    var outcome: Outcome { storedOutcome ?? .inserted }
-
-    enum CodingKeys: String, CodingKey {
-        case id, date, durationSeconds, language, destination, lexicon
-        case transcriptions, failure, skipped, audioFile
-        case storedOutcome = "outcome"
-    }
-    /// Ce qui était demandé mais n'a pas été produit, et pourquoi. Sans cette
-    /// trace, une transcription manquante serait indistinguable d'un moteur
-    /// qu'on n'avait pas coché.
-    var skipped: [String] = []
-    /// Nom du fichier dans `audio/`, si l'option est active.
-    var audioFile: String?
-
-    /// Ce qui a été inséré chez l'utilisateur.
-    var insertedTranscription: CorpusTranscription? {
-        transcriptions.first { $0.inserted }
-    }
-}
+import SoflerCore
 
 /// Archive locale des dictées, pour mesurer les moteurs sur de la vraie voix.
 ///
@@ -306,7 +218,9 @@ final class Corpus {
     | `id` | horodatage, sert aussi de nom au fichier audio |
     | `date` | ISO 8601 |
     | `durationSeconds` | durée de parole captée |
-    | `language` | langue demandée au moteur |
+    | `language` | langue demandée au moteur, en code court (`fr`, `en`) |
+    | `locale` | locale complète (`fr-FR`), absente avant le multi-langues |
+    | `appVersion` | version de Sofler, absente avant son introduction |
     | `destination` | `curseur` ou `notes` |
     | `lexicon` | termes envoyés aux moteurs, absent si celui du moteur |
     | `transcriptions[]` | une entrée par moteur et par mode |
@@ -335,6 +249,21 @@ final class Corpus {
 
     Une dictée **annulée** (Échap) n'apparaît jamais : renoncer à ce qu'on vient
     de dire n'est pas un résultat à mesurer.
+
+    ## Langue et locale
+
+    `language` porte le code court — `fr`, `en` — depuis la première dictée et
+    pour toujours. Sofler a depuis appris à gérer plusieurs langues et raisonne
+    en locales complètes (`fr-FR`, `fr-CA`), mais basculer ce champ aurait
+    produit deux groupes pour une même langue et coupé l'archive en deux, juste
+    au milieu. La région vit donc dans `locale`, qui est absent des lignes
+    écrites avant.
+
+        df["language"].value_counts()          # comparable sur tout l'historique
+        df["locale"].fillna("inconnue")        # la région, quand elle est connue
+
+    Le code court est aussi ce que reçoit CrisperWhisper : son décodeur impose
+    la langue par un jeton `<|fr|>`, et `<|fr-FR|>` n'existe pas.
 
     Deux lignes peuvent partager le même `audioFile` : c'est une dictée relancée
     depuis le menu après un échec. Le même enregistrement, deux tentatives.

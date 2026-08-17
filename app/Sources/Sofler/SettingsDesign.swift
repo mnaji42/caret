@@ -9,13 +9,106 @@ import SwiftUI
 /// application. Les valeurs ci-dessous sont celles de `RecordingOverlay`, une
 /// seule fois, pour qu'elles ne divergent pas.
 enum Style {
-    static let accent = Color(nsColor: .systemTeal)
-    static let collecting = Color(nsColor: .systemOrange)
+    // MARK: Couleurs
+
+    /// Le turquoise de Sofler.
+    ///
+    /// Une valeur fixe, et non `NSColor.systemTeal` : la teinte système varie
+    /// d'une version de macOS à l'autre et se désature hors focus, ce qui
+    /// faisait dériver l'identité de l'application au fil des mises à jour.
+    /// Toutes les surfaces de Sofler sont sombres, donc rien n'oblige à suivre
+    /// l'apparence claire du système.
+    static let accent = Color(hex: 0x00E5CC)
+    static let accentHover = Color(hex: 0x38EFD8)
+    static let accentDim = accent.opacity(0.12)
+    static let accentBorder = accent.opacity(0.35)
+    static let accentGlow = accent.opacity(0.30)
+    /// Le texte posé **sur** l'accent. Presque noir, verdâtre : le blanc sur
+    /// turquoise vif tombe sous le seuil de contraste lisible.
+    static let onAccent = Color(hex: 0x042F2E)
+
+    /// L'ambre de la collecte, sur la barre d'enregistrement.
+    static let collecting = Color(hex: 0xFB923C)
+    /// L'ambre des avertissements, dans les réglages. Distinct du précédent :
+    /// « ceci est archivé » et « attention » ne disent pas la même chose et ne
+    /// doivent pas se confondre d'un coup d'œil.
+    static let warning = Color(hex: 0xF59E0B)
+    static let danger = Color(hex: 0xF87171)
+
+    static let textPrimary = Color(hex: 0xF8FAFC)
+    static let textSecondary = Color(hex: 0x94A3B8)
+    static let textTertiary = Color(hex: 0x64748B)
+
+    // MARK: Surfaces
+
+    static let cardFill = Color.white.opacity(0.035)
+    static let cardHover = Color.white.opacity(0.055)
+    static let cardStroke = Color.white.opacity(0.08)
+    /// Le fond des encarts d'action à l'intérieur d'une carte.
+    static let innerBoxFill = Color.black.opacity(0.28)
+
+    // MARK: Géométrie
 
     static let cardRadius: CGFloat = 14
     static let cardPadding: CGFloat = 16
-    static let cardFill = Color.white.opacity(0.05)
-    static let cardStroke = Color.white.opacity(0.08)
+    /// Encarts d'action et zone d'essai, à l'intérieur d'une carte.
+    static let innerRadius: CGFloat = 11
+    /// Champs de saisie et barres de recherche.
+    static let fieldRadius: CGFloat = 9
+
+    // MARK: Fenêtres
+
+    /// Largeur commune à l'accueil et aux réglages.
+    ///
+    /// Elle est **identique** dans les deux fenêtres, et c'est tout l'intérêt :
+    /// les cartes de configuration sont les mêmes vues, instanciées aux deux
+    /// endroits. Une largeur qui diffère de dix points suffit à faire passer un
+    /// libellé sur deux lignes ici et une seule là, et la même carte paraît
+    /// alors avoir été dessinée deux fois.
+    static let windowWidth: CGFloat = 580
+    static let windowHeight: CGFloat = 700
+    static let windowPadding: CGFloat = 30
+    /// Largeur utile des cartes — `windowWidth - 2 × windowPadding`.
+    static var contentWidth: CGFloat { windowWidth - 2 * windowPadding }
+}
+
+extension Color {
+    /// Couleur depuis un littéral hexadécimal — `Color(hex: 0x00E5CC)`.
+    ///
+    /// Un entier plutôt qu'une chaîne : la chaîne oblige à traiter le cas du
+    /// format invalide, qui ne peut pas arriver dans du code compilé et qui se
+    /// solde toujours par un `?? .clear` invisible à la relecture.
+    init(hex: UInt32) {
+        self.init(.sRGB,
+                  red: Double((hex >> 16) & 0xFF) / 255,
+                  green: Double((hex >> 8) & 0xFF) / 255,
+                  blue: Double(hex & 0xFF) / 255)
+    }
+}
+
+extension NSWindow {
+    /// Applique la géométrie commune : 580 × 700, non redimensionnable.
+    ///
+    /// La hauteur est **écrêtée à l'écran**. Les documents de conception la
+    /// notaient `min(700pt, 92vh)`, ce qui est du raisonnement web : il n'y a
+    /// pas de `vh` en AppKit, et une fenêtre non redimensionnable plus haute
+    /// que la zone utile devient une fenêtre dont on ne peut plus atteindre le
+    /// bas — ni le bouton qui s'y trouve. `visibleFrame` retire déjà la barre
+    /// de menus et le Dock ; la marge couvre l'ombre et la barre de titre.
+    ///
+    /// Écrêter plutôt qu'autoriser le redimensionnement : la largeur, elle, ne
+    /// doit jamais bouger, sinon les cartes partagées entre l'accueil et les
+    /// réglages ne se ressemblent plus.
+    func applySoflerGeometry() {
+        let available = (screen ?? NSScreen.main)?.visibleFrame.height
+            ?? Style.windowHeight
+        let height = min(Style.windowHeight, available - 40)
+        setContentSize(NSSize(width: Style.windowWidth, height: height))
+        // Sans ça, la fenêtre reste étirable par les bords même dépourvue du
+        // bouton d'agrandissement.
+        styleMask.remove(.resizable)
+        center()
+    }
 }
 
 /// Le verre du fond, identique à celui de la barre.
@@ -75,7 +168,7 @@ struct Note: View {
     var body: some View {
         Text(.init(text))
             .font(.system(size: 11))
-            .foregroundStyle(warning ? Style.collecting : Color.secondary)
+            .foregroundStyle(warning ? Style.warning : Color.secondary)
             .fixedSize(horizontal: false, vertical: true)
     }
 }

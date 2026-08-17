@@ -1,6 +1,7 @@
 import AppKit
 import AVFoundation
 import Carbon.HIToolbox
+import SoflerCore
 
 /// Enchaînement raccourci → capture → transcription → insertion.
 ///
@@ -100,10 +101,18 @@ final class DictationController {
     /// fonctionnalité même qui existe pour ne rien perdre.
     private var pendingAudioFile: String?
 
-    /// Moteur qui écrit réellement, selon le réglage — avec repli sur celui
-    /// qui existe si l'autre est indisponible.
+    /// Le moteur qui écrit réellement.
+    ///
+    /// Passe par `EngineSafetyManager` plutôt que de lire la préférence :
+    /// celle-ci peut désigner un moteur momentanément incapable d'écrire —
+    /// poids en cours de téléchargement, service arrêté pour libérer la
+    /// mémoire, modèle supprimé depuis. Le repli est temporaire et n'est jamais
+    /// réécrit dans les réglages : le choix de l'utilisateur revient de
+    /// lui-même dès que son moteur est de nouveau debout.
+    private var writerChoice: EngineChoice { EngineSafetyManager.shared.effectiveEngine }
+
     private var writer: any SpeechEngine {
-        engine(for: Preferences.shared.engine) ?? localEngine
+        engine(for: writerChoice) ?? localEngine
     }
 
     private func engine(for choice: EngineChoice) -> (any SpeechEngine)? {
@@ -313,6 +322,12 @@ final class DictationController {
             history.add(text, mode: used)
             pendingAudio = nil
             pendingAudioFile = nil
+            // Ce moteur vient de prouver qu'il sait écrire ici : c'est sur lui
+            // que le repli se rabattra si un autre choix échoue plus tard. La
+            // preuve est l'insertion réussie, pas la disponibilité annoncée —
+            // un moteur qui répond « disponible » peut encore échouer à la
+            // première phrase.
+            EngineSafetyManager.shared.confirmWorking(writerChoice)
             Log.info("transcrit en \(Int(result.latency.wallMs)) ms, \(text.count) caractères")
             state = .idle
             // Après l'insertion, jamais avant : la collecte ne doit rien
@@ -452,12 +467,19 @@ final class DictationController {
         guard prefs.corpusEnabled else { return }
 
         let id = Corpus.makeIdentifier()
-        let choice = prefs.engine
+        // Le moteur qui a **réellement** écrit, pas celui qui est coché : un
+        // repli silencieux archivé sous le nom du moteur demandé rendrait le
+        // corpus menteur sur la seule chose qu'il sert à mesurer.
+        let choice = writerChoice
         var entry = CorpusEntry(
             id: id,
             date: Date(),
             durationSeconds: Double(samples.count) / AudioRecorder.targetSampleRate,
-            language: language,
+            // Code court ici, locale complète à côté. Cf. `CorpusEntry`.
+            language: Locale(identifier: language).language.languageCode?.identifier
+                ?? language,
+            locale: language,
+            appVersion: UpdateChecker.currentVersion,
             destination: target.isLocked ? "notes" : "curseur",
             lexicon: choice.honoursLexicon ? lexicon : nil,
             transcriptions: [],
@@ -574,7 +596,7 @@ final class DictationController {
             // apprendrait l'indisponibilité par une exception, après avoir fait
             // attendre la machine — et la raison archivée serait un message
             // d'erreur au lieu du fait.
-            guard choice.isAvailable(for: entry.language),
+            guard choice.isAvailable(for: entry.requestLocale),
                   let engine = engine(for: choice) else {
                 entry.skipped.append("\(choice.rawValue): indisponible")
                 continue
@@ -582,7 +604,7 @@ final class DictationController {
             do {
                 let result = try await engine.transcribe(TranscriptionRequest(
                     samples: samples, mode: mode ?? .intended,
-                    language: entry.language,
+                    language: entry.requestLocale,
                     lexicon: choice.honoursLexicon ? entry.lexicon : nil))
                 let identity = await engine.identity
                 entry.transcriptions.append(CorpusTranscription(

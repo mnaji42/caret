@@ -29,8 +29,9 @@ final class PreferencesWindowController {
         // l'application ne se ressemblent plus.
         window.backgroundColor = .clear
         window.isOpaque = false
-        window.setContentSize(NSSize(width: 540, height: 620))
-        window.center()
+        // La même géométrie que l'accueil, au point près : les cartes de
+        // configuration sont littéralement les mêmes vues aux deux endroits.
+        window.applySoflerGeometry()
         window.isReleasedWhenClosed = false
         // Les réglages contiennent eux aussi des boutons qui ouvrent les
         // Réglages Système. Sans ça, ils s'effacent au moment d'y aller, et on

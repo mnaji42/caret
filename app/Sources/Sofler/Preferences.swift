@@ -29,16 +29,25 @@ final class Preferences {
         static let triggerEnabled = "sofler.trigger.enabled"   // hérité, migré vers triggerKind
         static let triggerKind = "sofler.trigger.kind"
         static let defaultMode = "sofler.mode"
-        static let language = "sofler.language"
+        static let language = "sofler.language"          // hérité, migré vers languages
+        static let languages = "sofler.languages.selected"
         static let noteFile = "sofler.notes.file"
         static let livePreview = "sofler.preview.live"
         static let corpus = "sofler.corpus.enabled"
         static let corpusAudio = "sofler.corpus.audio"
-        static let engine = "sofler.engine"
+        static let engine = "sofler.engine"              // hérité, migré vers final/apple
+        static let finalEngine = "sofler.engine.final"
+        static let appleTechnology = "sofler.engine.apple"
+        static let liveTechnology = "sofler.engine.live"
         static let shortcut = "sofler.shortcut"
         static let corpusEngines = "sofler.corpus.engines"
         static let onboarded = "sofler.onboarded"
         static let updateCheck = "sofler.update.check"
+        static let lastValidEngine = "sofler.engine.lastValid"
+        /// Marque qu'une installation antérieure au multi-langues a été
+        /// reprise. Sert à ne pas changer sous les pieds de quelqu'un des
+        /// défauts qui n'ont bougé que pour les installations neuves.
+        static let migratedSchema = "sofler.schema.migrated"
     }
 
     private let defaults = UserDefaults.standard
@@ -154,29 +163,95 @@ final class Preferences {
         didSet { defaults.set(defaultMode.rawValue, forKey: Key.defaultMode) }
     }
 
-    /// Langue principale. Whisper impose un choix unique par passage ; « auto »
-    /// existe mais coûte une passe de détection et se trompe régulièrement sur
-    /// les phrases mêlant deux langues, ce qui est précisément le cas d'usage.
-    var language: String {
+    /// Les langues de travail, en locales complètes — `["fr-FR", "en-US"]`.
+    ///
+    /// **L'ordre porte du sens, et il est le seul à en porter :** l'élément
+    /// d'indice 0 est la langue principale, celle avec laquelle on dicte. Le
+    /// reste est ce qu'on a déclaré vouloir employer, ce qui sert à savoir
+    /// quels modèles récupérer d'avance plutôt qu'au moment où l'on bascule.
+    ///
+    /// Ne peut jamais être vide : sans langue, aucun moteur ne sait quoi
+    /// charger, et l'application n'aurait plus qu'à échouer à chaque dictée. Un
+    /// appel qui la viderait est donc corrigé sur place plutôt que refusé — le
+    /// code appelant n'a aucun moyen raisonnable de traiter ce refus.
+    var selectedLanguages: [String] {
         didSet {
-            defaults.set(language, forKey: Key.language)
-            // Une version de macOS peut savoir écrire en français et pas en
-            // anglais : les actifs sont fournis par locale, et la Dictée
-            // n'installe que les langues qu'on lui a demandées. Rester sur une
-            // version qui ne sait rien produire dans la langue qu'on vient de
-            // choisir ne se manifesterait qu'à la dictée suivante, par un texte
-            // vide. On glisse donc vers l'autre version quand elle, elle sait —
-            // et seulement dans ce cas : un choix explicite qui fonctionne
-            // encore n'est jamais déplacé.
-            if engine.isSystem, !engine.isAvailable(for: language),
-               let usable = EngineChoice.systemEngine(preferring: engine,
-                                                      for: language) {
-                engine = usable
+            // Dédoublonnage en conservant l'ordre : `Set` le perdrait, et
+            // l'ordre *est* l'information ici.
+            var seen: Set<String> = []
+            let cleaned = selectedLanguages.filter { seen.insert($0).inserted }
+            if cleaned.isEmpty {
+                selectedLanguages = [Language.fallback]
+                return
+            }
+            if cleaned != selectedLanguages {
+                selectedLanguages = cleaned
+                return
+            }
+            defaults.set(selectedLanguages, forKey: Key.languages)
+            // La langue principale a pu changer de place. Tout ce qui en dépend
+            // — la version de macOS capable de l'écrire, le moteur final — est
+            // réévalué au même endroit pour tout le monde.
+            if oldValue.first != selectedLanguages.first {
+                LanguageSwitchCoordinator.shared.primaryLanguageChanged()
             }
         }
     }
 
-    static let languages = [("fr", "Français"), ("en", "English")]
+    /// La langue avec laquelle on dicte, c'est-à-dire la première de la liste.
+    ///
+    /// Calculée plutôt que stockée : deux champs pour une seule vérité, c'est
+    /// une occasion de les voir diverger, et ce projet en a déjà payé une
+    /// (cf. `DictationController`, où les réglages étaient recopiés).
+    ///
+    /// L'affecter **déplace** la langue en tête au lieu de l'ajouter : on
+    /// choisit sa langue principale parmi celles qu'on a déclarées, on n'en
+    /// déclare pas une nouvelle par ce chemin.
+    var primaryLanguage: String {
+        get { selectedLanguages.first ?? Language.fallback }
+        set {
+            guard selectedLanguages.contains(newValue) else { return }
+            guard newValue != selectedLanguages.first else { return }
+            selectedLanguages = [newValue]
+                + selectedLanguages.filter { $0 != newValue }
+        }
+    }
+
+    /// Les langues déclarées, en plus de la principale.
+    var secondaryLanguages: [String] { Array(selectedLanguages.dropFirst()) }
+
+    /// Le catalogue restreint à ce que l'utilisateur a retenu, dans son ordre.
+    var activeLanguages: [Language] { selectedLanguages.map(Language.named) }
+
+    /// La langue principale, comme objet.
+    var primary: Language { Language.named(primaryLanguage) }
+
+    /// Nom historique de la langue principale.
+    ///
+    /// Conservé parce que tout ce qui transcrit le lit — moteurs, aperçu,
+    /// corpus — et que ces appels ne gagneraient rien à être réécrits : « la
+    /// langue » y désigne bien la langue courante. Il rend désormais une locale
+    /// complète (`fr-FR`) là où il rendait un code court (`fr`), ce qui vaut
+    /// mieux pour `SpeechTranscriber` et `SFSpeechRecognizer`, dont les modèles
+    /// sont fournis par région.
+    ///
+    /// **La conversion vers le code court se fait à la frontière du socket**,
+    /// et nulle part ailleurs : Whisper compose le jeton `<|fr|>`, et `fr-FR`
+    /// lui donnerait un jeton inconnu sans lever la moindre erreur.
+    /// Cf. `SocketSpeechEngine` et `Language`.
+    var language: String {
+        get { primaryLanguage }
+        set {
+            // Une langue qu'on n'a pas déclarée devient déclarée, et
+            // principale : c'est le sens de l'ancien réglage à choix unique,
+            // et le seul qui ne surprenne pas l'appelant.
+            if selectedLanguages.contains(newValue) {
+                primaryLanguage = newValue
+            } else {
+                selectedLanguages = [newValue] + selectedLanguages
+            }
+        }
+    }
 
     /// Le moteur retenu au tout premier lancement.
     ///
@@ -229,11 +304,88 @@ final class Preferences {
     /// ni licence à accepter, et il transcrit pendant qu'on parle. Il ne sait
     /// pas écrire `useEffect` — c'est mesuré — donc l'utilisateur qui dicte du
     /// code choisira CrisperWhisper en connaissance de cause.
-    var engine: EngineChoice {
+    /// Qui écrit le texte définitif : macOS, ou CrisperWhisper.
+    ///
+    /// C'est **la** décision, celle qu'on prend à l'écran 4 de l'accueil. La
+    /// version de macOS employée n'en est pas une autre : c'est un détail
+    /// interne à « macOS », au même titre que le modèle sous CrisperWhisper.
+    enum FinalEngineChoice: String, CaseIterable, Codable, Sendable {
+        case apple
+        case crisperWhisper = "crisperwhisper"
+    }
+
+    var finalEngine: FinalEngineChoice {
         didSet {
-            defaults.set(engine.rawValue, forKey: Key.engine)
+            defaults.set(finalEngine.rawValue, forKey: Key.finalEngine)
             EngineService.reconcile(needed: needsLocalEngine)
         }
+    }
+
+    /// La version de macOS retenue — Apple Intelligence ou Dictée.
+    ///
+    /// Toujours une des deux, jamais CrisperWhisper : c'est ce que garantit le
+    /// point d'entrée `engine`, seul chemin d'écriture exposé aux vues.
+    var appleTechnology: EngineChoice {
+        didSet {
+            defaults.set(appleTechnology.rawValue, forKey: Key.appleTechnology)
+        }
+    }
+
+    /// La version de macOS qui alimente l'aperçu en direct.
+    ///
+    /// Stockée à part, mais **pas indépendante**, et c'est délibéré. Quand
+    /// macOS écrit, l'aperçu emploie exactement la version qui écrira : il
+    /// devient alors une vraie préversion du texte inséré, et non une seconde
+    /// opinion qui ne ressemblera pas au résultat. Les documents de conception
+    /// demandaient deux réglages libres ; ça aurait fait afficher pendant la
+    /// dictée un texte qu'aucun moteur n'allait produire.
+    ///
+    /// La valeur stockée ne sert donc que lorsque CrisperWhisper écrit — cas où
+    /// aucune préversion fidèle n'est possible, puisque le moteur final ne
+    /// travaille qu'une fois la phrase finie.
+    var liveEngineTechnology: EngineChoice {
+        get { finalEngine == .apple ? appleTechnology : storedLiveTechnology }
+        set {
+            storedLiveTechnology = newValue
+            if finalEngine == .apple { appleTechnology = newValue }
+        }
+    }
+
+    private var storedLiveTechnology: EngineChoice {
+        didSet {
+            defaults.set(storedLiveTechnology.rawValue, forKey: Key.liveTechnology)
+        }
+    }
+
+    /// Le moteur qui écrit, recomposé à partir des deux réglages ci-dessus.
+    ///
+    /// Point d'entrée historique, et toujours le bon : tout ce qui transcrit
+    /// veut savoir « qui écrit », pas « quelle case est cochée où ». L'affecter
+    /// décompose vers le bon couple, ce qui évite à chaque appelant de savoir
+    /// que la décision est désormais rangée en deux morceaux.
+    var engine: EngineChoice {
+        get { finalEngine == .crisperWhisper ? .crisperWhisper : appleTechnology }
+        set {
+            switch newValue {
+            case .crisperWhisper:
+                finalEngine = .crisperWhisper
+            case .apple, .appleLegacy:
+                appleTechnology = newValue
+                finalEngine = .apple
+            }
+        }
+    }
+
+    /// Le dernier moteur dont on a **constaté** qu'il savait écrire.
+    ///
+    /// Filet de sécurité du commit transactionnel : tant qu'un moteur exploré
+    /// dans les réglages n'est pas prêt — poids en cours de téléchargement,
+    /// service arrêté, modèle supprimé — la dictée continue avec celui-ci
+    /// plutôt que d'échouer. Sans lui, cocher « CrisperWhisper » avant la fin
+    /// du téléchargement cassait la dictée en silence, et rien ne disait
+    /// pourquoi. Cf. `EngineSafetyManager`.
+    var lastValidEngine: EngineChoice {
+        didSet { defaults.set(lastValidEngine.rawValue, forKey: Key.lastValidEngine) }
     }
 
     /// Moteurs à faire tourner **en plus** pour la collecte, après insertion.
@@ -294,8 +446,28 @@ final class Preferences {
     }
 
     private init() {
-        lexicon = defaults.stringArray(forKey: Key.lexicon) ?? Self.starterLexicon
-        useDefaultLexicon = defaults.object(forKey: Key.useDefaultLexicon) as? Bool ?? true
+        // Reprend-on une installation antérieure au multi-langues ?
+        //
+        // La question n'est pas rhétorique : deux défauts changent avec cette
+        // version, et les changer sous les pieds de quelqu'un qui utilise déjà
+        // Sofler modifierait la qualité de ses transcriptions au milieu d'une
+        // collecte en cours — exactement ce que le corpus existe pour mesurer.
+        // On ne peut pas se contenter de l'absence des nouvelles clés : une
+        // installation neuve ne les a pas non plus. C'est la présence des
+        // **anciennes** qui tranche.
+        let isExistingInstall = defaults.object(forKey: Key.migratedSchema) == nil
+            && (defaults.object(forKey: Key.onboarded) != nil
+                || defaults.object(forKey: Key.language) != nil
+                || defaults.object(forKey: Key.engine) != nil)
+        defaults.set(true, forKey: Key.migratedSchema)
+
+        // Liste vide pour qui découvre Sofler : la liste intégrée est du
+        // vocabulaire de développement web, et un médecin ou un juriste n'a
+        // rien à faire de `useEffect`. Mais elle reste en place pour qui
+        // l'utilisait déjà — cf. `isExistingInstall`.
+        lexicon = defaults.stringArray(forKey: Key.lexicon) ?? []
+        useDefaultLexicon = defaults.object(forKey: Key.useDefaultLexicon) as? Bool
+            ?? isExistingInstall
         // Migration : l'ancien réglage était un simple interrupteur sur la
         // touche Option, le raccourci restant actif en parallèle. Le couper
         // voulait donc dire « je préfère le raccourci ».
@@ -310,7 +482,31 @@ final class Preferences {
             rawValue: defaults.string(forKey: Key.triggerSide) ?? "right") ?? .right
         defaultMode = TranscriptionMode(
             rawValue: defaults.string(forKey: Key.defaultMode) ?? "intended") ?? .intended
-        language = defaults.string(forKey: Key.language) ?? "fr"
+
+        // Migration des langues : le réglage était un code court unique
+        // (« fr »), il devient une liste de locales complètes (« fr-FR »).
+        //
+        // Les modèles de macOS sont fournis *par région* : « fr » ne suffit pas
+        // à désigner ce qu'il faut télécharger, et `SFSpeechRecognizer` répond
+        // mieux à une locale exacte. La région retenue est celle de la machine
+        // quand le catalogue la connaît — un francophone au Canada obtient
+        // `fr-CA` plutôt que `fr-FR`.
+        let languages: [String]
+        if let stored = defaults.stringArray(forKey: Key.languages), !stored.isEmpty {
+            languages = stored
+        } else if let legacy = defaults.string(forKey: Key.language) {
+            languages = [Language.preferred(for: legacy)]
+        } else {
+            languages = [Language.fallback]
+        }
+        selectedLanguages = languages
+        // La langue principale sert plus bas à choisir un moteur par défaut.
+        // Elle passe par une locale, et non par `selectedLanguages` : sous
+        // `@Observable`, relire une propriété stockée avant que toutes le
+        // soient est refusé — et le contournement serait un ordre
+        // d'initialisation fragile plutôt qu'une variable de trois caractères.
+        let primary = languages[0]
+
         // Un fichier supprimé ou renommé depuis la dernière session ne doit
         // pas rester proposé comme destination : la dictée y serait perdue.
         noteFile = defaults.string(forKey: Key.noteFile)
@@ -339,9 +535,34 @@ final class Preferences {
         } else {
             dictateShortcut = .dictate
         }
-        let storedLanguage = defaults.string(forKey: Key.language) ?? "fr"
-        engine = EngineChoice(rawValue: defaults.string(forKey: Key.engine) ?? "")
-            ?? Self.defaultEngine(for: storedLanguage)
+        // Migration des moteurs : un réglage unique (`sofler.engine`) devient
+        // deux décisions distinctes — qui écrit, et avec quelle version de
+        // macOS. L'ancienne valeur porte les deux à la fois, on la décompose.
+        let legacyEngine = EngineChoice(rawValue: defaults.string(forKey: Key.engine) ?? "")
+        let resolvedFinal: FinalEngineChoice
+        if let stored = defaults.string(forKey: Key.finalEngine),
+           let choice = FinalEngineChoice(rawValue: stored) {
+            resolvedFinal = choice
+        } else {
+            resolvedFinal = legacyEngine == .crisperWhisper ? .crisperWhisper : .apple
+        }
+        finalEngine = resolvedFinal
+        // La version de macOS : celle explicitement rangée, sinon celle que
+        // l'ancien réglage désignait s'il en désignait une, sinon celle que
+        // cette machine sait faire tourner — mesuré, jamais déduit du numéro
+        // de version.
+        let resolvedApple = EngineChoice(rawValue: defaults.string(forKey: Key.appleTechnology) ?? "")
+            ?? (legacyEngine?.isSystem == true ? legacyEngine : nil)
+            ?? Self.defaultEngine(for: primary)
+        appleTechnology = resolvedApple
+        storedLiveTechnology = EngineChoice(rawValue: defaults.string(forKey: Key.liveTechnology) ?? "")
+            ?? Self.defaultEngine(for: primary)
+        // Au premier lancement, le dernier moteur valide est celui qu'on vient
+        // de retenir : rien n'a encore échoué, et démarrer sur un repli
+        // arbitraire ferait dicter avec autre chose que ce qui est affiché.
+        lastValidEngine = EngineChoice(rawValue: defaults.string(forKey: Key.lastValidEngine) ?? "")
+            ?? (resolvedFinal == .crisperWhisper ? .crisperWhisper : resolvedApple)
+
         corpusEngines = defaults.stringArray(forKey: Key.corpusEngines)
             .map { Set($0.compactMap(EngineChoice.init(rawValue:))) }
             ?? Set(EngineChoice.allCases)

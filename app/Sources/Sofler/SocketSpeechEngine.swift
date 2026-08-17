@@ -51,7 +51,23 @@ actor SocketSpeechEngine: SpeechEngine {
         var header: [String: Any] = [
             "op": "transcribe",
             "mode": request.mode.rawValue,
-            "language": request.language,
+            // Le code court, **jamais** la locale complète, et c'est la seule
+            // frontière de l'application où la distinction compte.
+            //
+            // Le service compose le jeton Whisper `<|fr|>` pour imposer la
+            // langue au décodeur (cf. `engine/sofler_engine/prompt.py`).
+            // `<|fr-FR|>` n'existe pas dans son vocabulaire :
+            // `convert_tokens_to_ids` rendrait le jeton inconnu, le préfixe de
+            // décodage forcé partirait corrompu — et **rien ne lèverait
+            // d'erreur**. La transcription continuerait, simplement moins
+            // bonne. C'est le mode de panne le plus coûteux pour ce projet :
+            // une dégradation muette au milieu d'une collecte censée mesurer
+            // la qualité des moteurs.
+            //
+            // Partout ailleurs on garde la locale complète : les modèles de
+            // macOS sont fournis par région, et `fr-CA` n'est pas `fr-FR`.
+            "language": Locale(identifier: request.language)
+                .language.languageCode?.identifier ?? request.language,
         ]
         if let lexicon = request.lexicon {
             header["lexicon"] = lexicon
