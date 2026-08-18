@@ -195,7 +195,6 @@ private struct OnboardingView: View {
     private var welcomeStep: some View {
         VStack(alignment: .leading, spacing: 0) {
             SectionLabel("Le principe en trois points")
-                .padding(.bottom, 8)
 
             Card(title: "") {
                 principle(1, "Écrivez au son de votre voix",
@@ -218,8 +217,6 @@ private struct OnboardingView: View {
             .padding(.bottom, 12)
 
             SectionLabel("Ce que nous allons configurer")
-                .padding(.top, 4)
-                .padding(.bottom, 8)
 
             Card(title: "", highlighted: true) {
                 Text(.init("Ce court parcours vous aide à **choisir vos "
@@ -255,13 +252,10 @@ private struct OnboardingView: View {
     private var preferencesStep: some View {
         VStack(alignment: .leading, spacing: 0) {
             SectionLabel("Langues de dictée (Au moins 1 langue requise)")
-                .padding(.bottom, 8)
             Card(title: "") { LanguagePicker() }
                 .padding(.bottom, 12)
 
             SectionLabel("Vos habitudes d'expression (Optionnel)")
-                .padding(.top, 4)
-                .padding(.bottom, 8)
             UsageHabitsCard()
         }
     }
@@ -278,13 +272,10 @@ private struct OnboardingView: View {
     private var liveEngineStep: some View {
         VStack(alignment: .leading, spacing: 0) {
             SectionLabel("Moteur de reconnaissance en direct")
-                .padding(.bottom, 8)
             AppleEngineCard()
                 .padding(.bottom, 12)
 
             SectionLabel("Déclencheur & Zone de test")
-                .padding(.top, 4)
-                .padding(.bottom, 8)
             TriggerCard(showTrialSandbox: true)
         }
     }

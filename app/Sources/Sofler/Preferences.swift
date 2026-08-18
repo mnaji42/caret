@@ -168,12 +168,19 @@ final class Preferences {
         }
     }
 
-    var triggerSide: ModifierKeyMonitor.Side {
-        didSet {
-            defaults.set(triggerSide.rawValue, forKey: Key.triggerSide)
-            NotificationCenter.default.post(name: .soflerTriggerChanged, object: nil)
-        }
-    }
+    /// Le côté de la touche Option écoutée.
+    ///
+    /// **Toujours la droite, et ce n'est plus un réglage.** Le choix existait,
+    /// et le prototype l'a retiré : la gauche est le modificateur qu'on emploie
+    /// couramment pour les raccourcis tapés d'une main, si bien que l'écouter
+    /// revenait à s'installer un déclencheur qui part tout seul. La ligne
+    /// « Laquelle : droite / gauche » a disparu de l'interface avec elle.
+    ///
+    /// La propriété reste : `ModifierKeyMonitor` a besoin d'un côté pour
+    /// construire son tap, et un jour peut-être d'une raison de le changer.
+    /// D'ici là elle ne varie pas, ce qui permet enfin au texte d'être
+    /// affirmatif sur la touche concernée.
+    let triggerSide: ModifierKeyMonitor.Side = .right
 
     // MARK: - Transcription
 
@@ -568,8 +575,6 @@ final class Preferences {
         } else {
             triggerKind = .option
         }
-        triggerSide = ModifierKeyMonitor.Side(
-            rawValue: defaults.string(forKey: Key.triggerSide) ?? "right") ?? .right
         defaultMode = TranscriptionMode(
             rawValue: defaults.string(forKey: Key.defaultMode) ?? "intended") ?? .intended
 

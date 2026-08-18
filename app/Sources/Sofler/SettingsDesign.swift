@@ -268,11 +268,17 @@ struct SectionLabel: View {
     init(_ text: String) { self.text = text }
 
     var body: some View {
+        // Les marges du prototype (`margin-top: 16px; margin-bottom: 8px`) sont
+        // portées ici plutôt qu'aux sites d'appel : c'est le seul moyen qu'elles
+        // soient les mêmes partout, et j'avais déjà commencé à les recopier à la
+        // main avec des valeurs qui divergeaient d'un écran à l'autre.
         Text(text.uppercased())
             .font(.system(size: 10.5, weight: .bold))
             .kerning(0.84)
             .foregroundStyle(Style.textTertiary)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 16)
+            .padding(.bottom, 8)
     }
 }
 
@@ -433,9 +439,13 @@ struct Note: View {
     }
 
     var body: some View {
+        // `.note` : 11,5 px, interligne 1,45. `lineSpacing` compte l'espace
+        // **ajouté** entre les lignes, pas la hauteur totale — d'où 3 pt et non
+        // 5, l'interligne par défaut valant déjà ~1,2.
         Text(.init(text))
-            .font(.system(size: 11))
-            .foregroundStyle(warning ? Style.warning : Color.secondary)
+            .font(.system(size: 11.5))
+            .lineSpacing(3)
+            .foregroundStyle(warning ? Style.warning : Style.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
     }
 }
@@ -487,9 +497,10 @@ struct Row<Trailing: View>: View {
     @ViewBuilder var trailing: Trailing
 
     var body: some View {
-        HStack {
-            Text(label).font(.system(size: 13))
-            Spacer(minLength: 16)
+        // `.card-row` : `gap: 14px`, libellé à 12,5 px / 500.
+        HStack(spacing: 14) {
+            Text(label).font(.system(size: 12.5, weight: .medium))
+            Spacer(minLength: 0)
             trailing
         }
     }

@@ -91,12 +91,22 @@ struct TriggerCard: View, ValidatingComponent {
 
     // MARK: - Les deux modes
 
+    /// Le mode « touche Option ».
+    ///
+    /// ## Il n'y a plus de choix du côté
+    ///
+    /// Le Swift proposait « droite / gauche ». Le prototype a retiré ce choix,
+    /// et il a raison : la touche est celle de droite, point. Le côté gauche
+    /// sert couramment à autre chose — c'est le modificateur des raccourcis
+    /// qu'on tape à une main — et l'offrir invitait à s'installer un
+    /// déclencheur qui se déclenche tout seul.
+    ///
+    /// La conséquence est que le texte peut enfin être affirmatif : « située à
+    /// droite de la barre d'espace » plutôt qu'une phrase qui doit couvrir les
+    /// deux cas. Le réglage reste dans le modèle — le tap clavier a besoin d'un
+    /// côté — mais il n'est plus une question posée à l'utilisateur.
     @ViewBuilder
     private var optionMode: some View {
-        Row(label: "Laquelle") {
-            PillPicker(options: ModifierKeyMonitor.Side.allCases.map { ($0, $0.label) },
-                       selection: $prefs.triggerSide)
-        }
         Text(.init("Utilise la touche **Option (⌥)** située à droite de la "
                    + "barre d'espace."))
             .font(.system(size: 11.5))
