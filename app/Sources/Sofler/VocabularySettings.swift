@@ -1,161 +1,238 @@
+import AppKit
 import SwiftUI
 
-/// Les mots que vous employez, et que les moteurs ne connaissent pas.
+/// Le lexique : les mots que le moteur doit écrire tels qu'on les dit.
 ///
-/// Cette liste vivait sous CrisperWhisper, ce qui était doublement faux. Elle
-/// n'est pas un réglage de moteur : c'est **votre** vocabulaire. Il survit à un
-/// changement de modèle, à un changement de moteur, et aux moteurs qui
-/// n'existent pas encore. Et rangée là, elle restait invisible à quiconque
-/// dicte avec macOS — donc personne ne la construisait avant d'en avoir
-/// besoin, alors que c'est précisément un objet qui s'enrichit peu à peu, au
-/// fil des mots qu'on voit mal transcrits.
+/// ## Ce que ça fait sous le capot
 ///
-/// Ce qui reste vrai, et qui est dit plutôt que tu : sur les enregistrements
-/// de ce projet, fournir un lexique au moteur de macOS ne change pas sa sortie
-/// d'un caractère. La liste est donc partagée mais pas universellement
-/// utilisée, et l'interface l'annonce au lieu de le promettre.
+/// Les termes partent dans le prompt initial de CrisperWhisper, encadrés par
+/// `<htx> … <ehtx>`, ce qui force le décodeur vers leur orthographe exacte.
+/// Le moteur de macOS, lui, les ignore : son API accepte bien des chaînes de
+/// contexte, mais elles ne changent pas sa sortie — c'est mesuré, et c'est
+/// pourquoi la carte le dit au lieu de laisser croire à un réglage universel.
+///
+/// ## Pourquoi la liste doit rester courte
+///
+/// C'est contre-intuitif et c'est mesuré : à 36 termes, le modèle perd des
+/// virgules — « Dans Next.js j'ai envie » au lieu de « Dans Next.js, j'ai
+/// envie ». Un prompt plus long dilue le contexte audio. Il faut donc retirer
+/// un terme pour en ajouter un, pas empiler — d'où l'avertissement au-delà de
+/// vingt-cinq.
 struct VocabularySettings: View {
     @State private var prefs = Preferences.shared
-    @State private var newTerm = ""
+    @State private var entry = ""
 
-    /// Au-delà, on ne gagne plus rien : le lexique part dans le prompt du
-    /// modèle, et un prompt long dilue le contexte au lieu de le préciser.
-    /// C'est la règle que le code appliquait en silence — « retirer un terme
-    /// pour en ajouter un » — et qu'aucune interface ne montrait.
-    private var crowded: Bool { prefs.lexicon.count > Preferences.starterLexicon.count }
+    /// Le seuil au-delà duquel la liste commence à nuire.
+    private static let crowded = 25
 
     var body: some View {
-        Card(title: "Vocabulaire") {
-            Note("Les mots que vous employez et qu'un modèle de français "
-                 + "courant ne contient pas : noms propres, termes de votre "
-                 + "métier, mots anglais. Sans eux, ils sont remplacés par "
-                 + "ceux qui leur ressemblent.")
-            Note("**Utilisé par CrisperWhisper. Ignoré par le moteur de "
-                 + "macOS** — son interface accepte bien une liste, mais "
-                 + "mesuré sur de vrais enregistrements, elle ne change pas sa "
-                 + "sortie d'un caractère. La liste reste ici plutôt que sous "
-                 + "un moteur : elle est à vous, pas à lui, et elle servira "
-                 + "aux moteurs à venir.")
+        explanation
+        editor
+        Note("💡 **Conseil :** Privilégiez les mots rares, les noms de projets "
+             + "ou les termes bilingues que la dictée a tendance à écorcher.")
+    }
+
+    // MARK: - Ce que c'est
+
+    private var explanation: some View {
+        Card(title: "") {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Vocabulaire & Mots Métier")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text("Guidez l'IA locale avec vos noms propres, acronymes ou "
+                     + "jargon technique.")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(Style.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Note("Ces termes sont injectés comme repères dans l'IA "
+                 + "**CrisperWhisper** pour garantir une orthographe exacte "
+                 + "(ex : `Next.js`, `API REST`, `Stripe`, `URSSAF`).")
+        }
+    }
+
+    // MARK: - La liste
+
+    private var editor: some View {
+        AccentCard {
+            inputRow
+            Text(.init("Appuyez sur **Entrée** ou **,** pour ajouter. Accepte "
+                       + "les espaces, tirets et majuscules."))
+                .font(.system(size: 10.5))
+                .foregroundStyle(Style.textTertiary)
 
             Divider().opacity(0.25)
 
-            OptionCheck(title: "Utiliser la liste intégrée",
-                        isOn: $prefs.useDefaultLexicon)
-            Note(prefs.useDefaultLexicon
-                 ? "La liste fournie avec Sofler, orientée développement web. "
-                   + "Décochez pour la remplacer par la vôtre."
-                 : "Votre liste remplace celle de Sofler — elle ne s'y ajoute "
-                   + "pas.")
-        }
+            if prefs.lexicon.isEmpty { empty } else { tags }
 
-        if !prefs.useDefaultLexicon {
-            Card(title: "Vos termes") {
-                entry
-                if prefs.lexicon.isEmpty {
-                    Note("Aucun terme. Le moteur transcrira en français "
-                         + "courant, sans conditionnement.")
-                } else {
-                    terms
-                }
-
-                Divider().opacity(0.25)
-                Row(label: "\(prefs.lexicon.count) terme"
-                    + (prefs.lexicon.count > 1 ? "s" : "")) {
-                    if crowded {
-                        Text("liste longue")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Style.collecting)
-                    }
-                }
-                Note(crowded
-                     ? "**Retirez-en avant d'en ajouter.** Le lexique part "
-                       + "dans le prompt du modèle : plus il est long, plus il "
-                       + "dilue le contexte, et plus le modèle risque d'y "
-                       + "piocher un mot sur un passage où vous n'avez rien "
-                       + "dit."
-                     : "Gardez la liste courte. Le lexique part dans le prompt "
-                       + "du modèle, et un prompt long dilue le contexte au "
-                       + "lieu de le préciser.",
-                     warning: crowded)
-
-                if prefs.lexicon != Preferences.starterLexicon {
-                    ButtonRow {
-                        Button("Repartir de la liste de Sofler") {
-                            prefs.lexicon = Preferences.starterLexicon
-                        }
-                    }
-                }
-            }
+            Divider().opacity(0.25)
+            footer
         }
     }
 
-    // MARK: - Ajouter
-
-    /// Un terme à la fois, plutôt qu'une zone de texte à éditer.
-    ///
-    /// C'était un `TextEditor` où l'on tapait une ligne par mot. Un lexique ne
-    /// s'édite pas comme un fichier : il s'enrichit d'un terme quand on voit
-    /// passer une transcription fautive, et se dégarnit quand il devient trop
-    /// long. Une liste de lignes rendait ces deux gestes malaisés, et surtout
-    /// ne comptait rien.
-    private var entry: some View {
+    private var inputRow: some View {
         HStack(spacing: 8) {
-            TextField("Ajouter un terme", text: $newTerm)
+            TextField("Tapez un mot ou collez une liste (séparée par des "
+                      + "virgules)...", text: $entry)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
-                .padding(.horizontal, 10)
-                .frame(height: 28)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(Color.black.opacity(0.2)))
-                .onSubmit(add)
-            Button("Ajouter", action: add)
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(cleaned.isEmpty)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(Color.black.opacity(0.35))
+                        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)))
+                // Entrée valide. La virgule est traitée à l'ajout plutôt qu'à
+                // la frappe : l'intercepter empêcherait de coller une liste
+                // entière d'un coup, qui est justement le cas rapide.
+                .onSubmit { add(entry) }
+
+            Button("+ Ajouter") { add(entry) }
+                .buttonStyle(SoflerPrimaryButtonStyle())
+                .disabled(entry.trimmingCharacters(in: .whitespaces).isEmpty)
         }
     }
 
-    private var cleaned: String {
-        newTerm.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private func add() {
-        let term = cleaned
-        guard !term.isEmpty else { return }
-        // Sans doublon, et sans distinguer la casse : « React » et « react »
-        // conditionnent le modèle de la même façon, les compter deux fois ne
-        // ferait qu'allonger le prompt.
-        guard !prefs.lexicon.contains(where: {
-            $0.compare(term, options: .caseInsensitive) == .orderedSame
-        }) else {
-            newTerm = ""
-            return
+    private var empty: some View {
+        VStack(spacing: 8) {
+            Text("Aucun terme personnalisé. Sofler transcrit en français "
+                 + "courant sans conditionnement.")
+                .font(.system(size: 12))
+                .foregroundStyle(Style.textTertiary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("+ Insérer des exemples (Développement Web)") {
+                add(Preferences.starterLexicon.joined(separator: ", "))
+            }
+            .buttonStyle(.plain)
+            .font(.system(size: 11))
+            .foregroundStyle(Style.accent)
         }
-        prefs.lexicon.append(term)
-        newTerm = ""
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
     }
 
-    // MARK: - Ce qu'il y a dedans
-
-    private var terms: some View {
-        FlowLayout(spacing: 6) {
-            ForEach(prefs.lexicon, id: \.self) { term in
-                HStack(spacing: 5) {
-                    Text(term).font(.system(size: 11))
-                    Button {
-                        prefs.lexicon.removeAll { $0 == term }
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
+    private var tags: some View {
+        ScrollView {
+            FlowLayout(spacing: 6) {
+                ForEach(prefs.lexicon, id: \.self) { term in
+                    tag(term)
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(Color.white.opacity(0.08)))
-                .overlay(Capsule().strokeBorder(Style.cardStroke, lineWidth: 1))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxHeight: 160)
+    }
+
+    /// Un terme, rectangulaire et non en pilule.
+    ///
+    /// La pilule est réservée aux choix — pastilles de mode, langues actives.
+    /// Un mot du lexique n'est pas un choix parmi d'autres : c'est une entrée
+    /// dans une liste, et le rectangle le dit.
+    private func tag(_ term: String) -> some View {
+        HStack(spacing: 6) {
+            Text(term)
+                .font(.system(size: 11.5))
+                .foregroundStyle(.white)
+            RemoveCross(label: "Supprimer \(term)") { remove(term) }
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Style.accent.opacity(0.1))
+                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(Style.accent.opacity(0.25), lineWidth: 1)))
+    }
+
+    private var footer: some View {
+        HStack(spacing: 8) {
+            Text(prefs.lexicon.count > 1
+                 ? "\(prefs.lexicon.count) termes enregistrés"
+                 : "\(prefs.lexicon.count) terme enregistré")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(isCrowded ? Style.warning : Style.textSecondary)
+
+            if isCrowded {
+                Text("⚠️ Liste longue (gardez 5 à 25 termes pour une précision "
+                     + "optimale)")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Style.warning)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 8)
+
+            if !prefs.lexicon.isEmpty {
+                DangerLink("Tout effacer") { prefs.lexicon = [] }
             }
         }
     }
+
+    private var isCrowded: Bool { prefs.lexicon.count > Self.crowded }
+
+    // MARK: - Saisie
+
+    /// Ajoute un ou plusieurs termes.
+    ///
+    /// Découpe sur les virgules et les retours à la ligne : coller une liste
+    /// entière est le geste rapide, et l'obliger à passer terme par terme
+    /// serait punir le cas courant pour simplifier le code.
+    private func add(_ raw: String) {
+        let terms = raw
+            .split(whereSeparator: { $0 == "," || $0.isNewline })
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        guard !terms.isEmpty else { return }
+
+        var updated = prefs.lexicon
+        for term in terms {
+            // Dédoublonnage insensible à la casse : `React` et `react` sont le
+            // même mot pour le décodeur, et deux entrées allongeraient le
+            // prompt sans rien apporter.
+            guard !updated.contains(where: {
+                $0.compare(term, options: .caseInsensitive) == .orderedSame
+            }) else { continue }
+            updated.append(term)
+        }
+        prefs.lexicon = updated
+        entry = ""
+    }
+
+    private func remove(_ term: String) {
+        prefs.lexicon.removeAll { $0 == term }
+    }
+}
+
+/// La croix de retrait d'un tag, qui rougit au survol.
+struct RemoveCross: View {
+    let label: String
+    let action: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(hovering ? Style.danger : Color.white.opacity(0.5))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help(label)
+        .accessibilityLabel(label)
+    }
+}
+
+#Preview("Lexique") {
+    ScrollView {
+        VStack(alignment: .leading, spacing: 0) {
+            VocabularySettings()
+        }
+        .padding(Style.windowPadding)
+    }
+    .frame(width: Style.windowWidth, height: Style.windowHeight)
+    .background(Color(hex: 0x141821))
 }

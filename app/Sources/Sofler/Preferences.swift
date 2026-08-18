@@ -115,15 +115,19 @@ final class Preferences {
         didSet { defaults.set(lexicon, forKey: Key.lexicon) }
     }
 
-    /// Quand vrai, le moteur applique sa liste intégrée et ignore `lexicon`.
-    var useDefaultLexicon: Bool {
-        didSet { defaults.set(useDefaultLexicon, forKey: Key.useDefaultLexicon) }
-    }
-
-    /// Liste effectivement envoyée au moteur. `nil` lui laisse la sienne.
-    var effectiveLexicon: [String]? {
-        useDefaultLexicon ? nil : lexicon
-    }
+    /// Liste envoyée au moteur.
+    ///
+    /// Toujours explicite désormais. Il existait une bascule « utiliser la liste
+    /// intégrée » qui envoyait `nil`, laissant le service appliquer sa propre
+    /// `DEFAULT_LEXICON` — dix-neuf termes de développement web que
+    /// l'utilisateur ne voyait nulle part et ne pouvait pas modifier.
+    ///
+    /// Le prototype n'a pas cette bascule, et il a raison : un réglage qui
+    /// change ce que le moteur écrit sans montrer quoi n'est pas un réglage,
+    /// c'est une surprise. La migration a recopié la liste du service dans
+    /// `lexicon` — les deux étaient **rigoureusement identiques**, donc rien
+    /// n'a changé pour personne, sinon que la liste est enfin visible.
+    var effectiveLexicon: [String]? { lexicon }
 
     // MARK: - Déclencheur
 
@@ -562,9 +566,22 @@ final class Preferences {
         // vocabulaire de développement web, et un médecin ou un juriste n'a
         // rien à faire de `useEffect`. Mais elle reste en place pour qui
         // l'utilisait déjà — cf. `isExistingInstall`.
-        lexicon = defaults.stringArray(forKey: Key.lexicon) ?? []
-        useDefaultLexicon = defaults.object(forKey: Key.useDefaultLexicon) as? Bool
+        // Migration de la bascule « liste intégrée » : ceux qui l'avaient
+        // active recevaient la liste du service. On la leur écrit noir sur
+        // blanc plutôt que de la leur retirer — c'est le même contenu, mot
+        // pour mot, et il devient modifiable.
+        let storedLexicon = defaults.stringArray(forKey: Key.lexicon)
+        let usedBuiltIn = defaults.object(forKey: Key.useDefaultLexicon) as? Bool
             ?? isExistingInstall
+        if let storedLexicon, !usedBuiltIn {
+            lexicon = storedLexicon
+        } else if usedBuiltIn {
+            lexicon = storedLexicon.map { $0.isEmpty ? Self.starterLexicon : $0 }
+                ?? Self.starterLexicon
+        } else {
+            lexicon = []
+        }
+        defaults.removeObject(forKey: Key.useDefaultLexicon)
         // Migration : l'ancien réglage était un simple interrupteur sur la
         // touche Option, le raccourci restant actif en parallèle. Le couper
         // voulait donc dire « je préfère le raccourci ».

@@ -65,15 +65,35 @@ struct DestinationCard: View, ValidatingComponent {
                 Note(rejected, warning: true)
             }
 
-            Note(prefs.destination == .notes
-                 ? "Tout ce que vous dictez s'ajoute à la fin de ce fichier, où "
-                   + "que soit le curseur. C'est ce qui permet de réfléchir à "
-                   + "voix haute pendant que vous travaillez ailleurs."
-                 : "Le texte atterrit là où votre curseur clignote déjà — "
-                   + "éditeur, navigateur, messagerie — sans changer de fenêtre.")
+            Note(destinationNote)
 
             diagnostics
         }
+    }
+
+    /// Ce que devient la dictée, selon le mode et ce qui est configuré.
+    ///
+    /// Trois variantes, et non deux : « au curseur » ne dit pas la même chose
+    /// selon qu'un fichier attend à côté ou non. Quand il y en a un, le
+    /// rappeler évite de croire qu'on l'a perdu en revenant au curseur.
+    ///
+    /// La phrase du prototype annonce un ajout « avec horodatage ».
+    /// `TargetWriter.append` n'horodate pas, et je ne l'ai pas ajouté de
+    /// moi-même : ce fichier appartient à l'utilisateur — le désinstalleur le
+    /// dit en toutes lettres — et y glisser des lignes qu'il n'a pas demandées
+    /// serait décider à sa place de ce que contient son journal. La clause est
+    /// donc retirée du texte plutôt que promise en l'air.
+    private var destinationNote: String {
+        guard let name = prefs.noteFile?.lastPathComponent else {
+            return "Insère le texte directement là où clignote votre curseur "
+                + "dans l'application active."
+        }
+        return prefs.destination == .notes
+            ? "Chaque transcription est automatiquement ajoutée à la fin de "
+                + "`\(name)`, sans toucher à votre fenêtre active."
+            : "Insère le texte directement là où clignote votre curseur. Le "
+                + "fichier `\(name)` reste prêt si vous souhaitez y rediriger "
+                + "vos notes."
     }
 
     /// Ce que Sofler perçoit du document au premier plan.
@@ -168,7 +188,10 @@ struct DestinationCard: View, ValidatingComponent {
             .opacity(enabled ? 1 : 0.4)
             .contentShape(Rectangle())
             .onTapGesture { if enabled { prefs.destination = value } }
-            .help(enabled ? "" : "Désignez d'abord un fichier ci-dessous.")
+            .help(enabled
+                  ? "Écrire dans le fichier de notes configuré"
+                  : "Configurez d'abord un fichier de notes ci-dessous pour "
+                    + "activer ce mode")
     }
 
     // MARK: - Le fichier
@@ -206,13 +229,15 @@ struct DestinationCard: View, ValidatingComponent {
                     NSWorkspace.shared.activateFileViewerSelecting([file])
                 }
                 Button("Modifier…") { choose() }
-                Button("Retirer") {
+                    .help("Choisir un autre fichier")
+                Button("✕ Retirer") {
                     prefs.noteFile = nil
                     // Sans fichier, « notes » n'est plus tenable : y rester
                     // ferait écrire la prochaine dictée nulle part.
                     prefs.destination = .caret
                     rejected = nil
                 }
+                .help("Retirer ce fichier")
             }
         }
         .padding(10)
@@ -244,7 +269,7 @@ struct DestinationCard: View, ValidatingComponent {
                     .foregroundStyle(.tertiary)
             }
             Spacer(minLength: 8)
-            Button("Choisir un fichier…") { choose() }
+            Button("+ Choisir un fichier…") { choose() }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
         }
