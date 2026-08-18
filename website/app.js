@@ -1,5 +1,5 @@
 /**
- * SOFLER LANDING PAGE - JAVASCRIPT
+ * CASPR LANDING PAGE - JAVASCRIPT
  * Hero Typewriter, Large 8-Step Carousel Modal, Download Controller, GitHub Releases API
  */
 
@@ -67,9 +67,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
   const releaseInfoText = document.getElementById('release-info-text');
   const heroVersionTag = document.getElementById('hero-version-tag');
-  const DOWNLOAD_URL = "https://github.com/mnaji42/sofler/releases/latest/download/Sofler.dmg";
 
-  fetch('https://api.github.com/repos/mnaji42/sofler/releases')
+  // TODO: Once Claude renames the DMG in the build pipeline, change DMG_ASSET_NAME to "Caspr.dmg"
+  const GITHUB_REPO = "mnaji42/caspr";
+  const DMG_ASSET_NAME = "Sofler.dmg";             // ← change to "Caspr.dmg" after Swift migration
+  const DOWNLOAD_URL = `https://github.com/${GITHUB_REPO}/releases/latest/download/${DMG_ASSET_NAME}`;
+
+  fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases`)
     .then(res => {
       if (!res.ok) throw new Error('API Indisponible');
       return res.json();
@@ -84,22 +88,23 @@ document.addEventListener('DOMContentLoaded', () => {
         return acc + (rel.assets || []).reduce((sum, asset) => sum + (asset.download_count || 0), 0);
       }, 0);
 
-      const dmgAsset = (latestRelease.assets || []).find(a => a.name === 'Sofler.dmg');
-      const sizeMo = dmgAsset ? (dmgAsset.size / (1024 * 1024)).toFixed(1) + ' Mo' : '248 Mo';
+      const dmgAsset = (latestRelease.assets || []).find(a => a.name === DMG_ASSET_NAME || a.name === 'Caspr.dmg');
+      const sizeMo = dmgAsset ? (dmgAsset.size / (1024 * 1024)).toFixed(1) + ' Mo' : '';
 
       if (releaseInfoText) {
-        if (isEnglishPage) {
-          releaseInfoText.textContent = `macOS 14+ (Apple Silicon & Intel) · ${versionTag} · ${sizeMo} · ${totalDownloads > 0 ? totalDownloads + ' downloads' : 'Available now'}`;
-        } else {
-          releaseInfoText.textContent = `macOS 14+ (Apple Silicon & Intel) · ${versionTag} · ${sizeMo} · ${totalDownloads > 0 ? totalDownloads + ' téléchargements' : 'Disponible immédiatement'}`;
+        const parts = [`macOS 14+ · ${versionTag}`];
+        if (sizeMo) parts.push(sizeMo);
+        if (totalDownloads > 0) {
+          parts.push(isEnglishPage ? `${totalDownloads} downloads` : `${totalDownloads} téléchargements`);
         }
+        releaseInfoText.textContent = parts.join(' · ');
       }
     })
     .catch(() => {
       if (releaseInfoText) {
         releaseInfoText.textContent = isEnglishPage 
-          ? 'macOS 14 or later · Apple Silicon & Intel · Free'
-          : 'macOS 14 ou plus récent · Apple Silicon & Intel · Gratuit';
+          ? 'macOS 14+ · Apple Silicon & Intel · Free'
+          : 'macOS 14+ · Apple Silicon & Intel · Gratuit';
       }
     });
 
@@ -111,34 +116,34 @@ document.addEventListener('DOMContentLoaded', () => {
     {
       img: 'images/01-fichier-telecharger-doubleclick.png',
       fr: {
-        title: '1. Téléchargez et ouvrez Sofler.dmg',
-        desc: 'Récupérez le fichier <code>Sofler.dmg</code> puis double-cliquez dessus pour monter l\'image disque dans votre Finder.'
+        title: '1. Téléchargez et ouvrez Caspr.dmg',
+        desc: 'Récupérez le fichier <code>Caspr.dmg</code> puis double-cliquez dessus pour monter l\'image disque dans votre Finder.'
       },
       en: {
-        title: '1. Download and open Sofler.dmg',
-        desc: 'Download the <code>Sofler.dmg</code> file and double-click it to mount the disk image in your Finder.'
+        title: '1. Download and open Caspr.dmg',
+        desc: 'Download the <code>Caspr.dmg</code> file and double-click it to mount the disk image in your Finder.'
       }
     },
     {
       img: 'images/02-dmg-ouvert-doubleclick.png',
       fr: {
-        title: '2. Double-cliquez sur l\'icône Sofler',
-        desc: 'Dans la fenêtre qui apparaît, double-cliquez directement sur l\'icône Sofler. (Inutile de glisser l\'application, Sofler s\'installera tout seul à l\'étape 7).'
+        title: '2. Double-cliquez sur l\'icône Caspr',
+        desc: 'Dans la fenêtre qui apparaît, double-cliquez directement sur l\'icône Caspr. (Inutile de glisser l\'application, Caspr s\'installera tout seul à l\'étape 7).'
       },
       en: {
-        title: '2. Double-click the Sofler icon',
-        desc: 'In the window that appears, double-click the Sofler icon directly. (No manual drag needed; Sofler installs itself in Step 7).'
+        title: '2. Double-click the Caspr icon',
+        desc: 'In the window that appears, double-click the Caspr icon directly. (No manual drag needed; Caspr installs itself in Step 7).'
       }
     },
     {
       img: 'images/03-erreur-car-car-pas-verifier-par-apple-terminer.png',
       fr: {
         title: '3. Message de sécurité Gatekeeper',
-        desc: 'Comme Sofler est open-source et distribué sans compte payant Apple, macOS affiche ce message de sécurité standard. Cliquez simplement sur <strong>Terminer</strong>.'
+        desc: 'Comme Caspr est open-source et distribué sans compte payant Apple, macOS affiche ce message de sécurité standard. Cliquez simplement sur <strong>Terminer</strong>.'
       },
       en: {
         title: '3. Gatekeeper Security Prompt',
-        desc: 'Since Sofler is open-source and distributed without an Apple Developer fee, macOS displays this security notice. Simply click <strong>Done</strong>.'
+        desc: 'Since Caspr is open-source and distributed without an Apple Developer fee, macOS displays this security notice. Simply click <strong>Done</strong>.'
       }
     },
     {
@@ -167,33 +172,33 @@ document.addEventListener('DOMContentLoaded', () => {
       img: 'images/06-scroller-tout-en-bas-cliquer-ouvrir-quand-meme.png',
       fr: {
         title: '6. Scrollez tout en bas et cliquez « Ouvrir quand même »',
-        desc: 'Descendez jusqu\'à la section <em>Sécurité</em>, repérez la mention indiquant le blocage de Sofler, puis cliquez sur <strong>« Ouvrir quand même »</strong> et validez avec votre mot de passe ou Touch ID.'
+        desc: 'Descendez jusqu\'à la section <em>Sécurité</em>, repérez la mention indiquant le blocage de Caspr, puis cliquez sur <strong>« Ouvrir quand même »</strong> et validez avec votre mot de passe ou Touch ID.'
       },
       en: {
         title: '6. Scroll down and click "Open Anyway"',
-        desc: 'Scroll down to the <em>Security</em> section, find the blocked notice for Sofler, click <strong>"Open Anyway"</strong>, and confirm with your password or Touch ID.'
+        desc: 'Scroll down to the <em>Security</em> section, find the blocked notice for Caspr, click <strong>"Open Anyway"</strong>, and confirm with your password or Touch ID.'
       }
     },
     {
       img: 'images/07-Popup-souvre-installer-dans-application.png',
       fr: {
-        title: '7. Pop-up Sofler : « Installer et ouvrir »',
-        desc: 'Le dialogue officiel de Sofler apparaît ! Cliquez sur <strong>[ Installer et ouvrir ]</strong> : l\'application se copie dans <code>/Applications</code>, retire la quarantaine et s\'ouvre toute seule.'
+        title: '7. Pop-up Caspr : « Installer et ouvrir »',
+        desc: 'Le dialogue officiel de Caspr apparaît ! Cliquez sur <strong>[ Installer et ouvrir ]</strong> : l\'application se copie dans <code>/Applications</code>, retire la quarantaine et s\'ouvre toute seule.'
       },
       en: {
-        title: '7. Sofler Dialog: "Install and Open"',
-        desc: 'Sofler\'s installer dialog appears! Click <strong>[ Install and open ]</strong>: the app copies itself to <code>/Applications</code>, removes quarantine, and relaunches.'
+        title: '7. Caspr Dialog: "Install and Open"',
+        desc: 'Caspr\'s installer dialog appears! Click <strong>[ Install and open ]</strong>: the app copies itself to <code>/Applications</code>, removes quarantine, and relaunches.'
       }
     },
     {
       img: 'images/08-attendre-quelque-seconde-onboarding-souvre.png',
       fr: {
         title: '8. L\'Onboarding en 5 étapes s\'ouvre !',
-        desc: 'L\'accueil interactif de Sofler s\'ouvre : accordez l\'accès micro, choisissez votre touche ⌥ Option et profitez d\'une dictée locale ultra-rapide !'
+        desc: 'L\'accueil interactif de Caspr s\'ouvre : accordez l\'accès micro, choisissez votre touche ⌥ Option et profitez d\'une dictée locale ultra-rapide !'
       },
       en: {
         title: '8. 5-Step Onboarding is Ready!',
-        desc: 'Sofler\'s interactive setup opens: grant microphone access, pick your ⌥ Option trigger, and enjoy private, ultra-fast local dictation!'
+        desc: 'Caspr\'s interactive setup opens: grant microphone access, pick your ⌥ Option trigger, and enjoy private, ultra-fast local dictation!'
       }
     }
   ];
@@ -276,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Programmatically trigger DMG download
     const tempLink = document.createElement('a');
     tempLink.href = DOWNLOAD_URL;
-    tempLink.setAttribute('download', 'Sofler.dmg');
+    tempLink.setAttribute('download', 'Caspr.dmg');
     document.body.appendChild(tempLink);
     tempLink.click();
     document.body.removeChild(tempLink);

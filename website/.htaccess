@@ -1,9 +1,17 @@
 # ==============================================================================
-# HOSTINGER / APACHE CONFIGURATION FOR SOFLER LANDING PAGE (100/100 LIGHTHOUSE)
+# HOSTINGER / APACHE CONFIGURATION FOR CASPR LANDING PAGE (100/100 LIGHTHOUSE)
 # ==============================================================================
 
-# 1. Default Index File
+# 1. Default Index File & Rewrite Engine
 DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Redirection 301 from sofler.lyriastudio.fr to caspr.lyriastudio.fr
+  RewriteCond %{HTTP_HOST} ^sofler\.lyriastudio\.fr$ [NC]
+  RewriteRule ^(.*)$ https://caspr.lyriastudio.fr/$1 [R=301,L]
+</IfModule>
 
 # 2. Enable GZIP & Deflate Compression
 <IfModule mod_deflate.c>

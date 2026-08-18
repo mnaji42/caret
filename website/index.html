@@ -3,26 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sofler — Dictée Vocale IA 100% Locale & Open Source pour macOS</title>
+  <title>Caspr — Dictée Vocale IA 100% Locale & Open Source pour macOS</title>
   <meta name="description" content="Dictée vocale locale ultra-rapide, privée et open source pour macOS. Parlez en maintenant ⌥ Option, l'IA locale nettoie vos hésitations et écrit à la vitesse de votre pensée.">
   
   <!-- OpenGraph / Social -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://sofler.lyriastudio.fr/">
-  <meta property="og:title" content="Sofler — Dictée Vocale IA 100% Locale & Open Source pour macOS">
+  <meta property="og:url" content="https://caspr.lyriastudio.fr/">
+  <meta property="og:title" content="Caspr — Dictée Vocale IA 100% Locale & Open Source pour macOS">
   <meta property="og:description" content="Parlez naturellement. Votre Mac écrit à la vitesse de votre pensée. Zéro cloud, 100% Open Source.">
-  <meta property="og:image" content="https://sofler.lyriastudio.fr/images/og-preview.png">
+  <meta property="og:image" content="https://caspr.lyriastudio.fr/images/og-preview.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#07090e">
 
   <!-- SEO hreflang -->
-  <link rel="canonical" href="https://sofler.lyriastudio.fr/">
-  <link rel="alternate" hreflang="fr" href="https://sofler.lyriastudio.fr/">
-  <link rel="alternate" hreflang="en" href="https://sofler.lyriastudio.fr/en.html">
-  <link rel="alternate" hreflang="x-default" href="https://sofler.lyriastudio.fr/">
+  <link rel="canonical" href="https://caspr.lyriastudio.fr/">
+  <link rel="alternate" hreflang="fr" href="https://caspr.lyriastudio.fr/">
+  <link rel="alternate" hreflang="en" href="https://caspr.lyriastudio.fr/en.html">
+  <link rel="alternate" hreflang="x-default" href="https://caspr.lyriastudio.fr/">
 
-  <!-- Favicon SVG -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2300d2ff'/%3E%3Cstop offset='100%25' stop-color='%230072ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='29' y='16' width='6' height='32' rx='3' fill='%23ffffff'/%3E%3Cpath d='M23 23C20.5 25.5 19 28.5 19 32C19 35.5 20.5 38.5 23 41' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' fill='none'/%3E%3Cpath d='M16 16C12 20.5 9.5 26 9.5 32C9.5 38 12 43.5 16 48' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' fill='none'/%3E%3Cpath d='M41 23C43.5 25.5 45 28.5 45 32C45 35.5 43.5 38.5 41 41' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' fill='none'/%3E%3Cpath d='M48 16C52 20.5 54.5 26 54.5 32C54.5 38 52 43.5 48 48' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+  <!-- Favicon SVG (Caspr Ghost Emblem) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2300d2ff'/%3E%3Cstop offset='100%25' stop-color='%230072ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M32 14C22.6 14 15 21.6 15 31v15.5c0 1.9 1.6 3.5 3.5 3.5 1.9 0 3.5-1.6 3.5-3.5 0-1.4 1.1-2.5 2.5-2.5s2.5 1.1 2.5 2.5c0 1.9 1.6 3.5 3.5 3.5s3.5-1.6 3.5-3.5c0-1.4 1.1-2.5 2.5-2.5s2.5 1.1 2.5 2.5c0 1.9 1.6 3.5 3.5 3.5 1.9 0 3.5-1.6 3.5-3.5V31c0-9.4-7.6-17-17-17z' fill='%23ffffff'/%3E%3Ccircle cx='26' cy='28' r='3.2' fill='%2307090e'/%3E%3Ccircle cx='38' cy='28' r='3.2' fill='%2307090e'/%3E%3Cpath d='M28.5 36.5c2 2 5 2 7 0' stroke='%2307090e' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
 
   <!-- Preconnect & Non-Blocking Google Fonts (100/100 Lighthouse Performance) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -47,18 +47,17 @@
   <!-- NAVIGATION HEADER -->
   <header class="site-header">
     <div class="container header-inner">
-      <a href="#" class="brand-logo" aria-label="Sofler Accueil">
+      <a href="#" class="brand-logo" aria-label="Caspr Accueil">
         <div class="logo-squircle">
           <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="29" y="18" width="6" height="28" rx="3" fill="#ffffff" />
-            <path d="M21 24C19 26.5 17.5 29 17.5 32C17.5 35 19 37.5 21 40" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
-            <path d="M14 18C10 22.5 8 27 8 32C8 37 10 41.5 14 46" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
-            <path d="M43 24C45 26.5 46.5 29 46.5 32C46.5 35 45 37.5 43 40" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
-            <path d="M50 18C54 22.5 56 27 56 32C56 37 54 41.5 50 46" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+            <path d="M32 14C22.6 14 15 21.6 15 31V46.5C15 48.4 16.6 50 18.5 50C20.4 50 22 48.4 22 46.5C22 45.1 23.1 44 24.5 44C25.9 44 27 45.1 27 46.5C27 48.4 28.6 50 30.5 50C32.4 50 34 48.4 34 46.5C34 45.1 35.1 44 36.5 44C37.9 44 39 45.1 39 46.5C39 48.4 40.6 50 42.5 50C44.4 50 46 48.4 46 46.5C46 45.1 47.1 44 48.5 44C49.9 44 51 45.1 51 46.5C51 48.4 52.6 50 54.5 50C56.4 50 58 48.4 58 46.5V31C58 21.6 50.4 14 41 14H32Z" fill="#ffffff"/>
+            <circle cx="26" cy="28" r="3.2" fill="#07090e"/>
+            <circle cx="38" cy="28" r="3.2" fill="#07090e"/>
+            <path d="M28.5 36.5C30.5 38.5 33.5 38.5 35.5 36.5" stroke="#07090e" stroke-width="2.5" stroke-linecap="round"/>
           </svg>
         </div>
         <div class="brand-text">
-          <span class="brand-name">Sofler</span>
+          <span class="brand-name">Caspr</span>
           <span class="brand-sub">par Lyria Studio</span>
         </div>
       </a>
@@ -80,14 +79,14 @@
           <a href="en.html" class="lang-btn" title="Switch to English">🇬🇧 EN</a>
         </div>
 
-        <a href="https://github.com/mnaji42/sofler" target="_blank" rel="noopener noreferrer" class="btn-icon" title="Voir le code source sur GitHub">
+        <a href="https://github.com/mnaji42/caspr" target="_blank" rel="noopener noreferrer" class="btn-icon" title="Voir le code source sur GitHub">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
           </svg>
           <span class="desktop-only">GitHub</span>
         </a>
 
-        <button type="button" class="btn btn-primary btn-sm download-trigger-btn header-download-btn" aria-label="Télécharger Sofler">
+        <button type="button" class="btn btn-primary btn-sm download-trigger-btn header-download-btn" aria-label="Télécharger Caspr">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
             <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.85c.66-.8 1.11-1.92.99-3.05-.96.04-2.13.64-2.82 1.44-.6.69-1.13 1.83-1 2.94 1.07.08 2.17-.53 2.83-1.33z"/>
           </svg>
@@ -144,7 +143,7 @@
             <span class="dot dot-yellow"></span>
             <span class="dot dot-green"></span>
           </div>
-          <span class="hud-mockup-title">Simulation en direct du cycle d'enregistrement Sofler</span>
+          <span class="hud-mockup-title">Simulation en direct du cycle d'enregistrement Caspr</span>
           <div class="hud-badge-tag">Maintenez ⌥ Option pour dicter</div>
         </div>
 
@@ -157,7 +156,7 @@
               <span class="mock-cursor-pos">Ln 14, Col 32</span>
             </div>
             <div class="mock-editor-content">
-              <p class="editor-faded"># Architecture Sofler — Dictée Locale</p>
+              <p class="editor-faded"># Architecture Caspr — Dictée Locale</p>
               <p class="editor-faded">- Inférence ultra-rapide et frappe instantanée</p>
               <p class="editor-active-line">
                 <span id="mock-inserted-text"></span>
@@ -236,8 +235,8 @@
     <div class="container">
       <div class="section-header text-center">
         <span class="section-tag">L'Intelligence au service de votre voix</span>
-        <h2 class="section-title">Pourquoi la dictée classique est frustrante,<br>et comment Sofler la réinvente.</h2>
-        <p class="section-subtitle">Les dictées classiques écrivent chaque 'euh', répétition et bégaiement. Sofler écoute votre flux de pensée et restitue un texte propre, structuré et ponctué.</p>
+        <h2 class="section-title">Pourquoi la dictée classique est frustrante,<br>et comment Caspr la réinvente.</h2>
+        <p class="section-subtitle">Les dictées classiques écrivent chaque 'euh', répétition et bégaiement. Caspr écoute votre flux de pensée et restitue un texte propre, structuré et ponctué.</p>
       </div>
 
       <div class="comparison-grid">
@@ -258,9 +257,9 @@
           </ul>
         </div>
 
-        <!-- Sofler Cleaned Card -->
-        <div class="comparison-card card-sofler">
-          <div class="card-badge-status status-good">✨ Avec Sofler (CrisperWhisper IA)</div>
+        <!-- Caspr Cleaned Card -->
+        <div class="comparison-card card-caspr">
+          <div class="card-badge-status status-good">✨ Avec Caspr (CrisperWhisper IA)</div>
           <h3 class="comparison-card-title">Nettoyée, Structurée & Ponctuée</h3>
           <div class="speech-bubble speech-bubble-good">
             <p>
@@ -282,41 +281,53 @@
   <section id="engines" class="section engines-section">
     <div class="container">
       <div class="section-header text-center">
-        <span class="section-tag">Flexibilité & Performance</span>
-        <h2 class="section-title">Deux Moteurs au Choix.<br>Adaptez Sofler à vos Besoins.</h2>
-        <p class="section-subtitle">Basculez d'un clic dans les Réglages selon que vous cherchiez l'instantanéité absolue à 0 Mo de RAM ou la puissance d'une IA de restructuration de texte.</p>
+        <span class="section-tag">Flexibilité Totale</span>
+        <h2 class="section-title">Deux Moteurs au Choix.<br>Adaptez Caspr à vos Besoins.</h2>
+        <p class="section-subtitle">Basculez en 1 clic selon votre situation matérielle ou vos exigences de précision.</p>
       </div>
 
       <div class="engines-grid">
         
-        <!-- Engine 1: Apple Native -->
-        <div class="engine-card engine-apple">
-          <div class="engine-header">
-            <span class="engine-badge badge-apple">🚀 Zéro RAM · Instantané</span>
-            <h3>Moteur macOS Natif</h3>
-            <p>Exploite directement les frameworks de reconnaissance vocale intégrés d'Apple (Speech Recognition / Apple Intelligence).</p>
+        <!-- Engine 1: macOS Native Engine -->
+        <div class="engine-card">
+          <div class="engine-badge badge-native">⚡ 0 Mo · 100% Natif</div>
+          <div class="engine-card-header">
+            <div class="engine-icon-box">🍎</div>
+            <div class="engine-title-group">
+              <span class="engine-tag">Intégré & Léger</span>
+              <h3>Moteur macOS Natif</h3>
+            </div>
           </div>
-          <ul class="engine-features-list">
-            <li><strong>0 Mo de RAM supplémentaire :</strong> Utilise les modèles système macOS déjà en mémoire.</li>
-            <li><strong>Instantanéité totale :</strong> Aucune phase d'attente, transcription mot à mot au fil de l'eau.</li>
-            <li><strong>Ultra-léger :</strong> Idéal pour les configurations modestes ou les dictées courtes.</li>
+          <p class="engine-desc">
+            Exploite directement les frameworks Speech natifs d'Apple. Aucune dépendance à télécharger, consommation RAM quasi-nulle et démarrage instantané.
+          </p>
+          <ul class="engine-specs-list">
+            <li><strong>Installation :</strong> Immédiate (0 Mo à télécharger)</li>
+            <li><strong>Vitesse :</strong> Ultra-rapide (&lt; 0.2s)</li>
+            <li><strong>Idéal pour :</strong> Notes rapides, frappe sans délai sur tout Mac</li>
           </ul>
         </div>
 
-        <!-- Engine 2: CrisperWhisper IA -->
-        <div class="engine-card engine-crisper">
-          <div class="engine-header">
-            <span class="engine-badge badge-crisper">✨ IA de Pointe · Nettoyage Intelligent</span>
-            <h3>Moteur CrisperWhisper IA</h3>
-            <p>Fait tourner un modèle Whisper local optimisé avec accélération matérielle Metal GPU / Neural Engine.</p>
+        <!-- Engine 2: CrisperWhisper Engine -->
+        <div class="engine-card featured-engine">
+          <div class="engine-badge badge-whisper">🧠 IA Haute Fidélité</div>
+          <div class="engine-card-header">
+            <div class="engine-icon-box">✨</div>
+            <div class="engine-title-group">
+              <span class="engine-tag">Précision Maximale</span>
+              <h3>Moteur CrisperWhisper IA</h3>
+            </div>
           </div>
-          <ul class="engine-features-list">
-            <li><strong>Suppression des hésitations :</strong> Efface automatiquement les 'euh', bafouillages et répétitions.</li>
-            <li><strong>Ponctuation & Majuscules automatiques :</strong> Inférées selon le contexte et la syntaxe.</li>
-            <li><strong>Vocabulaire Tech & Franglais :</strong> Reconnaît les termes de code et noms propres sans faille.</li>
+          <p class="engine-desc">
+            Modèle de transcription neuronal avancé optimisé pour Apple Silicon. Élimine les répétitions et insère le texte avec une précision chirurgicale.
+          </p>
+          <ul class="engine-specs-list">
+            <li><strong>Modèle :</strong> Modèle local quantifié ultra-rapide</li>
+            <li><strong>Franglais & Code :</strong> Parfaite compréhension des termes techniques</li>
+            <li><strong>Idéal pour :</strong> Développeurs, rédacteurs, réunions & mails pro</li>
           </ul>
-          <div class="engine-license-note">
-            💡 Modèle entraîné par Nyra Labs, distribué sous <a href="https://huggingface.co/nyralabs/CrisperWhisper2.0_turbo/blob/main/LICENSE.md" target="_blank" rel="noopener noreferrer">licence de recherche non commerciale</a>.
+          <div class="engine-sub-note">
+            💡 Modèle entraîné par Nyra Labs, distribué sous <a href="https://github.com/nyralabs/crisperwhisper/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="licence-link">licence de recherche non commerciale</a>.
           </div>
         </div>
 
@@ -324,7 +335,7 @@
     </div>
   </section>
 
-  <!-- BENTO GRID SUPER-POWERS -->
+  <!-- FEATURES BENTO GRID -->
   <section id="features" class="section bento-section">
     <div class="container">
       <div class="section-header text-center">
@@ -345,7 +356,7 @@
             </div>
           </div>
           <p class="bento-desc">
-            Votre voix et vos textes ne quittent jamais votre Mac. L'inférence tourne localement sur Apple Silicon (Metal/MPS) ou CPU Intel. Coupez votre Wi-Fi : Sofler fonctionne exactement pareil.
+            Votre voix et vos textes ne quittent jamais votre Mac. L'inférence tourne localement sur Apple Silicon (Metal/MPS) ou CPU Intel. Coupez votre Wi-Fi : Caspr fonctionne exactement pareil.
           </p>
           <div class="bento-graphic-privacy">
             <div class="privacy-pill"><span>✓</span> 0 octet envoyé sur Internet</div>
@@ -359,7 +370,7 @@
           <div class="bento-card-header">
             <div class="bento-icon-box">⌨️</div>
             <div class="bento-header-text">
-              <span class="bento-tag">Hold-to-talk Instantané</span>
+              <span class="bento-tag">Hold-to-Talk Instantané</span>
               <h3 class="bento-title">Touche ⌥ Option ou Raccourci</h3>
             </div>
           </div>
@@ -448,7 +459,7 @@
       <div class="section-header text-center">
         <span class="section-tag">Transparence & Liberté</span>
         <h2 class="section-title">100% Open Source. Gratuit. Auditable.</h2>
-        <p class="section-subtitle">Sofler appartient à la communauté. Aucun abonnement caché, aucun bridage payant, aucun code propriétaire opaque.</p>
+        <p class="section-subtitle">Caspr appartient à la communauté. Aucun abonnement caché, aucun bridage payant, aucun code propriétaire opaque.</p>
       </div>
 
       <div class="os-cards-grid">
@@ -460,7 +471,7 @@
               <h3>Code Source Public sur GitHub</h3>
             </div>
           </div>
-          <p>Tout le code Swift (AppKit, SwiftUI) et le moteur Python (uv, PyTorch, Whisper) est public. Vous pouvez inspecter chaque ligne, cloner le dépôt et compiler l'app vous-même.</p>
+          <p>L'intégralité du code Swift (AppKit, SwiftUI) et du moteur Python (uv, PyTorch, Whisper) est open source. Inspectez chaque ligne, forkez le projet ou compilez-le vous-même.</p>
         </div>
 
         <div class="os-feature-card">
@@ -471,7 +482,7 @@
               <h3>Forkable & Modulaire</h3>
             </div>
           </div>
-          <p>Créez vos propres modèles, personnalisez les invites de transcription ou intégrez de nouveaux pipelines audio selon vos besoins de développement.</p>
+          <p>Entraînez vos propres modèles, modifiez les prompts de nettoyage ou intégrez vos pipelines audio personnalisés selon vos flux de développement.</p>
         </div>
 
         <div class="os-feature-card">
@@ -482,19 +493,18 @@
               <h3>Désinstallation Propre & Zéro Résidu</h3>
             </div>
           </div>
-          <p>Sofler intègre un désinstallateur propre qui supprime l'environnement Python, les caches et modèles sans laisser le moindre fichier orphelin sur votre Mac.</p>
+          <p>Caspr intègre un désinstallateur propre qui supprime l'environnement Python, les caches et modèles sans laisser le moindre fichier orphelin sur votre Mac.</p>
         </div>
       </div>
 
       <div class="text-center" style="margin-top: 36px;">
-        <a href="https://github.com/mnaji42/sofler" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-lg">
+        <a href="https://github.com/mnaji42/caspr" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-lg">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
           </svg>
           <span>Voir le dépôt GitHub</span>
         </a>
       </div>
-
     </div>
   </section>
 
@@ -503,58 +513,49 @@
     <div class="container faq-container">
       <div class="section-header text-center">
         <span class="section-tag">Questions Fréquentes</span>
-        <h2 class="section-title">Tout ce que vous devez savoir sur Sofler</h2>
+        <h2 class="section-title">Tout ce que vous devez savoir sur Caspr</h2>
+        <p class="section-subtitle">Des réponses claires et directes sur le fonctionnement, la confidentialité et l'installation.</p>
       </div>
 
       <div class="faq-accordion">
         
-        <div class="faq-item">
-          <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-ans-1">
-            <span>Quelles sont les versions de macOS compatibles ?</span>
-            <span class="faq-icon" aria-hidden="true">+</span>
+        <div class="faq-item active">
+          <button type="button" class="faq-question">
+            <span>Quelles sont les versions de macOS et machines compatibles ?</span>
+            <span class="faq-icon">+</span>
           </button>
-          <div class="faq-answer" id="faq-ans-1">
-            <p>Sofler est compatible avec <strong>macOS 14 (Sonoma)</strong>, <strong>macOS 15 (Sequoia)</strong> et supérieur. L'application tourne nativement sur les puces <strong>Apple Silicon (M1, M2, M3, M4, Pro, Max, Ultra)</strong> ainsi que sur les Mac à processeur <strong>Intel</strong>.</p>
+          <div class="faq-answer">
+            <p>Caspr est compatible avec <strong>macOS 14 (Sonoma)</strong>, <strong>macOS 15 (Sequoia)</strong> et supérieur. L'application tourne nativement sur les puces <strong>Apple Silicon (M1, M2, M3, M4, Pro, Max, Ultra)</strong> ainsi que sur les Mac à processeur <strong>Intel</strong>.</p>
           </div>
         </div>
 
         <div class="faq-item">
-          <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-ans-2">
-            <span>Mes enregistrements audio sont-ils envoyés sur des serveurs ?</span>
-            <span class="faq-icon" aria-hidden="true">+</span>
+          <button type="button" class="faq-question">
+            <span>Mes données audio ou mes textes sont-ils envoyés sur un serveur ?</span>
+            <span class="faq-icon">+</span>
           </button>
-          <div class="faq-answer" id="faq-ans-2">
-            <p><strong>Absolument jamais.</strong> Sofler a été développé avec une éthique stricte de confidentialité. Aucun serveur, aucun service cloud, aucun tracker, aucune télémétrie. Le traitement du signal audio et la transcription s'effectuent entièrement dans la mémoire de votre Mac.</p>
+          <div class="faq-answer">
+            <p><strong>Absolument jamais.</strong> Caspr a été développé avec une éthique stricte de confidentialité. Aucun serveur, aucun service cloud, aucun tracker, aucune télémétrie. Le traitement du signal audio et la transcription s'effectuent entièrement dans la mémoire de votre Mac.</p>
           </div>
         </div>
 
         <div class="faq-item">
-          <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-ans-3">
-            <span>Pourquoi macOS affiche-t-il un message lors de la première ouverture ?</span>
-            <span class="faq-icon" aria-hidden="true">+</span>
+          <button type="button" class="faq-question">
+            <span>Pourquoi macOS affiche-t-il un message lors de l'ouverture du .dmg ?</span>
+            <span class="faq-icon">+</span>
           </button>
-          <div class="faq-answer" id="faq-ans-3">
-            <p>Pour distribuer une application sans avertissement Gatekeeper, Apple exige un compte développeur payant annuel de 99$/an. En tant que projet 100% open source et gratuit, Sofler est distribué librement. Suivre le guide en 1 clic (Ouvrir quand même dans Réglages Système) suffit à autoriser l'application de façon permanente.</p>
+          <div class="faq-answer">
+            <p>Pour distribuer une application sans avertissement Gatekeeper, Apple exige un compte développeur payant annuel de 99$/an. En tant que projet 100% open source et gratuit, Caspr est distribué librement. Suivre le guide en 1 clic (Ouvrir quand même dans Réglages Système) suffit à autoriser l'application de façon permanente.</p>
           </div>
         </div>
 
         <div class="faq-item">
-          <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-ans-4">
-            <span>Comment activer la dictée en un geste ?</span>
-            <span class="faq-icon" aria-hidden="true">+</span>
+          <button type="button" class="faq-question">
+            <span>Puis-je utiliser Caspr dans du code ou en Franglais ?</span>
+            <span class="faq-icon">+</span>
           </button>
-          <div class="faq-answer" id="faq-ans-4">
-            <p>Par défaut, il vous suffit de <strong>maintenir la touche ⌥ Option</strong> (gauche ou droite selon votre choix) pendant que vous parlez, puis de la relâcher. Vous pouvez également configurer un raccourci clavier personnalisé standard (par exemple <code>⌥ + Espace</code> ou <code>⌃ + D</code>) dans les Réglages.</p>
-          </div>
-        </div>
-
-        <div class="faq-item">
-          <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-ans-5">
-            <span>Puis-je utiliser Sofler dans du code ou en Franglais ?</span>
-            <span class="faq-icon" aria-hidden="true">+</span>
-          </button>
-          <div class="faq-answer" id="faq-ans-5">
-            <p>Absolument ! C'est l'un des points forts majeurs de CrisperWhisper. Il reconnaît nativement les termes de programmation (<code>async/await</code>, <code>useState</code>, <code>try/catch</code>), les acronymes et les noms techniques anglais au milieu d'une phrase en français.</p>
+          <div class="faq-answer">
+            <p>Oui, c'est l'un de ses points forts majeurs ! Le moteur IA gère parfaitement les termes bilingues, le vocabulaire informatique (<code>async/await</code>, <code>Pull Request</code>, <code>database</code>) et vous pouvez enrichir votre lexique personnel avec vos propres acronymes.</p>
           </div>
         </div>
 
@@ -562,20 +563,21 @@
     </div>
   </section>
 
-  <!-- BOTTOM DOWNLOAD CTA BANNER -->
+  <!-- BOTTOM CTA SECTION -->
   <section class="section bottom-cta-section">
     <div class="container">
-      <div class="bottom-cta-box">
-        <div class="cta-glow-bg"></div>
-        <div class="bottom-cta-content">
+      <div class="bottom-cta-card">
+        <div class="bottom-cta-glow"></div>
+        <div class="bottom-cta-content text-center">
+          <span class="section-tag">Prêt à commencer ?</span>
           <h2 class="bottom-cta-title">Prêt à dicter plus vite que vous ne tapez ?</h2>
-          <p class="bottom-cta-desc">Téléchargez Sofler gratuitement et découvrez le plaisir d'une pensée transcrite instantanément sur votre Mac.</p>
+          <p class="bottom-cta-desc">Téléchargez Caspr gratuitement et découvrez le plaisir d'une pensée transcrite instantanément sur votre Mac.</p>
           <div class="bottom-cta-actions">
-            <button type="button" class="btn btn-primary btn-download-hero download-trigger-btn">
+            <button type="button" class="btn btn-primary btn-lg download-trigger-btn cta-glow-btn" aria-label="Télécharger Caspr pour macOS">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.85c.66-.8 1.11-1.92.99-3.05-.96.04-2.13.64-2.82 1.44-.6.69-1.13 1.83-1 2.94 1.07.08 2.17-.53 2.83-1.33z"/>
               </svg>
-              <span>Télécharger Sofler pour macOS</span>
+              <span>Télécharger Caspr pour macOS</span>
             </button>
             <span class="cta-safe-note">✓ 100% Gratuit · Open Source sur GitHub · macOS 14+</span>
           </div>
@@ -593,29 +595,28 @@
         <div class="footer-brand">
           <div class="logo-squircle logo-footer">
             <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="29" y="18" width="6" height="28" rx="3" fill="#ffffff" />
-              <path d="M21 24C19 26.5 17.5 29 17.5 32C17.5 35 19 37.5 21 40" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
-              <path d="M14 18C10 22.5 8 27 8 32C8 37 10 41.5 14 46" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
-              <path d="M43 24C45 26.5 46.5 29 46.5 32C46.5 35 45 37.5 43 40" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
-              <path d="M50 18C54 22.5 56 27 56 32C56 37 54 41.5 50 46" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+              <path d="M32 14C22.6 14 15 21.6 15 31V46.5C15 48.4 16.6 50 18.5 50C20.4 50 22 48.4 22 46.5C22 45.1 23.1 44 24.5 44C25.9 44 27 45.1 27 46.5C27 48.4 28.6 50 30.5 50C32.4 50 34 48.4 34 46.5C34 45.1 35.1 44 36.5 44C37.9 44 39 45.1 39 46.5C39 48.4 40.6 50 42.5 50C44.4 50 46 48.4 46 46.5C46 45.1 47.1 44 48.5 44C49.9 44 51 45.1 51 46.5C51 48.4 52.6 50 54.5 50C56.4 50 58 48.4 58 46.5V31C58 21.6 50.4 14 41 14H32Z" fill="#ffffff"/>
+              <circle cx="26" cy="28" r="3.2" fill="#07090e"/>
+              <circle cx="38" cy="28" r="3.2" fill="#07090e"/>
+              <path d="M28.5 36.5C30.5 38.5 33.5 38.5 35.5 36.5" stroke="#07090e" stroke-width="2.5" stroke-linecap="round"/>
             </svg>
           </div>
           <div>
-            <span class="footer-title">Sofler</span>
+            <span class="footer-title">Caspr</span>
             <p class="footer-desc">Dictée vocale IA locale, confidentielle et ultra-rapide pour macOS.</p>
           </div>
         </div>
 
         <div class="footer-links">
-          <a href="https://github.com/mnaji42/sofler" target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a href="https://github.com/mnaji42/sofler/releases" target="_blank" rel="noopener noreferrer">Releases & Changelog</a>
-          <a href="https://github.com/mnaji42/sofler/issues" target="_blank" rel="noopener noreferrer">Signaler un bug</a>
-          <a href="https://sofler.lyriastudio.fr/">Site officiel</a>
+          <a href="https://github.com/mnaji42/caspr" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="https://github.com/mnaji42/caspr/releases" target="_blank" rel="noopener noreferrer">Releases & Changelog</a>
+          <a href="https://github.com/mnaji42/caspr/issues" target="_blank" rel="noopener noreferrer">Signaler un bug</a>
+          <a href="https://caspr.lyriastudio.fr/">Site officiel</a>
         </div>
       </div>
 
       <div class="footer-bottom-bar">
-        <p>© 2026 Sofler. Tous droits réservés.</p>
+        <p>© 2026 Caspr. Tous droits réservés.</p>
         <div class="footer-legal-links">
           <a href="mentions-legales.html">Mentions légales</a>
           <span class="footer-sep">|</span>
@@ -635,36 +636,35 @@
       <div class="modal-header">
         <div class="logo-squircle logo-modal">
           <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="29" y="18" width="6" height="28" rx="3" fill="#ffffff" />
-            <path d="M21 24C19 26.5 17.5 29 17.5 32C17.5 35 19 37.5 21 40" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
-            <path d="M14 18C10 22.5 8 27 8 32C8 37 10 41.5 14 46" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
-            <path d="M43 24C45 26.5 46.5 29 46.5 32C46.5 35 45 37.5 43 40" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
-            <path d="M50 18C54 22.5 56 27 56 32C56 37 54 41.5 50 46" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+            <path d="M32 14C22.6 14 15 21.6 15 31V46.5C15 48.4 16.6 50 18.5 50C20.4 50 22 48.4 22 46.5C22 45.1 23.1 44 24.5 44C25.9 44 27 45.1 27 46.5C27 48.4 28.6 50 30.5 50C32.4 50 34 48.4 34 46.5C34 45.1 35.1 44 36.5 44C37.9 44 39 45.1 39 46.5C39 48.4 40.6 50 42.5 50C44.4 50 46 48.4 46 46.5C46 45.1 47.1 44 48.5 44C49.9 44 51 45.1 51 46.5C51 48.4 52.6 50 54.5 50C56.4 50 58 48.4 58 46.5V31C58 21.6 50.4 14 41 14H32Z" fill="#ffffff"/>
+            <circle cx="26" cy="28" r="3.2" fill="#07090e"/>
+            <circle cx="38" cy="28" r="3.2" fill="#07090e"/>
+            <path d="M28.5 36.5C30.5 38.5 33.5 38.5 35.5 36.5" stroke="#07090e" stroke-width="2.5" stroke-linecap="round"/>
           </svg>
         </div>
-        <h2 class="modal-title">Téléchargement de Sofler en cours… 🚀</h2>
-        <p class="modal-subtitle">Votre fichier <code>Sofler.dmg</code> est en cours de téléchargement. Suivez ce guide illustré pour l'ouvrir facilement :</p>
+        <h2 class="modal-title">Téléchargement de Caspr en cours… 🚀</h2>
+        <p class="modal-subtitle">Votre fichier <code>Caspr.dmg</code> est en cours de téléchargement. Suivez ce guide illustré pour l'ouvrir facilement :</p>
       </div>
 
       <!-- Why Callout -->
       <div class="modal-why-box">
         <p class="modal-why-title"><strong>💡 Pourquoi ces étapes spécifiques ?</strong></p>
-        <p>Sofler est un projet <strong>100% open source et gratuit</strong>. Nous ne payons pas l'abonnement Apple Developer à 99$/an, ce qui fait que macOS affiche un avertissement de sécurité par défaut. Suivre ces étapes ne prend que <strong>30 secondes</strong> et n'est à faire qu'une seule fois !</p>
+        <p>Caspr est un projet <strong>100% open source et gratuit</strong>. Nous ne payons pas l'abonnement Apple Developer à 99$/an, ce qui fait que macOS affiche un avertissement de sécurité par défaut. Suivre ces étapes ne prend que <strong>30 secondes</strong> et n'est à faire qu'une seule fois !</p>
       </div>
 
       <!-- Large Interactive Carousel Container -->
       <div class="carousel-wrapper">
         <div class="carousel-step-header">
           <span class="carousel-counter-badge" id="carousel-step-badge">Étape 1 sur 8</span>
-          <h3 class="carousel-step-title" id="carousel-step-title">1. Téléchargez et ouvrez Sofler.dmg</h3>
+          <h3 class="carousel-step-title" id="carousel-step-title">1. Téléchargez et ouvrez Caspr.dmg</h3>
         </div>
 
         <div class="carousel-slide-viewport">
-          <img src="images/01-fichier-telecharger-doubleclick.png" alt="Étape 1 : double-cliquez sur le fichier Sofler.dmg" class="carousel-img" id="carousel-img" width="560" height="340" loading="lazy" decoding="async">
+          <img src="images/01-fichier-telecharger-doubleclick.png" alt="Étape 1 : double-cliquez sur le fichier Caspr.dmg" class="carousel-img" id="carousel-img" width="560" height="340" loading="lazy" decoding="async">
         </div>
 
         <p class="carousel-instruction-text" id="carousel-step-desc">
-          Récupérez le fichier <code>Sofler.dmg</code> puis double-cliquez dessus pour monter l'image disque dans votre Finder.
+          Récupérez le fichier <code>Caspr.dmg</code> puis double-cliquez dessus pour monter l'image disque dans votre Finder.
         </p>
 
         <!-- Carousel Navigation Controls -->
@@ -682,7 +682,7 @@
       <!-- Modal Footer Action -->
       <div class="modal-footer">
         <button type="button" class="btn btn-primary" id="modal-confirm-btn" aria-label="Fermer le guide d'installation">J'ai compris !</button>
-        <a href="https://github.com/mnaji42/sofler/releases/latest/download/Sofler.dmg" class="modal-restart-link" aria-label="Relancer le téléchargement de Sofler.dmg">Le téléchargement n'a pas démarré ? Cliquez ici pour relancer.</a>
+        <a href="https://github.com/mnaji42/caspr/releases/latest/download/Caspr.dmg" class="modal-restart-link" aria-label="Relancer le téléchargement de Caspr.dmg">Le téléchargement n'a pas démarré ? Cliquez ici pour relancer.</a>
       </div>
 
     </div>
