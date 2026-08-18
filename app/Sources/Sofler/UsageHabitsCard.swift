@@ -50,22 +50,7 @@ struct UsageHabitsCard: View, ValidatingComponent {
         let checked = prefs.habits.has(habit)
 
         return HStack(alignment: .top, spacing: 10) {
-            // `.check-box` : 16×16, rayon 4, bordure 1,5 pt ; coché, il se
-            // remplit d'accent avec la coche en sombre.
-            ZStack {
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(checked ? Style.accent : Color.clear)
-                    .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .strokeBorder(checked ? Style.accent : Style.textTertiary,
-                                      lineWidth: 1.5))
-                    .frame(width: 16, height: 16)
-                if checked {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Style.onAccent)
-                }
-            }
-            .padding(.top, 1)
+            CheckBox(checked: checked)
             Text(.init(question))
                 .font(.system(size: 12.5))
                 .lineSpacing(2)

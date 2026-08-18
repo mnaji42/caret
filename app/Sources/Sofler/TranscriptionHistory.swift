@@ -40,11 +40,33 @@ final class TranscriptionHistory {
         }
     }
 
-    static let limit = 5
+    /// Les capacités proposées. Cinq par défaut : au-delà, retrouver la bonne
+    /// entrée dans une liste coûte plus de temps que de redicter la phrase —
+    /// mais c'est un jugement, pas une loi, et quelqu'un qui enchaîne les
+    /// dictées courtes a de bonnes raisons d'en vouloir cinquante.
+    static let limits = [5, 10, 20, 50]
+    static let defaultLimit = 5
 
     private static let storageKey = "sofler.history"
     private let storageKey = TranscriptionHistory.storageKey
     private let enabledKey = "sofler.history.enabled"
+    private let limitKey = "sofler.history.limit"
+
+    /// Combien d'entrées sont conservées.
+    ///
+    /// **Réduire la limite ne vide pas l'historique**, il le tronque : passer de
+    /// vingt à dix retire les dix plus anciennes et garde les dix récentes.
+    /// Tout effacer sur un changement de capacité serait une perte de données
+    /// pour un réglage que personne ne lit comme destructeur.
+    var limit: Int {
+        didSet {
+            UserDefaults.standard.set(limit, forKey: limitKey)
+            if entries.count > limit {
+                entries.removeLast(entries.count - limit)
+                persist()
+            }
+        }
+    }
 
     /// Combien de transcriptions sont stockées, sans instancier l'historique.
     ///
@@ -72,6 +94,8 @@ final class TranscriptionHistory {
     init() {
         let defaults = UserDefaults.standard
         isEnabled = defaults.object(forKey: enabledKey) as? Bool ?? true
+        let stored = defaults.integer(forKey: limitKey)
+        limit = Self.limits.contains(stored) ? stored : Self.defaultLimit
         if isEnabled, let data = defaults.data(forKey: storageKey),
            let stored = try? JSONDecoder().decode([Entry].self, from: data) {
             entries = stored
@@ -84,8 +108,8 @@ final class TranscriptionHistory {
         guard !trimmed.isEmpty else { return }
 
         entries.insert(Entry(text: trimmed, mode: mode), at: 0)
-        if entries.count > Self.limit {
-            entries.removeLast(entries.count - Self.limit)
+        if entries.count > limit {
+            entries.removeLast(entries.count - limit)
         }
         persist()
     }

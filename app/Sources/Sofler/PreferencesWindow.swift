@@ -207,14 +207,20 @@ private struct RecordingTab: View {
         // La même vue que l'accueil, sans la zone d'essai : on ne découvre pas
         // la dictée depuis les Réglages. Les deux écrans posaient la même
         // question avec deux implémentations, et elles avaient déjà divergé.
+        SectionLabel("Déclencheur & Permissions")
         TriggerCard(showTrialSandbox: false)
 
-        Card(title: "Aperçu en direct") {
+        SectionLabel("Aperçu du texte en direct (Live Preview)")
+        Card(title: "") {
             SettingsToggleRow(
-                title: "Afficher le texte reconnu pendant que vous parlez",
-                description: "Sous la barre flottante, en italique.",
-                note: "Indicatif : le moteur d'aperçu n'a pas votre vocabulaire "
-                    + "technique, donc le texte finalement inséré peut différer.",
+                title: "Afficher les mots prononcés en temps réel",
+                description: "Affiche le flux sous la barre flottante pendant la "
+                    + "parole (0 Mo de RAM, moteur macOS).",
+                // La note n'apparaît **que** désactivé : rappeler ce qu'on perd
+                // quand on ne perd rien serait du bruit.
+                note: prefs.livePreviewEnabled ? nil
+                    : "L'aperçu textuel est masqué. La barre flottante affichera "
+                      + "uniquement les ondes sonores pendant la parole.",
                 isOn: $prefs.livePreviewEnabled,
                 isCard: false)
 
@@ -226,11 +232,12 @@ private struct RecordingTab: View {
             }
         }
 
-        Card(title: "Retours sonores") {
+        SectionLabel("Retours Sonores")
+        Card(title: "") {
             SettingsToggleRow(
                 title: "Sons de début et de fin",
-                description: "Deux clics discrets, pour savoir que l'écoute a "
-                    + "démarré sans regarder l'écran.",
+                description: "Émet un bip discret pour confirmer l'ouverture et "
+                    + "la fermeture de la barre d'écoute.",
                 isOn: $soundsEnabled,
                 isCard: false)
                 .onChange(of: soundsEnabled) { _, new in Feedback.soundsEnabled = new }
@@ -321,171 +328,420 @@ private struct LoginItemCard: View {
 
 // MARK: - Collecte
 
+/// L'archive locale des dictées, et les moteurs qu'on fait tourner pour
+/// comparer.
 private struct CollectionTab: View {
     @State private var prefs = Preferences.shared
     @State private var stats = Corpus.Statistics()
-
-    /// Le nom du moteur, et son état quand il ne peut rien produire ici.
-    private func label(for choice: EngineChoice) -> String {
-        choice.isAvailable(for: prefs.language)
-            ? choice.fullLabel
-            : "\(choice.fullLabel) — indisponible ici"
-    }
+    @State private var confirmingClear = false
 
     var body: some View {
-        Card(title: "Collecte") {
-            SettingsToggleRow(
-                title: "Archiver mes dictées",
-                description: "Chaque dictée est conservée localement avec le "
-                    + "texte de chaque moteur, produit à partir du même audio.",
-                isOn: $prefs.corpusEnabled, isCard: false)
-            Note("À chaque dictée, Sofler garde le texte produit par chaque "
-                 + "moteur à partir du **même** audio. Ça sert à une seule "
-                 + "chose : vous permettre de comparer les moteurs sur votre "
-                 + "voix, votre vocabulaire et votre micro, au lieu de vous fier "
-                 + "à des mesures faites sur celle de quelqu'un d'autre.\n\n"
-                 + "**Tout reste sur votre Mac.** Rien n'est envoyé nulle part, "
-                 + "ni à l'auteur de l'application ni à personne — il n'existe "
-                 + "aucun serveur pour le recevoir. Vous pouvez ouvrir le "
-                 + "dossier, le lire, et l'effacer quand vous voulez.")
-        }
+        SettingsToggleRow(
+            title: "Archiver mes dictées (Collecte & Comparatif)",
+            description: "Garde le texte produit par chaque moteur à partir du "
+                + "**même enregistrement** pour mesurer leur précision sur votre "
+                + "propre voix.",
+            note: "🔒 **100 % sur votre Mac.** Rien n'est envoyé nulle part, ni à "
+                + "l'auteur de l'application ni à personne — il n'existe aucun "
+                + "serveur pour le recevoir. Vous pouvez ouvrir le dossier et "
+                + "l'effacer quand vous voulez.",
+            isOn: $prefs.corpusEnabled)
 
         if prefs.corpusEnabled {
-            Card(title: "Ce qui est gardé") {
-                OptionCheck(title: "Conserver aussi l'audio",
-                            isOn: $prefs.corpusKeepsAudio)
-                Note("Environ 2 Mo la minute, contre quelques kilo-octets de "
-                     + "texte. Sans lui, impossible de réécouter une dictée pour "
-                     + "arbitrer un désaccord entre deux moteurs.")
+            Card(title: "") {
+                SettingsToggleRow(
+                    title: "Conserver aussi l'audio (.wav)",
+                    description: "Permet de ré-exécuter de futurs modèles sur vos "
+                        + "enregistrements passés (~2 Mo par minute).",
+                    isOn: $prefs.corpusKeepsAudio,
+                    isCard: false)
 
                 Divider().opacity(0.25)
-                Text("Transcrire aussi avec")
-                    .font(.system(size: 12, weight: .medium))
-                // `fullLabel`, pas `label` : celui-ci nomme la famille, donc
-                // les deux versions de macOS afficheraient ici deux cases
-                // rigoureusement identiques. C'est le seul écran où l'on
-                // désigne un moteur précis plutôt qu'un fournisseur — on
-                // coche « macOS · Dictée » pour comparer les deux versions
-                // entre elles.
-                ForEach(EngineChoice.allCases, id: \.self) { choice in
-                    OptionCheck(title: label(for: choice), isOn: Binding(
-                        get: { prefs.corpusEngines.contains(choice) },
-                        set: { on in
-                            if on { prefs.corpusEngines.insert(choice) }
-                            else { prefs.corpusEngines.remove(choice) }
-                        }))
-                    .disabled(choice == prefs.engine)
-                }
-                Note("En plus du moteur qui écrit, et **après** insertion : la "
-                     + "latence de dictée n'est jamais échangée contre de la "
-                     + "collecte. Un moteur non coché n'est jamais chargé.")
-                // Listé et non masqué : savoir qu'une version n'existe pas sur
-                // cette machine est une information, une ligne absente n'en est
-                // pas une. La case reste cochable — elle vaudra le jour où le
-                // moteur sera là, et d'ici là rien ne tourne.
-                if EngineChoice.allCases.contains(where: {
-                    !$0.isAvailable(for: prefs.language)
-                }) {
-                    Note("Les moteurs marqués indisponibles ne sont pas "
-                         + "exécutés et n'apparaissent pas dans le corpus : "
-                         + "cochés d'avance, ils reprendront le jour où cette "
-                         + "machine saura les faire tourner.")
-                }
-                if prefs.needsLocalEngine {
-                    Label("Le service CrisperWhisper tourne — environ 3 Go en mémoire.",
-                          systemImage: "memorychip")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Style.collecting)
-                }
+                engines
+                Divider().opacity(0.25)
+                statistics
+            }
+        }
+
+        Note("💡 **À quoi ça sert ?** Permet de lancer des scripts de "
+             + "comparaison (bancs de test) pour calculer le taux d'erreur mot à "
+             + "mot (WER) de chaque moteur sur votre propre voix.")
+            .onAppear { stats = Corpus.shared.statistics() }
+    }
+
+    // MARK: Les moteurs à comparer
+
+    private var engines: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("MOTEURS EXÉCUTÉS EN TÂCHE DE FOND POUR COMPARAISON")
+                .font(.system(size: 10.5, weight: .bold))
+                .kerning(0.63)
+                .foregroundStyle(Style.textTertiary)
+                .padding(.bottom, 2)
+
+            ForEach(EngineChoice.allCases, id: \.self) { choice in
+                engineCheck(choice)
             }
 
-            Card(title: "Corpus") {
-                Row(label: "État") {
-                    Text(stats.summary).font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+            Note("⚡ Exécuté en arrière-plan **après l'insertion**. Les moteurs "
+                 + "indisponibles sont grisés et ne participent pas à la collecte.")
+        }
+    }
+
+    /// Une case par moteur, grisée quand ce moteur ne peut rien produire ici.
+    ///
+    /// ## Grisé, jamais masqué
+    ///
+    /// Le prototype **retire** Apple Intelligence de la liste sur un Mac Intel.
+    /// On ne le suit pas, et c'est le seul écart de cette carte : une ligne
+    /// absente ne se distingue pas d'une ligne qu'on n'a pas trouvée. Savoir
+    /// qu'une version existe et qu'elle ne marche pas *ici* est une
+    /// information ; son absence n'en est pas une, et laisse chercher.
+    ///
+    /// Le prototype a raison en revanche sur CrisperWhisper, qu'il grise avec
+    /// un libellé qui dit pourquoi — c'est ce qu'on fait pour les trois.
+    ///
+    /// La case reste **cochable** malgré tout : elle vaudra le jour où le moteur
+    /// sera là, et d'ici là rien ne tourne. Seul le moteur d'écriture est
+    /// verrouillé, puisqu'il figure de toute façon dans chaque entrée.
+    private func engineCheck(_ choice: EngineChoice) -> some View {
+        let available = choice.isAvailable(for: prefs.primaryLanguage)
+        let isWriter = choice == prefs.engine
+        let checked = prefs.corpusEngines.contains(choice)
+
+        return HStack(alignment: .top, spacing: 10) {
+            CheckBox(checked: checked && available)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label(for: choice, available: available))
+                    .font(.system(size: 12))
+                    .foregroundStyle(available ? Style.textPrimary : Style.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if isWriter {
+                    Text("Moteur d'écriture — toujours archivé")
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(Style.textTertiary)
                 }
-                // `stats` partait d'une structure vide que rien ne remplissait
-                // : l'onglet annonçait « Corpus vide » quel qu'en soit le
-                // contenu — le pire mensonge possible sur un écran dont le
-                // seul rôle est de dire ce qui est gardé.
-                .onAppear { stats = Corpus.shared.statistics() }
-                ButtonRow {
-                    Button("Afficher dans le Finder") { Corpus.shared.reveal() }
-                    Button("Tout effacer") {
-                        Corpus.shared.clear()
-                        stats = Corpus.shared.statistics()
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(checked && available ? Color.white.opacity(0.04) : .clear))
+        .opacity(available ? 1 : 0.45)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard !isWriter else { return }
+            if checked { prefs.corpusEngines.remove(choice) }
+            else { prefs.corpusEngines.insert(choice) }
+        }
+        .help(available ? "" : indisponibility(choice))
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(checked ? [.isSelected, .isButton] : .isButton)
+    }
+
+    private func label(for choice: EngineChoice, available: Bool) -> String {
+        guard !available else {
+            guard choice == .crisperWhisper else { return choice.fullLabel }
+            return "\(choice.label) 2.0 (Modèle "
+                + "\(EngineInstall.selectedModel.label.uppercased()) actif)"
+        }
+        return choice == .crisperWhisper
+            ? "CrisperWhisper 2.0 — non téléchargé (indisponible)"
+            : "\(choice.fullLabel) — indisponible sur ce Mac"
+    }
+
+    private func indisponibility(_ choice: EngineChoice) -> String {
+        choice == .crisperWhisper
+            ? "Téléchargez d'abord un modèle dans l'onglet Moteur IA pour "
+                + "activer ce comparatif."
+            : "Cette version du moteur de macOS n'est pas utilisable ici, dans "
+                + "la langue active."
+    }
+
+    // MARK: L'état du corpus
+
+    private var statistics: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Text("Corpus local")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(.white)
+                    if stats.count > 0 {
+                        Text(stats.summary)
+                            .font(.system(size: 11))
+                            .foregroundStyle(Style.accent)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .background(RoundedRectangle(cornerRadius: 5)
+                                .fill(Style.accent.opacity(0.1))
+                                .overlay(RoundedRectangle(cornerRadius: 5)
+                                    .strokeBorder(Style.accentBorder, lineWidth: 1)))
+                    } else {
+                        Text("(0 dictée enregistrée)")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Style.textTertiary)
                     }
-                    .disabled(stats.count == 0)
+                }
+                Text(.init("Format JSON Lines · Version active de l'app : "
+                           + "**\(UpdateChecker.currentVersion)**"))
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Style.textTertiary)
+            }
+            Spacer(minLength: 0)
+            VStack(alignment: .trailing, spacing: 6) {
+                Button("Afficher dans le Finder") { Corpus.shared.reveal() }
+                    .buttonStyle(SoflerSecondaryButtonStyle())
+                if stats.count > 0 {
+                    DangerLink("Tout effacer") { confirmingClear = true }
                 }
             }
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.black.opacity(0.35))
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)))
+        // Une confirmation, parce que c'est irréversible et que ces dictées ne
+        // se reconstituent pas : ce sont des heures de parole réelle.
+        .alert("Effacer tout le corpus ?", isPresented: $confirmingClear) {
+            Button("Annuler", role: .cancel) {}
+            Button("Tout effacer", role: .destructive) {
+                Corpus.shared.clear()
+                stats = Corpus.shared.statistics()
+            }
+        } message: {
+            Text("\(stats.summary) seront supprimés, audio compris. Rien ne "
+                 + "permet de les reconstituer.")
+        }
+    }
+}
+
+/// La case à cocher du prototype : carré arrondi de 16 pt qui se remplit
+/// d'accent avec une coche sombre.
+struct CheckBox: View {
+    let checked: Bool
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(checked ? Style.accent : Color.clear)
+                .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .strokeBorder(checked ? Style.accent : Style.textTertiary,
+                                  lineWidth: 1.5))
+                .frame(width: 16, height: 16)
+            if checked {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(Style.onAccent)
+            }
+        }
+        .padding(.top, 1)
     }
 }
 
 // MARK: - Historique
 
+/// Les dernières transcriptions, et ce qu'on en garde.
 private struct HistoryTab: View {
     let history: TranscriptionHistory
     @State private var entries: [TranscriptionHistory.Entry] = []
     @State private var justCopied: UUID?
+    @State private var enabled = true
+    @State private var limit = TranscriptionHistory.defaultLimit
 
     var body: some View {
-        Card(title: "Transcriptions récentes") {
-            SettingsToggleRow(
-                title: "Conserver l'historique",
-                description: "Les dernières transcriptions restent copiables "
-                    + "depuis le menu. Le texte seul, jamais l'audio.",
-                isOn: Binding(
-                    get: { history.isEnabled },
-                    set: { history.isEnabled = $0; entries = history.entries }),
-                isCard: false)
+        SettingsToggleRow(
+            title: "Conserver l'historique des dictées",
+            description: "Garde en mémoire vos dernières transcriptions locales "
+                + "pour les réutiliser sans reparler.",
+            note: enabled ? nil
+                : "Rien n'est écrit. Les transcriptions passées ne sont pas "
+                  + "conservées, même localement.",
+            isOn: $enabled)
+            .onChange(of: enabled) { _, on in
+                history.isEnabled = on
+                entries = history.entries
+            }
 
-            if !history.isEnabled {
-                Note("Rien n'est écrit. Les transcriptions passées ne sont pas "
-                     + "conservées, même localement.")
-            } else if entries.isEmpty {
-                Note("Aucune pour l'instant")
-            } else {
-                ForEach(entries) { entry in
-                    Divider().opacity(0.25)
-                    HStack(spacing: 10) {
-                        // Tronqué à une ligne : la fenêtre doit rester lisible
-                        // d'un coup d'œil, pas devenir une liste qu'on fait
-                        // défiler.
-                        Text(entry.preview)
-                            .font(.system(size: 12))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .help(entry.text)
-                        Spacer(minLength: 8)
-                        Text(entry.relativeAge)
-                            .font(.system(size: 10))
-                            .foregroundStyle(.tertiary)
-                        Button {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(entry.text, forType: .string)
-                            justCopied = entry.id
-                        } label: {
-                            Image(systemName: justCopied == entry.id
-                                  ? "checkmark" : "doc.on.doc")
-                                .foregroundStyle(justCopied == entry.id
-                                                 ? Style.accent : Color.secondary)
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Copier le texte entier")
-                    }
-                }
+        if enabled {
+            AccentCard {
+                capacityRow
                 Divider().opacity(0.25)
-                ButtonRow {
-                    Button("Effacer l'historique") {
-                        history.clear()
-                        entries = []
-                    }
+                list
+                Divider().opacity(0.25)
+                footerRow
+            }
+
+            Note("Le texte complet est copié, pas la version tronquée. "
+                 + "L'historique reste également accessible en direct depuis le "
+                 + "menu de la barre des menus.")
+        }
+    }
+
+    /// Le sélecteur de capacité, et ce qu'il implique dit en toutes lettres.
+    private var capacityRow: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Nombre d'entrées conservées")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text(.init("Sofler conserve uniquement les **\(limit)** "
+                           + "dernières dictées. Les plus anciennes sont "
+                           + "écrasées."))
+                    .font(.system(size: 11))
+                    .foregroundStyle(Style.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+            PillPicker(options: TranscriptionHistory.limits.map { ($0, "\($0)") },
+                       selection: $limit)
+                .onChange(of: limit) { _, new in
+                    // Réduire tronque, ça n'efface pas — cf. `TranscriptionHistory`.
+                    history.limit = new
+                    entries = history.entries
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var list: some View {
+        if entries.isEmpty {
+            Text("Aucune transcription dans l'historique pour l'instant.")
+                .font(.system(size: 12))
+                .foregroundStyle(Style.textTertiary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 12)
+        } else {
+            VStack(spacing: 2) {
+                ForEach(entries) { entry in
+                    row(entry)
                 }
             }
-            Note("Le texte complet est copié, pas la version tronquée. "
-                 + "L'historique reste aussi dans le menu de la barre.")
         }
-        .onAppear { entries = history.entries }
+    }
+
+    private func row(_ entry: TranscriptionHistory.Entry) -> some View {
+        HStack(spacing: 12) {
+            // Tronqué sur une ligne : la fenêtre doit rester lisible d'un coup
+            // d'œil, pas devenir une liste qu'on fait défiler. Le texte entier
+            // est dans l'infobulle, et c'est lui qui part au presse-papiers.
+            Text(entry.preview)
+                .font(.system(size: 12))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .help(entry.text)
+            Spacer(minLength: 8)
+            Text(entry.relativeAge)
+                .font(.system(size: 10.5))
+                .foregroundStyle(Style.textTertiary)
+            copyButton(entry)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(Color.black.opacity(0.22))
+                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.04), lineWidth: 1)))
+    }
+
+    /// Le bouton de copie, qui confirme puis redevient lui-même.
+    ///
+    /// Sans le retour visuel, copier ne produit **aucun** signe : le
+    /// presse-papiers est invisible, et on reclique pour être sûr.
+    private func copyButton(_ entry: TranscriptionHistory.Entry) -> some View {
+        let copied = justCopied == entry.id
+        return Button {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(entry.text, forType: .string)
+            justCopied = entry.id
+            Task {
+                try? await Task.sleep(for: .milliseconds(1500))
+                if justCopied == entry.id { justCopied = nil }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                    .font(.system(size: 11, weight: copied ? .semibold : .regular))
+                if copied {
+                    Text("Copié").font(.system(size: 10, weight: .semibold))
+                }
+            }
+            .foregroundStyle(copied ? Style.accent : Style.textSecondary)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(copied ? Style.accent.opacity(0.15) : Color.white.opacity(0.05))
+                    .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .strokeBorder(copied ? Style.accentBorder
+                                             : Color.white.opacity(0.08),
+                                      lineWidth: 1)))
+        }
+        .buttonStyle(.plain)
+        .help("Copier le texte entier")
+        .animation(.easeOut(duration: 0.15), value: copied)
+    }
+
+    private var footerRow: some View {
+        HStack {
+            DangerLink("Effacer l'historique", enabled: !entries.isEmpty) {
+                history.clear()
+                entries = []
+            }
+            Spacer()
+            Text("Seul le texte est conservé · 0 Mo d'audio stocké")
+                .font(.system(size: 10.5))
+                .foregroundStyle(Style.textTertiary)
+        }
+    }
+}
+
+/// Une carte bordée d'accent, pour la section qui porte le contenu vivant d'un
+/// onglet — la liste des dictées, le lexique. Le prototype la distingue ainsi
+/// de la carte de réglage qui la précède.
+struct AccentCard<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) { content }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: Style.cardRadius, style: .continuous)
+                    .fill(Style.accent.opacity(0.03))
+                    .overlay(RoundedRectangle(cornerRadius: Style.cardRadius,
+                                              style: .continuous)
+                        .strokeBorder(Style.accentBorder, lineWidth: 1)))
+    }
+}
+
+/// Une action destructive discrète, en rouge, qui se grise quand il n'y a rien
+/// à détruire — plutôt que de disparaître, ce qui ferait chercher où elle est
+/// passée.
+struct DangerLink: View {
+    let label: String
+    var enabled = true
+    let action: () -> Void
+
+    init(_ label: String, enabled: Bool = true, action: @escaping () -> Void) {
+        self.label = label
+        self.enabled = enabled
+        self.action = action
+    }
+
+    var body: some View {
+        Button(label, action: action)
+            .buttonStyle(.plain)
+            .font(.system(size: 11))
+            .foregroundStyle(enabled ? Style.danger : Style.textTertiary)
+            .opacity(enabled ? 1 : 0.4)
+            .disabled(!enabled)
     }
 }

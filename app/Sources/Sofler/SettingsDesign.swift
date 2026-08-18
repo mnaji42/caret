@@ -678,9 +678,18 @@ struct OptionCheck: View {
     @Binding var isOn: Bool
 
     var body: some View {
-        Toggle(title, isOn: $isOn)
-            .toggleStyle(.checkbox)
-            .font(.system(size: 13))
+        HStack(alignment: .top, spacing: 10) {
+            CheckBox(checked: isOn)
+            Text(.init(title))
+                .font(.system(size: 12))
+                .foregroundStyle(isOn ? Style.textPrimary : Style.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { isOn.toggle() }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isOn ? [.isSelected, .isButton] : .isButton)
     }
 }
 
