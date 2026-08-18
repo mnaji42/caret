@@ -162,6 +162,21 @@ extension NSWindow {
         // Sans ça, la fenêtre reste étirable par les bords même dépourvue du
         // bouton d'agrandissement.
         styleMask.remove(.resizable)
+    }
+
+    /// Affiche la fenêtre, centrée, en activant l'application.
+    ///
+    /// Le centrage a lieu **après** `makeKeyAndOrderFront`, et c'est nécessaire :
+    /// centrer une fenêtre qui n'est pas encore à l'écran ne tient pas — macOS
+    /// la repositionne au moment de l'afficher, et les Réglages sortaient à
+    /// cheval sur le bord droit, avec leur moitié droite hors de l'écran.
+    ///
+    /// Sofler n'a pas de Dock : sans `activate`, la fenêtre apparaîtrait derrière
+    /// tout le reste, ce qui pour une application d'arrière-plan revient à ne pas
+    /// s'ouvrir du tout.
+    func showCentered() {
+        NSApp.activate(ignoringOtherApps: true)
+        makeKeyAndOrderFront(nil)
         center()
     }
 }

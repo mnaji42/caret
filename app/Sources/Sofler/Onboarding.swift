@@ -29,8 +29,7 @@ final class OnboardingWindowController {
 
     func show() {
         if let window {
-            NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil)
+            window.showCentered()
             return
         }
 
@@ -48,8 +47,7 @@ final class OnboardingWindowController {
         host = window
         self.window = window
 
-        NSApp.activate(ignoringOtherApps: true)
-        window.makeKeyAndOrderFront(nil)
+        window.showCentered()
     }
 
     /// Ouvre les Réglages, posé par le delegate : l'accueil ne connaît pas la

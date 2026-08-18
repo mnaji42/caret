@@ -21,8 +21,7 @@ final class UninstallWindowController {
     ///   qu'une copie, pour que le retrait passe par le code déjà éprouvé.
     func show(scope: UninstallScope = .everything) {
         if let window, self.scope == scope {
-            NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil)
+            window.showCentered()
             return
         }
 
@@ -37,8 +36,7 @@ final class UninstallWindowController {
         }
         self.window = window
 
-        NSApp.activate(ignoringOtherApps: true)
-        window.makeKeyAndOrderFront(nil)
+        window.showCentered()
     }
 
     private func close() {

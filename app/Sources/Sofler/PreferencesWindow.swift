@@ -14,8 +14,7 @@ final class PreferencesWindowController {
     /// propriétaire de ces données.
     func show(history: TranscriptionHistory) {
         if let window {
-            NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil)
+            window.showCentered()
             return
         }
 
@@ -24,8 +23,7 @@ final class PreferencesWindowController {
         }
         self.window = window
 
-        NSApp.activate(ignoringOtherApps: true)
-        window.makeKeyAndOrderFront(nil)
+        window.showCentered()
     }
 }
 
@@ -41,6 +39,28 @@ private struct PreferencesView: View {
     enum Tab: String, CaseIterable {
         case general, recording, engine, lexicon, history, collection
 
+        /// L'icône du prototype. Elles tiennent — ma première mesure concluait
+        /// le contraire, mais elle partait de 12 pt et d'un padding de 12,
+        /// alors que la barre est à 11,5 pt et 8 pt.
+        var icon: String {
+            switch self {
+            case .general: "⚙️"
+            case .recording: "🎙️"
+            case .engine: "⚡"
+            case .lexicon: "📖"
+            case .history: "🕒"
+            case .collection: "📦"
+            }
+        }
+
+        /// « Dictée » plutôt qu'« Enregistrement », et c'est le seul écart de
+        /// libellé avec le prototype.
+        ///
+        /// Mesuré : à 11,5 pt, les six libellés du prototype demandent environ
+        /// 532 pt pour 516 disponibles dans la fenêtre. Ça déborde de peu, mais
+        /// ça déborde — et `Enregistrement` est à lui seul l'excédent.
+        /// `Dictée` couvre exactement la même chose : le déclencheur, l'aperçu
+        /// en direct et les sons.
         var label: String {
             switch self {
             case .general: "Général"
@@ -51,13 +71,45 @@ private struct PreferencesView: View {
             case .collection: "Collecte"
             }
         }
+
+        /// L'en-tête de l'onglet — titre à 18 pt, puis ce qu'on y règle.
+        var header: (title: String, subtitle: String) {
+            switch self {
+            case .general:
+                ("Réglages Généraux",
+                 "Langue de travail, destination du texte transcrit et "
+                    + "intégration système.")
+            case .recording:
+                ("Enregistrement & Dictée",
+                 "Configurez comment Sofler capte votre voix et affiche la "
+                    + "transcription en direct.")
+            case .engine:
+                ("Moteur IA & Transcription Finale",
+                 "Choisissez le moteur neuronal qui rédige le texte définitif "
+                    + "de votre dictée vocale.")
+            case .lexicon:
+                ("Lexique & Mots Métier",
+                 "Personnalisez le dictionnaire local pour garantir "
+                    + "l'orthographe exacte de vos termes clés.")
+            case .history:
+                ("Historique des Dictées",
+                 "Retrouvez et copiez vos dernières transcriptions locales en "
+                    + "un clic.")
+            case .collection:
+                ("Collecte & Comparatif Moteurs",
+                 "Archivez localement vos enregistrements pour mesurer et "
+                    + "comparer la précision de chaque IA.")
+            }
+        }
     }
 
     var body: some View {
         VStack(spacing: 0) {
             tabBar
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 0) {
+                    PageHeader(title: tab.header.title,
+                               subtitle: tab.header.subtitle)
                     switch tab {
                     case .general: GeneralTab()
                     case .recording: RecordingTab()
@@ -67,55 +119,61 @@ private struct PreferencesView: View {
                     case .collection: CollectionTab()
                     }
                 }
-                .padding(.horizontal, Style.windowPadding)
+                .padding(.horizontal, 24)
+                .padding(.top, 20)
                 .padding(.bottom, 24)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .defaultScrollAnchor(.top)
         }
         .background(WindowBackground().ignoresSafeArea())
         .tint(Style.accent)
     }
 
-    /// Les onglets reprennent la forme des pastilles de la barre plutôt que le
-    /// `TabView` système, dont la barre d'outils grise casse la continuité.
+    /// La barre segmentée du prototype : un rail sombre à coins arrondis, six
+    /// boutons de largeur égale, l'actif en turquoise bordé.
     ///
-    /// **Sans icônes, et c'est mesuré.** Les six libellés font environ 55
-    /// caractères ; à 12 pt semi-gras (~6,5 pt par caractère) plus six fois
-    /// 24 pt de marges, la barre occupe ~502 pt sur les 520 pt utiles. Ajouter
-    /// un symbole par onglet coûte 16 pt chacun et porte le total à ~598 pt :
-    /// la barre déborderait de la fenêtre. Les documents de conception
-    /// demandaient les deux ; il fallait choisir, et un libellé se lit sans
-    /// avoir rien appris là où une icône se devine.
-    ///
-    /// « Dictée » plutôt qu'« Enregistrement » pour la même raison : c'est le
-    /// libellé le plus long, et le raccourcir rend la marge confortable.
+    /// Elle réserve les 48 pt de la barre de titre au-dessus d'elle : la
+    /// fenêtre est en `fullSizeContentView`, donc sans cette marge les onglets
+    /// passeraient sous les feux tricolores.
     private var tabBar: some View {
-        HStack {
-            Spacer()
-            HStack(spacing: 2) {
-                ForEach(Tab.allCases, id: \.self) { item in
-                    let active = item == tab
+        HStack(spacing: 2) {
+            ForEach(Tab.allCases, id: \.self) { item in
+                let active = item == tab
+                HStack(spacing: 5) {
+                    Text(item.icon).font(.system(size: 12))
                     Text(item.label)
-                        .font(.system(size: 12, weight: active ? .semibold : .medium))
-                        .foregroundStyle(active ? Style.accent : Color.secondary)
-                        .padding(.horizontal, 10)
-                        .frame(height: 24)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(active ? Style.accent.opacity(0.20) : .clear))
-                        .contentShape(Rectangle())
-                        .onTapGesture { tab = item }
+                        .font(.system(size: 11.5, weight: .medium))
+                        .lineLimit(1)
                 }
+                .foregroundStyle(active ? Style.accent : Style.textSecondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(active ? Style.accent.opacity(0.12) : .clear)
+                        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .strokeBorder(active ? Style.accentBorder : .clear,
+                                          lineWidth: 1)))
+                .contentShape(Rectangle())
+                .onTapGesture { tab = item }
+                .accessibilityAddTraits(active ? [.isSelected, .isButton] : .isButton)
             }
-            .padding(4)
-            .background(
-                Capsule().fill(Color.white.opacity(0.06))
-                    .overlay(Capsule().strokeBorder(Color.white.opacity(0.06),
-                                                    lineWidth: 1)))
-            Spacer()
         }
-        .padding(.top, 14)
-        .padding(.bottom, 16)
+        .padding(3)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.black.opacity(0.35))
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)))
+        .padding(.horizontal, 16)
+        .padding(.top, 48)
+        .padding(.bottom, 10)
+        .background(
+            Color(hex: 0x0F172A).opacity(0.65)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
+                })
     }
 }
 
