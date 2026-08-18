@@ -43,8 +43,12 @@ final class PermissionsMonitor {
         let prefs = Preferences.shared
         // Contient toujours le moteur d'écriture, plus ceux de la collecte.
         if prefs.enginesToCollect().contains(.appleLegacy) { return true }
+        // La permission de reconnaissance vocale suit **le moteur de l'aperçu**,
+        // qui est celui qui l'utilise. La déduire du moteur d'écriture la
+        // demandait au mauvais moment : réglé sur Dictée pour l'aperçu et sur
+        // Apple Intelligence pour la transcription, on ne la réclamait jamais.
         return prefs.livePreviewEnabled
-            && SpeechPreview.engine(writing: prefs.engine,
+            && SpeechPreview.engine(using: prefs.liveEngineTechnology,
                                     for: prefs.language) == .appleLegacy
     }
 

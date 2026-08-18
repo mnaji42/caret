@@ -258,8 +258,8 @@ enum SpeechPreview {
     /// plus fine disponible, Apple Intelligence d'abord, la Dictée sinon.
     ///
     /// - Returns: `nil` si cette machine ne sait produire aucun aperçu.
-    static func engine(writing: EngineChoice, for language: String) -> EngineChoice? {
-        if writing.isSystem, writing.isAvailable(for: language) { return writing }
+    static func engine(using wanted: EngineChoice, for language: String) -> EngineChoice? {
+        if wanted.isSystem, wanted.isAvailable(for: language) { return wanted }
         return EngineChoice.availableSystemEngines(for: language).first
     }
 
@@ -278,11 +278,11 @@ enum SpeechPreview {
     /// de l'autre moteur — exactement la distinction que le corpus existe pour
     /// établir.
     @MainActor
-    static func make(writing: EngineChoice, for language: String,
+    static func make(using wanted: EngineChoice, for language: String,
                      onText: @escaping @MainActor @Sendable (String) -> Void,
                      onFailure: @escaping @MainActor @Sendable (String) -> Void)
     -> (engine: EngineChoice, preview: any SpeechPreviewing)? {
-        switch engine(writing: writing, for: language) {
+        switch engine(using: wanted, for: language) {
         case .apple:
             guard #available(macOS 26.0, *) else { return nil }
             return (.apple, LivePreview(onText: onText, onFailure: onFailure))

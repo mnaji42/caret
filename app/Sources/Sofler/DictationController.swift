@@ -641,11 +641,13 @@ final class DictationController {
     /// l'aperçu n'a donc aucun effet sur la dictée.
     private func startPreview() {
         guard Preferences.shared.livePreviewEnabled, preview == nil else { return }
-        // Le moteur d'écriture décide : quand c'est macOS qui écrit, l'aperçu
-        // emploie exactement la même version, et devient donc une vraie
-        // préversion du texte inséré. Cf. `SpeechPreview.engine`.
+        // L'aperçu a **sa** version de macOS, réglée dans l'onglet Dictée.
+        // Elle se déduisait de celle du moteur d'écriture : le réglage existait
+        // dans l'interface et ne pilotait rien ici, si bien que choisir Dictée
+        // pour l'aperçu n'avait aucun effet sur ce qui s'affichait pendant
+        // qu'on parlait. Cf. `SpeechPreview.engine`.
         guard let made = SpeechPreview.make(
-            writing: Preferences.shared.engine, for: language,
+            using: Preferences.shared.liveEngineTechnology, for: language,
             onText: { [weak self] text in
                 // Retenu pour la collecte : c'est la transcription d'un moteur
                 // de macOS sur exactement le même audio.
