@@ -48,6 +48,7 @@ final class Preferences {
         static let updateCheck = "sofler.update.check"
         static let lastValidEngine = "sofler.engine.lastValid"
         static let habits = "sofler.habits"
+        static let crisperLicence = "sofler.crisper.licence"
         /// Marque qu'une installation antérieure au multi-langues a été
         /// reprise. Sert à ne pas changer sous les pieds de quelqu'un des
         /// défauts qui n'ont bougé que pour les installations neuves.
@@ -236,6 +237,21 @@ final class Preferences {
 
     /// Les langues déclarées, en plus de la principale.
     var secondaryLanguages: [String] { Array(selectedLanguages.dropFirst()) }
+
+    /// La licence de recherche non commerciale des poids a-t-elle été acceptée ?
+    ///
+    /// Persistée, alors qu'elle ne l'était pas : la case vivait dans un `@State`
+    /// de la vue d'installation, donc fermer les Réglages la décochait. Quelqu'un
+    /// qui avait accepté la licence, lancé un téléchargement, puis rouvert la
+    /// fenêtre retrouvait un bouton grisé et une case vide — comme si son accord
+    /// n'avait jamais été donné.
+    ///
+    /// Ce n'est pas qu'un confort : `EngineBootstrap.install` refuse de
+    /// travailler sans cet accord, et le message d'échec parle de licence là où
+    /// l'utilisateur voit une case qu'il *avait* cochée.
+    var crisperLicenceAccepted: Bool {
+        didSet { defaults.set(crisperLicenceAccepted, forKey: Key.crisperLicence) }
+    }
 
     /// Ce que l'utilisateur a dit de son usage, à l'écran 2 de l'accueil.
     ///
@@ -642,6 +658,7 @@ final class Preferences {
         lastValidEngine = EngineChoice(rawValue: defaults.string(forKey: Key.lastValidEngine) ?? "")
             ?? (resolvedFinal == .crisperWhisper ? .crisperWhisper : resolvedApple)
 
+        crisperLicenceAccepted = defaults.bool(forKey: Key.crisperLicence)
         habits = defaults.data(forKey: Key.habits)
             .flatMap { try? JSONDecoder().decode(UsageHabits.self, from: $0) }
             ?? UsageHabits()

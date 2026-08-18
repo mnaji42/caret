@@ -59,6 +59,40 @@ enum CrisperWhisperModel: String, CaseIterable, Codable, Sendable {
 
     var isRecommended: Bool { self == .turbo }
 
+    /// Le nom tel qu'il apparaît dans la grille du catalogue, avec ce qui le
+    /// caractérise en un mot. Repris du prototype.
+    var catalogueName: String {
+        switch self {
+        case .turbo: "Turbo ★ (Recommandé)"
+        case .small: "Small (Léger)"
+        case .medium: "Medium (Équilibré)"
+        case .large: "Large (Précision Max)"
+        }
+    }
+
+    /// La latence **mesurée sur de vraies dictées de ce projet**, ou `nil`.
+    ///
+    /// `nil` pour trois modèles sur quatre, et c'est la réponse honnête : le
+    /// prototype annonce 210, 410, 690 et 1200 ms, mais un seul de ces chiffres
+    /// a été relevé ici. Afficher les trois autres fabriquerait un classement
+    /// que personne n'a vérifié — et sur lequel quelqu'un choisirait un
+    /// téléchargement de plusieurs gigaoctets.
+    var measuredLatency: String? {
+        self == .turbo ? "763 ms mesurés" : nil
+    }
+
+    /// Ce que coûte une installation complète depuis rien : l'environnement
+    /// Python **plus** les poids.
+    ///
+    /// Annoncé d'un bloc parce que c'est ce qui part réellement sur le réseau.
+    /// Ne montrer que le poids du modèle ferait découvrir 1,2 Go de plus une
+    /// fois le téléchargement lancé.
+    var totalDownload: String {
+        let total = downloadBytes + 1_200_000_000
+        return "\(ByteCountFormatter.string(fromByteCount: total, countStyle: .file)) "
+            + "(uv/python 1,2 Go + modèle \(downloadSize))"
+    }
+
     /// Ce qu'on sait, et ce qu'on ne sait pas.
     ///
     /// Seul `turbo` a été mesuré sur de vraies dictées de ce projet. Prêter
