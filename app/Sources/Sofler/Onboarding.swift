@@ -163,6 +163,11 @@ private struct OnboardingView: View {
                 .padding(.bottom, 24)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            // Sans ancre explicite, le premier champ de saisie de la page
+            // prend le focus au lancement et macOS fait défiler pour le
+            // révéler : à l'écran des langues, le titre se retrouvait coupé en
+            // haut avant qu'on ait touché à quoi que ce soit.
+            .defaultScrollAnchor(.top)
             footer
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

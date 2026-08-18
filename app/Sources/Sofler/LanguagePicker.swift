@@ -66,10 +66,11 @@ struct LanguagePicker: View, ValidatingComponent {
         let canRemove = prefs.selectedLanguages.count > 1
 
         return HStack(spacing: 5) {
-            Text(language.badge).font(.system(size: 11.5, weight: .medium))
+            Text(language.badge)
+                .font(.system(size: 12, weight: isPrimary ? .semibold : .medium))
             if isPrimary {
-                Text("Principale")
-                    .font(.system(size: 10, weight: .semibold))
+                Text("(Principale)")
+                    .font(.system(size: 10))
                     .opacity(0.85)
             }
             if canRemove {
@@ -84,14 +85,16 @@ struct LanguagePicker: View, ValidatingComponent {
             }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .foregroundStyle(isPrimary ? Style.accent : Color.secondary)
+        .padding(.vertical, 4)
+        .foregroundStyle(Style.accent)
         .background(
             Capsule()
-                .fill(isPrimary ? Style.accentDim : Color.white.opacity(0.05))
+                // La principale se distingue par un fond plus dense et une
+                // bordure pleine, pas par une couleur différente : ce sont les
+                // mêmes objets, l'un est simplement actif.
+                .fill(Style.accent.opacity(isPrimary ? 0.2 : 0.12))
                 .overlay(Capsule().strokeBorder(
-                    isPrimary ? Style.accentBorder : Color.white.opacity(0.08),
-                    lineWidth: 1)))
+                    isPrimary ? Style.accent : Style.accentBorder, lineWidth: 1)))
     }
 
     // MARK: - Recherche
@@ -101,9 +104,9 @@ struct LanguagePicker: View, ValidatingComponent {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
-            TextField("Rechercher une langue, un pays, un code…", text: $search)
+            TextField("Rechercher une langue (ex : Anglais, Espagnol)…", text: $search)
                 .textFieldStyle(.plain)
-                .font(.system(size: 12))
+                .font(.system(size: 12.5))
             if !search.isEmpty {
                 Button {
                     search = ""
@@ -115,11 +118,11 @@ struct LanguagePicker: View, ValidatingComponent {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: Style.fieldRadius, style: .continuous)
-                .fill(Style.innerBoxFill)
+                .fill(Color.black.opacity(0.35))
                 .overlay(RoundedRectangle(cornerRadius: Style.fieldRadius,
                                           style: .continuous)
                     .strokeBorder(Style.cardStroke, lineWidth: 1)))
@@ -135,22 +138,20 @@ struct LanguagePicker: View, ValidatingComponent {
             Note("Aucune langue ne correspond à « \(search) ».")
         } else {
             ScrollView {
-                VStack(spacing: 0) {
+                VStack(spacing: 2) {
                     ForEach(results) { language in
                         row(for: language)
-                        if language.code != results.last?.code {
-                            Divider().opacity(0.15)
-                        }
                     }
                 }
             }
-            .frame(height: 190)
+            .frame(height: 125)
+            .padding(4)
             .background(
-                RoundedRectangle(cornerRadius: Style.innerRadius, style: .continuous)
-                    .fill(Color.black.opacity(0.18))
-                    .overlay(RoundedRectangle(cornerRadius: Style.innerRadius,
+                RoundedRectangle(cornerRadius: Style.fieldRadius, style: .continuous)
+                    .fill(Color.black.opacity(0.28))
+                    .overlay(RoundedRectangle(cornerRadius: Style.fieldRadius,
                                               style: .continuous)
-                        .strokeBorder(Style.cardStroke, lineWidth: 1)))
+                        .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)))
         }
     }
 
@@ -162,9 +163,9 @@ struct LanguagePicker: View, ValidatingComponent {
             Text(language.flag).font(.system(size: 13))
             Text(language.name).font(.system(size: 12, weight: .medium))
             if !language.region.isEmpty {
-                Text(language.region)
+                Text("(\(language.region))")
                     .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Style.textTertiary)
             }
             Spacer(minLength: 8)
             if !usable {
@@ -180,15 +181,18 @@ struct LanguagePicker: View, ValidatingComponent {
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
             }
-            Image(systemName: selected ? "checkmark.circle.fill" : "plus.circle")
-                .font(.system(size: 13))
-                .foregroundStyle(selected ? Style.accent : Color.secondary)
+            Text(selected ? "✓" : "+")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(selected ? Style.accent : Style.textTertiary)
+                .frame(width: 12)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
         .contentShape(Rectangle())
         .opacity(usable ? 1 : 0.45)
-        .background(selected ? Style.accent.opacity(0.06) : .clear)
+        .background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(selected ? Style.accent.opacity(0.12) : .clear))
         .onTapGesture { toggle(language) }
         .help(usable ? "" : indisponibilityReason(language))
         .accessibilityElement(children: .combine)
