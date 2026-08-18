@@ -137,6 +137,7 @@ struct TriggerCard: View, ValidatingComponent {
         Row(label: "Raccourci :") {
             ShortcutRecorder(shortcut: $prefs.dictateShortcut) { _ in }
                 .frame(width: 150, height: 26)
+                .help("Cliquez pour changer le raccourci")
         }
         Note("Cliquez puis tapez la combinaison voulue. macOS refuse les "
              + "raccourcis sans Contrôle ni Commande. La touche Option ne "

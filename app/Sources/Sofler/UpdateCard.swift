@@ -21,7 +21,7 @@ struct UpdateCard: View {
     @State private var installer = UpdateInstaller.shared
 
     var body: some View {
-        Card(title: "Mises à jour") {
+        Card(title: "") {
             header
 
             if !UpdateChecker.isReleaseBuild {

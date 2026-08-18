@@ -26,6 +26,10 @@ struct TrialSandbox: View {
     /// Le déclencheur à annoncer — « ⌥ droite », « ⌃⌥⌘D ».
     var triggerLabel: String
 
+    /// Une dictée est-elle en cours ? Le champ le dit, plutôt que de rester
+    /// muet pendant qu'on parle sans savoir si l'appui a été pris.
+    var isListening = false
+
     @State private var text = ""
 
     var body: some View {
@@ -49,7 +53,9 @@ struct TrialSandbox: View {
 
             ZStack(alignment: .topLeading) {
                 if text.isEmpty {
-                    Text("Cliquez ici puis appuyez sur \(triggerLabel) pour tester…")
+                    Text(isListening
+                         ? "Écoute en cours... Parlez maintenant..."
+                         : "Cliquez ici puis appuyez sur \(triggerLabel) pour tester...")
                         .font(.system(size: 12.5))
                         .foregroundStyle(Style.textTertiary)
                         .padding(.horizontal, 11)

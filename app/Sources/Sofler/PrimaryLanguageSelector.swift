@@ -27,7 +27,7 @@ struct PrimaryLanguageSelector: View {
     private static let pillLimit = 2
 
     var body: some View {
-        Card(title: "Langue de dictée") {
+        Card(title: "") {
             if prefs.selectedLanguages.count <= Self.pillLimit {
                 PillPicker(options: prefs.activeLanguages.map { ($0.code, $0.badge) },
                            selection: $prefs.primaryLanguage)
@@ -97,7 +97,7 @@ struct PrimaryLanguageSelector: View {
                 Image(systemName: "globe")
                     .font(.system(size: 12))
                 Text(showsCatalog ? "Masquer le catalogue"
-                                  : "Gérer / ajouter des langues…")
+                                  : "Gérer / Ajouter des langues...")
                     .font(.system(size: 12, weight: .medium))
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")

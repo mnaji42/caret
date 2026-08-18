@@ -81,7 +81,7 @@ struct LanguagePicker: View, ValidatingComponent {
                         .font(.system(size: 8, weight: .bold))
                 }
                 .buttonStyle(.plain)
-                .help("Retirer \(language.displayName)")
+                .help("Retirer cette langue")
             }
         }
         .padding(.horizontal, 10)
@@ -104,7 +104,7 @@ struct LanguagePicker: View, ValidatingComponent {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
-            TextField("Rechercher une langue (ex : Anglais, Espagnol)…", text: $search)
+            TextField("Rechercher une langue (ex: Anglais, Espagnol)...", text: $search)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12.5))
             if !search.isEmpty {

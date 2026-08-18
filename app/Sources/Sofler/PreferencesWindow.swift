@@ -183,12 +183,16 @@ private struct GeneralTab: View {
     var body: some View {
         // La langue d'abord : c'est elle qui décide de ce que les moteurs
         // peuvent faire, et elle vaut pour toute l'application.
+        SectionLabel("Langue Principale de Dictée")
         PrimaryLanguageSelector()
 
+        SectionLabel("Destination des Dictées")
         DestinationCard()
 
+        SectionLabel("Mises à jour du Logiciel")
         UpdateCard()
 
+        SectionLabel("Démarrage & Système")
         LoginItemCard()
     }
 }
