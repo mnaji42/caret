@@ -58,14 +58,18 @@ struct TrialSandbox: View {
                          : "Cliquez ici puis appuyez sur \(triggerLabel) pour tester...")
                         .font(.system(size: 12.5))
                         .foregroundStyle(Style.textTertiary)
+                        // Exactement l'encart du `TextEditor` : un pixel
+                        // d'écart et le curseur paraît sauter au premier
+                        // caractère tapé.
                         .padding(.horizontal, 11)
-                        .padding(.vertical, 14)
+                        .padding(.vertical, 10)
                         .allowsHitTesting(false)
                 }
                 TextEditor(text: $text)
                     .font(.system(size: 12.5))
                     .scrollContentBackground(.hidden)
-                    .padding(6)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 6)
             }
             .frame(height: 80)
             .padding(.horizontal, 8)

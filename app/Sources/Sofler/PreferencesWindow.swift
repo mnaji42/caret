@@ -39,17 +39,30 @@ private struct PreferencesView: View {
     enum Tab: String, CaseIterable {
         case general, recording, engine, lexicon, history, collection
 
-        /// L'icône du prototype. Elles tiennent — ma première mesure concluait
-        /// le contraire, mais elle partait de 12 pt et d'un padding de 12,
-        /// alors que la barre est à 11,5 pt et 8 pt.
+        /// Le symbole de l'onglet.
+        ///
+        /// **Des SF Symbols, pas des émoji.** Le prototype en utilise, et c'est
+        /// naturel dans un navigateur ; sur macOS ils détonnent : rendus en
+        /// couleur pleine, à une graisse qui ne suit pas celle du texte, et
+        /// différents d'une version du système à l'autre. Un symbole vectoriel
+        /// prend la couleur de l'onglet — turquoise quand il est actif, gris
+        /// sinon — et s'aligne sur la ligne de base du libellé.
+        ///
+        /// Le choix suit ce que la page *fait*, pas son titre :
+        /// - `⚡` était l'éclair de la vitesse ; le Moteur IA n'a rien de
+        ///   rapide, il fait tourner un réseau de neurones — d'où le cerveau.
+        /// - `📦` était un colis ; la Collecte n'expédie rien, elle accumule
+        ///   des mesures — d'où le graphique.
+        /// - `🕒` disait l'heure ; l'Historique dit ce qui est *passé* — d'où
+        ///   la flèche qui revient en arrière.
         var icon: String {
             switch self {
-            case .general: "⚙️"
-            case .recording: "🎙️"
-            case .engine: "⚡"
-            case .lexicon: "📖"
-            case .history: "🕒"
-            case .collection: "📦"
+            case .general: "gearshape"
+            case .recording: "mic"
+            case .engine: "brain"
+            case .lexicon: "character.book.closed"
+            case .history: "clock.arrow.circlepath"
+            case .collection: "chart.bar.doc.horizontal"
             }
         }
 
@@ -141,7 +154,9 @@ private struct PreferencesView: View {
             ForEach(Tab.allCases, id: \.self) { item in
                 let active = item == tab
                 HStack(spacing: 5) {
-                    Text(item.icon).font(.system(size: 12))
+                    Image(systemName: item.icon)
+                        .font(.system(size: 11.5, weight: .medium))
+                        .imageScale(.medium)
                     Text(item.label)
                         .font(.system(size: 11.5, weight: .medium))
                         .lineLimit(1)
@@ -162,13 +177,17 @@ private struct PreferencesView: View {
         }
         .padding(3)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .fill(Color.black.opacity(0.35))
-                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
                     .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)))
-        .padding(.horizontal, 16)
-        .padding(.top, 48)
-        .padding(.bottom, 10)
+        // Serré : le rail borde la fenêtre au lieu de flotter au milieu d'une
+        // bande. `.top` ne réserve que la barre de titre, sans marge ajoutée —
+        // l'écart au-dessus faisait lire les onglets comme un bloc détaché,
+        // alors qu'ils appartiennent au chrome de la fenêtre.
+        .padding(.horizontal, 10)
+        .padding(.top, 40)
+        .padding(.bottom, 8)
         .background(
             Color(hex: 0x0F172A).opacity(0.65)
                 .overlay(alignment: .bottom) {

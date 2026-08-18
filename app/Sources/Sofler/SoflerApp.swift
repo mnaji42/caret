@@ -652,7 +652,54 @@ struct SoflerApp {
         // indispensable puisque le texte doit atterrir dans l'application que
         // l'utilisateur a devant lui.
         app.setActivationPolicy(.accessory)
+        app.mainMenu = editingMenu()
         // Le delegate est retenu par l'app pour toute la durée du process.
         withExtendedLifetime(delegate) { app.run() }
+    }
+
+    /// Le menu principal, réduit aux commandes d'édition.
+    ///
+    /// ## Pourquoi une application sans menu en a quand même besoin
+    ///
+    /// Sofler est en `.accessory` : pas de Dock, pas de barre de menus visible.
+    /// J'en avais conclu qu'elle n'avait pas besoin de `mainMenu`. C'est faux, et
+    /// ça se voyait : **⌘A, ⌘C, ⌘V et ⌘Z ne faisaient rien** dans le moindre
+    /// champ de texte de l'application — la zone d'essai de l'accueil, la
+    /// recherche de langues, la saisie du lexique.
+    ///
+    /// macOS ne câble pas ces raccourcis dans les vues : il les route par le
+    /// menu principal, en envoyant le sélecteur au premier répondant. Sans
+    /// menu, il n'y a aucun chemin, et les touches tombent dans le vide sans
+    /// que rien ne le signale.
+    ///
+    /// Le menu reste invisible — une app accessoire n'affiche pas sa barre —
+    /// mais les raccourcis retrouvent leur route. Réduit à l'édition : ni
+    /// « Fichier », ni « Fenêtre », ni « Aide », qui n'auraient rien à porter.
+    private static func editingMenu() -> NSMenu {
+        let main = NSMenu()
+        let editItem = NSMenuItem()
+        let edit = NSMenu(title: "Édition")
+
+        // `nil` comme cible : le sélecteur descend la chaîne des répondants
+        // jusqu'au champ qui a le focus, ce qui est exactement le comportement
+        // attendu et ce que fait le menu Édition de n'importe quelle app.
+        func add(_ title: String, _ selector: Selector, _ key: String,
+                 modifiers: NSEvent.ModifierFlags = .command) {
+            let item = NSMenuItem(title: title, action: selector, keyEquivalent: key)
+            item.keyEquivalentModifierMask = modifiers
+            edit.addItem(item)
+        }
+
+        add("Annuler", Selector(("undo:")), "z")
+        add("Rétablir", Selector(("redo:")), "z", modifiers: [.command, .shift])
+        edit.addItem(.separator())
+        add("Couper", #selector(NSText.cut(_:)), "x")
+        add("Copier", #selector(NSText.copy(_:)), "c")
+        add("Coller", #selector(NSText.paste(_:)), "v")
+        add("Tout sélectionner", #selector(NSText.selectAll(_:)), "a")
+
+        editItem.submenu = edit
+        main.addItem(editItem)
+        return main
     }
 }
