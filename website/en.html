@@ -21,8 +21,8 @@
   <link rel="alternate" hreflang="en" href="https://caspr.lyriastudio.fr/en.html">
   <link rel="alternate" hreflang="x-default" href="https://caspr.lyriastudio.fr/">
 
-  <!-- Favicon SVG (Caspr Ghost Emblem) -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2300d2ff'/%3E%3Cstop offset='100%25' stop-color='%230072ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M32 14C22.6 14 15 21.6 15 31v15.5c0 1.9 1.6 3.5 3.5 3.5 1.9 0 3.5-1.6 3.5-3.5 0-1.4 1.1-2.5 2.5-2.5s2.5 1.1 2.5 2.5c0 1.9 1.6 3.5 3.5 3.5s3.5-1.6 3.5-3.5c0-1.4 1.1-2.5 2.5-2.5s2.5 1.1 2.5 2.5c0 1.9 1.6 3.5 3.5 3.5s3.5-1.6 3.5-3.5V31c0-9.4-7.6-17-17-17z' fill='%23ffffff'/%3E%3Ccircle cx='26' cy='28' r='3.2' fill='%2307090e'/%3E%3Ccircle cx='38' cy='28' r='3.2' fill='%2307090e'/%3E%3Cpath d='M28.5 36.5c2 2 5 2 7 0' stroke='%2307090e' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
+  <!-- Favicon SVG (Caspr macOS App Icon) -->
+  <link rel="icon" type="image/svg+xml" href="images/caspr-app-icon.svg">
 
   <!-- Preconnect & Non-Blocking Google Fonts (100/100 Lighthouse Performance) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,8 +34,8 @@
   </noscript>
 
   <!-- Preload Local Stylesheet to Avoid Chaining Critical Requests -->
-  <link rel="preload" as="style" href="style.css?v=2.1">
-  <link rel="stylesheet" href="style.css?v=2.1">
+  <link rel="preload" as="style" href="style.css?v=2.2">
+  <link rel="stylesheet" href="style.css?v=2.2">
 </head>
 <body>
 
@@ -48,18 +48,7 @@
   <header class="site-header">
     <div class="container header-inner">
       <a href="en.html" class="brand-logo" aria-label="Caspr Home">
-        <div class="logo-squircle">
-          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M32 14C22.6 14 15 21.6 15 31V46.5C15 48.4 16.6 50 18.5 50C20.4 50 22 48.4 22 46.5C22 45.1 23.1 44 24.5 44C25.9 44 27 45.1 27 46.5C27 48.4 28.6 50 30.5 50C32.4 50 34 48.4 34 46.5C34 45.1 35.1 44 36.5 44C37.9 44 39 45.1 39 46.5C39 48.4 40.6 50 42.5 50C44.4 50 46 48.4 46 46.5C46 45.1 47.1 44 48.5 44C49.9 44 51 45.1 51 46.5C51 48.4 52.6 50 54.5 50C56.4 50 58 48.4 58 46.5V31C58 21.6 50.4 14 41 14H32Z" fill="#ffffff"/>
-            <circle cx="26" cy="28" r="3.2" fill="#07090e"/>
-            <circle cx="38" cy="28" r="3.2" fill="#07090e"/>
-            <path d="M28.5 36.5C30.5 38.5 33.5 38.5 35.5 36.5" stroke="#07090e" stroke-width="2.5" stroke-linecap="round"/>
-          </svg>
-        </div>
-        <div class="brand-text">
-          <span class="brand-name">Caspr</span>
-          <span class="brand-sub">by Lyria Studio</span>
-        </div>
+        <img src="images/caspr-logo-horizontal.svg" alt="Caspr" class="brand-logo-img" width="130" height="50">
       </a>
 
       <nav class="nav-links">
@@ -111,7 +100,7 @@
 
       <!-- Main Headline with Super-Fast Single Line Typewriter -->
       <h1 class="hero-title">
-        <span class="hero-title-static">Speak naturally. Your Mac</span>
+        <span class="hero-title-static">Speak naturally. <span class="hero-brand-cyan">Caspr</span></span>
         <span class="typewriter-container"><span class="typewriter-text" id="typewriter-phrase">writes at the speed of thought.</span><span class="typewriter-cursor">|</span></span>
       </h1>
 
@@ -216,15 +205,19 @@
             </div>
           </div>
 
-          <!-- Simulator interactive triggers -->
-          <div class="simulator-controls">
-            <button type="button" class="sim-btn" id="btn-trigger-dictate">
-              <span>▶ Replay dictation</span>
-            </button>
-            <span class="sim-hint">Instant Live Preview while speaking, followed by instant insertion of cleaned text</span>
-          </div>
-
         </div>
+
+        <!-- Simulator Interactive Footnote / Replay Trigger -->
+        <div class="hud-simulator-footer">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-trigger-dictate" aria-label="Replay dictation demonstration">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            <span>Replay dictation</span>
+          </button>
+          <span class="hud-simulator-note">Instant Live Preview while speaking, followed by instant insertion of cleaned text</span>
+        </div>
+
       </div>
 
     </div>
@@ -599,41 +592,75 @@
 
   </main>
 
-  <!-- SITE FOOTER WITH LYRIA STUDIO BRANDING & LEGAL LINKS -->
+  <!-- SITE FOOTER - LYRIA STUDIO OFFICIAL PROJECT -->
   <footer class="site-footer">
     <div class="container footer-inner">
-      <div class="footer-top-row">
-        <div class="footer-brand">
-          <div class="logo-squircle logo-footer">
-            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M32 14C22.6 14 15 21.6 15 31V46.5C15 48.4 16.6 50 18.5 50C20.4 50 22 48.4 22 46.5C22 45.1 23.1 44 24.5 44C25.9 44 27 45.1 27 46.5C27 48.4 28.6 50 30.5 50C32.4 50 34 48.4 34 46.5C34 45.1 35.1 44 36.5 44C37.9 44 39 45.1 39 46.5C39 48.4 40.6 50 42.5 50C44.4 50 46 48.4 46 46.5C46 45.1 47.1 44 48.5 44C49.9 44 51 45.1 51 46.5C51 48.4 52.6 50 54.5 50C56.4 50 58 48.4 58 46.5V31C58 21.6 50.4 14 41 14H32Z" fill="#ffffff"/>
-              <circle cx="26" cy="28" r="3.2" fill="#07090e"/>
-              <circle cx="38" cy="28" r="3.2" fill="#07090e"/>
-              <path d="M28.5 36.5C30.5 38.5 33.5 38.5 35.5 36.5" stroke="#07090e" stroke-width="2.5" stroke-linecap="round"/>
-            </svg>
+      <div class="footer-main-grid">
+        
+        <!-- Col 1: Brand & Lyria Studio Highlight -->
+        <div class="footer-brand-col">
+          <div class="footer-brand-header">
+            <img src="images/caspr-logo-stacked.svg" alt="Caspr" class="footer-logo-stacked" width="80" height="80">
+            <img src="images/caspr-logo-horizontal.svg" alt="Caspr" class="footer-logo-horizontal" width="160" height="60">
+            <p class="footer-tagline">100% local, private, and instantaneous AI voice dictation for macOS. Zero cloud, zero subscription.</p>
           </div>
-          <div>
-            <span class="footer-title">Caspr</span>
-            <p class="footer-desc">Ultra-fast, private, and 100% local AI voice dictation for macOS.</p>
-          </div>
+          
+          <a href="https://lyriastudio.fr" target="_blank" rel="noopener noreferrer" class="footer-studio-pill" title="Discover Lyria Studio">
+            <span class="studio-pill-tag">An official project by</span>
+            <span class="studio-pill-link">
+              <span class="studio-sparkle">✦</span>
+              Lyria Studio
+              <span class="studio-arrow">↗</span>
+            </span>
+          </a>
         </div>
 
-        <div class="footer-links">
-          <a href="https://github.com/mnaji42/caspr" target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a href="https://github.com/mnaji42/caspr/releases" target="_blank" rel="noopener noreferrer">Releases & Changelog</a>
-          <a href="https://github.com/mnaji42/caspr/issues" target="_blank" rel="noopener noreferrer">Report an Issue</a>
-          <a href="https://caspr.lyriastudio.fr/">Official Website</a>
+        <!-- Col 2: Product & Engines -->
+        <div class="footer-nav-col">
+          <h4 class="footer-col-title">Product</h4>
+          <ul class="footer-nav-list">
+            <li><a href="#demo">Interactive Demo</a></li>
+            <li><a href="#engines">Dual AI Engines</a></li>
+            <li><a href="#features">Superpowers</a></li>
+            <li><a href="#faq">Frequently Asked Questions</a></li>
+          </ul>
         </div>
+
+        <!-- Col 3: Code & Open Source -->
+        <div class="footer-nav-col">
+          <h4 class="footer-col-title">Open Source</h4>
+          <ul class="footer-nav-list">
+            <li><a href="https://github.com/mnaji42/caspr" target="_blank" rel="noopener noreferrer">GitHub Repository <span class="ext-arrow">↗</span></a></li>
+            <li><a href="https://github.com/mnaji42/caspr/releases" target="_blank" rel="noopener noreferrer">Releases & Caspr.dmg <span class="ext-arrow">↗</span></a></li>
+            <li><a href="https://github.com/mnaji42/caspr/issues" target="_blank" rel="noopener noreferrer">Report an Issue <span class="ext-arrow">↗</span></a></li>
+            <li><a href="https://github.com/mnaji42/caspr/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License <span class="ext-arrow">↗</span></a></li>
+          </ul>
+        </div>
+
+        <!-- Col 4: Studio & Legal -->
+        <div class="footer-nav-col">
+          <h4 class="footer-col-title">Lyria Studio</h4>
+          <ul class="footer-nav-list">
+            <li><a href="https://lyriastudio.fr" target="_blank" rel="noopener noreferrer">About the Studio <span class="ext-arrow">↗</span></a></li>
+            <li><a href="https://lyriastudio.fr" target="_blank" rel="noopener noreferrer">Our Work <span class="ext-arrow">↗</span></a></li>
+            <li><a href="legal.html">Legal Notice</a></li>
+            <li><a href="privacy.html">Privacy Policy</a></li>
+          </ul>
+        </div>
+
       </div>
 
+      <!-- Bottom Row -->
       <div class="footer-bottom-bar">
-        <p>© 2026 Caspr. All rights reserved.</p>
+        <p class="footer-copyright">
+          © 2026 Caspr — Designed & developed with passion by <a href="https://lyriastudio.fr" target="_blank" rel="noopener noreferrer" class="footer-studio-highlight">Lyria Studio</a>.
+        </p>
         <div class="footer-legal-links">
+          <span class="footer-privacy-badge">🔒 100% Offline · Zero Data Collected</span>
+          <span class="footer-sep">·</span>
           <a href="legal.html">Legal Notice</a>
-          <span class="footer-sep">|</span>
+          <span class="footer-sep">·</span>
           <a href="privacy.html">Privacy Policy</a>
-          <span class="footer-sep">|</span>
-          <span>Designed & maintained by <a href="https://lyriastudio.fr" target="_blank" rel="noopener noreferrer" class="lyria-backlink">Lyria Studio</a></span>
         </div>
       </div>
     </div>
@@ -645,14 +672,7 @@
       <button type="button" class="modal-close-btn" id="modal-close-btn" aria-label="Close window">&times;</button>
       
       <div class="modal-header">
-        <div class="logo-squircle logo-modal">
-          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M32 14C22.6 14 15 21.6 15 31V46.5C15 48.4 16.6 50 18.5 50C20.4 50 22 48.4 22 46.5C22 45.1 23.1 44 24.5 44C25.9 44 27 45.1 27 46.5C27 48.4 28.6 50 30.5 50C32.4 50 34 48.4 34 46.5C34 45.1 35.1 44 36.5 44C37.9 44 39 45.1 39 46.5C39 48.4 40.6 50 42.5 50C44.4 50 46 48.4 46 46.5C46 45.1 47.1 44 48.5 44C49.9 44 51 45.1 51 46.5C51 48.4 52.6 50 54.5 50C56.4 50 58 48.4 58 46.5V31C58 21.6 50.4 14 41 14H32Z" fill="#ffffff"/>
-            <circle cx="26" cy="28" r="3.2" fill="#07090e"/>
-            <circle cx="38" cy="28" r="3.2" fill="#07090e"/>
-            <path d="M28.5 36.5C30.5 38.5 33.5 38.5 35.5 36.5" stroke="#07090e" stroke-width="2.5" stroke-linecap="round"/>
-          </svg>
-        </div>
+        <img src="images/caspr-app-icon.svg" alt="Caspr" class="modal-logo-icon" width="60" height="60">
         <h2 class="modal-title">Downloading Caspr… 🚀</h2>
         <p class="modal-subtitle">Your <code>Caspr.dmg</code> installer is downloading. Follow this visual step-by-step guide to run it:</p>
       </div>

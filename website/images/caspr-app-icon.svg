@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="casprAppGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F5D4"/>
+      <stop offset="45%" stop-color="#33E1FF"/>
+      <stop offset="100%" stop-color="#0072FF"/>
+    </linearGradient>
+    <linearGradient id="glassGloss" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Squircle macOS -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#casprAppGrad)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+  <rect x="4" y="4" width="120" height="56" rx="28" fill="url(#glassGloss)"/>
+
+  <!-- Fantôme Caspr Officiel 4 Lobes -->
+  <g transform="translate(24, 24) scale(0.3125)">
+    <path
+    fill="#FFFFFF"
+    d="
+      M128 20
+      C80 20 48 55 48 104
+      V158
+      C48 176 40 187 34 199
+      C27 212 31 225 43 232
+      C55 239 68 234 77 220
+      C85 232 96 238 108 238
+      C117 238 123 232 128 222
+      C133 232 139 238 148 238
+      C160 238 171 232 179 220
+      C188 234 201 239 213 232
+      C225 225 229 212 222 199
+      C216 187 208 176 208 158
+      V104
+      C208 55 176 20 128 20
+      Z
+    "
+  />
+
+  <!-- YEUX CAPSULES -->
+  <rect
+    x="90"
+    y="98"
+    width="19"
+    height="32"
+    rx="9.5"
+    fill="#0A0F14"
+  />
+
+  <rect
+    x="147"
+    y="98"
+    width="19"
+    height="32"
+    rx="9.5"
+    fill="#0A0F14"
+  />
+
+  <!-- BOUCHE DEMI-LUNE OFFICIELLE -->
+  <path
+    d="M 110 150 C 110 166 146 166 146 150 C 146 150 110 150 110 150 Z"
+    fill="#0A0F14"
+  />
+  </g>
+</svg>

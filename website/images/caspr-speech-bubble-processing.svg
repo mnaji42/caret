@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 104" width="128" height="104" fill="none">
+  <!-- CASPR - BULLE DE TRAITEMENT OFFICIELLE (#00F0FF CYAN ÉLECTRIQUE PARFAITEMENT CENTRÉ) -->
+  <path
+    d="M 30 8 H 98 C 110 8 120 18 120 30 V 52 C 120 64 110 74 98 74 H 74 L 64 89 L 54 74 H 30 C 18 74 8 64 8 52 V 30 C 8 18 18 8 30 8 Z"
+    fill="#0A0F14"
+    stroke="#FFFFFF"
+    stroke-width="3.5"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  />
+  <!-- 3 Dots Cyan Électrique (X=42, 64, 86, Y=41) -->
+  <circle cx="42" cy="41" r="6" fill="#00F0FF"/>
+  <circle cx="64" cy="41" r="6" fill="#00F0FF"/>
+  <circle cx="86" cy="41" r="6" fill="#00F0FF"/>
+</svg>
