@@ -30,6 +30,8 @@ struct SettingsToggleRow: View {
     var disabled = false
     /// Enveloppé dans une `Card`, ou posé nu dans une carte existante.
     var isCard = true
+    /// Relayée à la `Card` englobante quand il y en a une.
+    var bottomMargin: CGFloat = 12
 
     var body: some View {
         // `isCard` décide du **cadre**, jamais du titre. Le passer à
@@ -38,7 +40,7 @@ struct SettingsToggleRow: View {
         // l'ouverture de session » criait plus fort que le titre de l'écran.
         // Dans le prototype, le titre est une ligne ordinaire *dans* la carte.
         if isCard {
-            Card { content }
+            Card(bottomMargin: bottomMargin) { content }
         } else {
             VStack(alignment: .leading, spacing: 8) { content }
         }

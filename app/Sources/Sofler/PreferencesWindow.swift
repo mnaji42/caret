@@ -122,7 +122,8 @@ private struct PreferencesView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     PageHeader(title: tab.header.title,
-                               subtitle: tab.header.subtitle)
+                               subtitle: tab.header.subtitle,
+                               scale: .tab)
                     switch tab {
                     case .general: GeneralTab()
                     case .recording: RecordingTab()
@@ -132,8 +133,12 @@ private struct PreferencesView: View {
                     case .collection: CollectionTab()
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
+                // `.content-area { padding: 26px 30px 24px 30px }`. Les 30 pt
+                // latéraux donnent les 520 pt de largeur utile sur lesquels
+                // toutes les cartes du prototype ont été dessinées ; la barre
+                // d'onglets, elle, a sa propre marge et n'est pas concernée.
+                .padding(.horizontal, 30)
+                .padding(.top, 26)
                 .padding(.bottom, 24)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -153,26 +158,37 @@ private struct PreferencesView: View {
         HStack(spacing: 2) {
             ForEach(Tab.allCases, id: \.self) { item in
                 let active = item == tab
-                HStack(spacing: 5) {
-                    Image(systemName: item.icon)
-                        .font(.system(size: 11.5, weight: .medium))
-                        .imageScale(.medium)
-                    Text(item.label)
-                        .font(.system(size: 11.5, weight: .medium))
-                        .lineLimit(1)
+                // Un vrai bouton, pas un `Text` avec `onTapGesture` : celui-ci
+                // n'existe ni pour le clavier ni pour VoiceOver, qui annonçait
+                // « texte » sur ce qui est la navigation principale de la
+                // fenêtre. Un bouton se tabule, se déclenche à l'Espace et
+                // s'annonce comme sélectionné.
+                Button {
+                    tab = item
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: item.icon)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .imageScale(.medium)
+                        Text(item.label)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(active ? Style.accent : Style.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(active ? Style.accent.opacity(0.12) : .clear)
+                            .overlay(RoundedRectangle(cornerRadius: 7,
+                                                      style: .continuous)
+                                .strokeBorder(active ? Style.accentBorder : .clear,
+                                              lineWidth: 1)))
+                    .contentShape(Rectangle())
                 }
-                .foregroundStyle(active ? Style.accent : Style.textSecondary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(active ? Style.accent.opacity(0.12) : .clear)
-                        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .strokeBorder(active ? Style.accentBorder : .clear,
-                                          lineWidth: 1)))
-                .contentShape(Rectangle())
-                .onTapGesture { tab = item }
-                .accessibilityAddTraits(active ? [.isSelected, .isButton] : .isButton)
+                .buttonStyle(.plain)
+                .accessibilityLabel(item.label)
+                .accessibilityAddTraits(active ? [.isSelected] : [])
             }
         }
         .padding(3)
@@ -206,7 +222,7 @@ private struct GeneralTab: View {
     var body: some View {
         // La langue d'abord : c'est elle qui décide de ce que les moteurs
         // peuvent faire, et elle vaut pour toute l'application.
-        SectionLabel("Langue Principale de Dictée")
+        SectionLabel("Langue Principale de Dictée", followsHeader: true)
         PrimaryLanguageSelector()
 
         SectionLabel("Destination des Dictées")
@@ -234,29 +250,29 @@ private struct RecordingTab: View {
         // La même vue que l'accueil, sans la zone d'essai : on ne découvre pas
         // la dictée depuis les Réglages. Les deux écrans posaient la même
         // question avec deux implémentations, et elles avaient déjà divergé.
-        SectionLabel("Déclencheur & Permissions")
+        SectionLabel("Déclencheur & Permissions", followsHeader: true)
         TriggerCard(showTrialSandbox: false)
 
         SectionLabel("Aperçu du texte en direct (Live Preview)")
-        Card {
-            SettingsToggleRow(
-                title: "Afficher les mots prononcés en temps réel",
-                description: "Affiche le flux sous la barre flottante pendant la "
-                    + "parole (0 Mo de RAM, moteur macOS).",
-                // La note n'apparaît **que** désactivé : rappeler ce qu'on perd
-                // quand on ne perd rien serait du bruit.
-                note: prefs.livePreviewEnabled ? nil
-                    : "L'aperçu textuel est masqué. La barre flottante affichera "
-                      + "uniquement les ondes sonores pendant la parole.",
-                isOn: $prefs.livePreviewEnabled,
-                isCard: false)
+        SettingsToggleRow(
+            title: "Afficher les mots prononcés en temps réel",
+            description: "Affiche le flux sous la barre flottante pendant la "
+                + "parole (0 Mo de RAM, moteur macOS).",
+            // La note n'apparaît **que** désactivé : rappeler ce qu'on perd
+            // quand on ne perd rien serait du bruit.
+            note: prefs.livePreviewEnabled ? nil
+                : "L'aperçu textuel est masqué. La barre flottante affichera "
+                  + "uniquement les ondes sonores pendant la parole.",
+            isOn: $prefs.livePreviewEnabled,
+            bottomMargin: prefs.livePreviewEnabled ? 10 : 0)
 
-            // Le moteur de l'aperçu n'a de sens à régler que si l'aperçu
-            // tourne. L'afficher éteint donnerait un réglage sans effet.
-            if prefs.livePreviewEnabled {
-                Divider().opacity(0.25)
-                AppleEngineCard(isSubCard: true)
-            }
+        // Une carte **à part**, et non un panneau glissé dans la précédente :
+        // c'est ce que fait `SettingsView.jsx`, et c'est plus juste. Le moteur
+        // n'est pas un détail du réglage « afficher l'aperçu » — il a son
+        // propre état, ses propres modèles à télécharger et sa propre pastille
+        // de validité, qu'une sous-carte sans en-tête ne peut pas montrer.
+        if prefs.livePreviewEnabled {
+            AppleEngineCard()
         }
 
         SectionLabel("Retours Sonores")

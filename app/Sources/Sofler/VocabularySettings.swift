@@ -35,17 +35,17 @@ struct VocabularySettings: View {
     // MARK: - Ce que c'est
 
     private var explanation: some View {
+        // Le prototype titre cette carte « Vocabulaire & Mots Métier ». Il le
+        // peut : sa galerie de composants affiche `VocabularyView` seul. Dans
+        // l'onglet, l'en-tête de page dit déjà « Lexique & Mots Métier » juste
+        // au-dessus — le titre y répétait donc le titre. C'est la page qui
+        // nomme, le composant qui explique.
         Card {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Vocabulaire & Mots Métier")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
-                Text("Guidez l'IA locale avec vos noms propres, acronymes ou "
-                     + "jargon technique.")
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(Style.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            Text("Guidez l'IA locale avec vos noms propres, acronymes ou "
+                 + "jargon technique.")
+                .font(.system(size: 11.5))
+                .foregroundStyle(Style.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
             Note("Ces termes sont injectés comme repères dans l'IA "
                  + "**CrisperWhisper** pour garantir une orthographe exacte "
                  + "(ex : `Next.js`, `API REST`, `Stripe`, `URSSAF`).")

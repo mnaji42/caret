@@ -239,14 +239,32 @@ struct WindowChrome<Trailing: View>: View {
 /// Reprend `.page-header` du prototype — 24 pt gras avec un crénage serré, un
 /// sous-titre de 13 pt, et 20 pt sous l'ensemble.
 struct PageHeader: View {
+    /// Un en-tête d'onboarding et un en-tête d'onglet n'ont pas le même poids.
+    ///
+    /// L'écran d'onboarding n'a que ça à dire : son titre peut occuper la
+    /// place. L'onglet de réglages, lui, coiffe six sections dans une fenêtre
+    /// de 580 pt — un titre à 24 pt y écraserait les libellés de section qu'il
+    /// est censé introduire. Les six onglets du prototype surchargent tous
+    /// `h1` à 18 pt et la marge basse à 14 pt ; c'est cette échelle-là.
+    enum Scale {
+        case screen
+        case tab
+
+        var titleSize: CGFloat { self == .screen ? 24 : 18 }
+        var bottomMargin: CGFloat { self == .screen ? 20 : 14 }
+        /// `letter-spacing: -0.03em`, donc proportionnel au corps.
+        var kerning: CGFloat { titleSize * -0.03 }
+    }
+
     let title: String
     var subtitle: String?
+    var scale: Scale = .screen
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.system(size: 24, weight: .bold))
-                .kerning(-0.72)
+                .font(.system(size: scale.titleSize, weight: .bold))
+                .kerning(scale.kerning)
                 .foregroundStyle(.white)
             if let subtitle {
                 Text(.init(subtitle))
@@ -257,15 +275,26 @@ struct PageHeader: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.bottom, 20)
+        .padding(.bottom, scale.bottomMargin)
     }
 }
 
 /// Le titre d'une section, au-dessus d'une carte — `.section-label`.
 struct SectionLabel: View {
     let text: String
+    /// Le premier libellé d'une page vient juste sous l'en-tête, qui pose déjà
+    /// sa propre marge basse. Les deux s'additionnent — les conteneurs sont des
+    /// piles, pas du flux CSS, donc rien ne fusionne — et la première section
+    /// se retrouve plus détachée que les suivantes alors qu'elle l'est moins.
+    /// Le prototype corrige le cas à la main (`marginTop: 0` sur l'onglet
+    /// Dictée) mais l'oublie sur Général ; ce drapeau rend la correction
+    /// nommée, donc applicable partout de la même façon.
+    var followsHeader = false
 
-    init(_ text: String) { self.text = text }
+    init(_ text: String, followsHeader: Bool = false) {
+        self.text = text
+        self.followsHeader = followsHeader
+    }
 
     var body: some View {
         // Les marges du prototype (`margin-top: 16px; margin-bottom: 8px`) sont
@@ -277,7 +306,7 @@ struct SectionLabel: View {
             .kerning(0.84)
             .foregroundStyle(Style.textTertiary)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 16)
+            .padding(.top, followsHeader ? 0 : 16)
             .padding(.bottom, 8)
     }
 }
@@ -317,12 +346,15 @@ struct SoflerPrimaryButtonStyle: ButtonStyle {
             .foregroundStyle(Style.onAccent)
             .padding(.horizontal, 16)
             .padding(.vertical, 7)
-            .background(Capsule().fill(isEnabled ? Style.accent
-                                                 : Color.white.opacity(0.12)))
+            // Désactivé, le bouton reste **le même bouton**, simplement
+            // estompé — `.btn:disabled { opacity: 0.35 }`. Le repeindre en
+            // gris posait du texte sombre sur un fond sombre : « + Ajouter »
+            // devenait illisible au lieu de se lire comme indisponible.
+            .background(Capsule().fill(Style.accent))
             .shadow(color: isEnabled ? Style.accentGlow : .clear,
                     radius: configuration.isPressed ? 4 : 10, y: 2)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .opacity(isEnabled ? 1 : 0.55)
+            .opacity(isEnabled ? 1 : 0.35)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
@@ -395,6 +427,11 @@ struct Card<Content: View>: View {
     /// écran. Une seule par écran : deux accents concurrents et plus rien ne
     /// ressort.
     var highlighted = false
+    /// `.card { margin-bottom: 12px }`. Réglable parce que le prototype la
+    /// surcharge quand deux blocs doivent se lire comme un seul — la bascule
+    /// de l'aperçu en direct et la carte du moteur qu'elle commande, par
+    /// exemple, se resserrent à 10 pt une fois l'aperçu activé.
+    var bottomMargin: CGFloat = 12
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -418,6 +455,13 @@ struct Card<Content: View>: View {
                                                       : Style.cardStroke,
                                           lineWidth: 1))
             )
+            // `.card { margin-bottom: 12px }`. Portée par la carte plutôt que
+            // par l'espacement du conteneur : `SectionLabel` a ses propres
+            // marges, et un `spacing` de pile s'y ajouterait au lieu de s'y
+            // substituer. Les conteneurs du prototype sont des flex, où les
+            // marges verticales ne fusionnent pas — c'est donc bien 12 pt sous
+            // chaque carte, quel que soit ce qui suit.
+            .padding(.bottom, bottomMargin)
     }
 }
 
