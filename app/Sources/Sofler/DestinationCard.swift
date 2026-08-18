@@ -25,6 +25,7 @@ struct DestinationCard: View, ValidatingComponent {
     @State private var prefs = Preferences.shared
     @State private var isDropTarget = false
     @State private var rejected: String?
+    @State private var showsDiagnostics = false
 
     /// Les formats dans lesquels on peut ajouter du texte sans rien casser.
     ///
@@ -86,32 +87,52 @@ struct DestinationCard: View, ValidatingComponent {
     /// Replié : c'est un outil de dépannage, et il ne concerne personne tant
     /// que rien ne cloche.
     private var diagnostics: some View {
-        DisclosureGroup {
-            Note("Sofler tente de reconnaître le document au premier plan par "
-                 + "l'accessibilité. Ce rapport dit ce qu'il voit — utile "
-                 + "seulement si un fichier ouvert devant vous n'est pas "
-                 + "détecté.")
-            ButtonRow {
-                Button("Afficher le rapport") {
-                    // Capturé **avant** d'activer Sofler : activer changerait
-                    // l'application au premier plan, donc ce qu'on observe.
-                    let report = TargetWriter.diagnostics()
-                    NSApp.activate(ignoringOtherApps: true)
-                    let alert = NSAlert()
-                    alert.messageText = "Détection du fichier"
-                    alert.informativeText = report
-                    alert.addButton(withTitle: "Copier")
-                    alert.addButton(withTitle: "Fermer")
-                    if alert.runModal() == .alertFirstButtonReturn {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(report, forType: .string)
+        VStack(alignment: .leading, spacing: 8) {
+            // Toute la ligne, pas le seul chevron : un `DisclosureGroup` ne
+            // réagit qu'à son triangle sous macOS, et viser le libellé sans
+            // effet fait conclure que le bouton est cassé.
+            Button {
+                withAnimation(.easeOut(duration: 0.18)) { showsDiagnostics.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Text("Un fichier ouvert n'est pas détecté ?")
+                        .font(.system(size: 11))
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .rotationEffect(.degrees(showsDiagnostics ? 90 : 0))
+                }
+                .foregroundStyle(Style.textTertiary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(HoverHighlightButtonStyle())
+
+            if showsDiagnostics {
+                Note("Sofler tente de reconnaître le document au premier plan "
+                     + "par l'accessibilité. Ce rapport dit ce qu'il voit — "
+                     + "utile seulement si un fichier ouvert devant vous n'est "
+                     + "pas détecté.")
+                ButtonRow {
+                    Button("Afficher le rapport") {
+                        // Capturé **avant** d'activer Sofler : activer
+                        // changerait l'application au premier plan, donc ce
+                        // qu'on observe.
+                        let report = TargetWriter.diagnostics()
+                        NSApp.activate(ignoringOtherApps: true)
+                        let alert = NSAlert()
+                        alert.messageText = "Détection du fichier"
+                        alert.informativeText = report
+                        alert.addButton(withTitle: "Copier")
+                        alert.addButton(withTitle: "Fermer")
+                        if alert.runModal() == .alertFirstButtonReturn {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(report, forType: .string)
+                        }
                     }
                 }
             }
-        } label: {
-            Text("Un fichier ouvert n'est pas détecté ?")
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
         }
     }
 

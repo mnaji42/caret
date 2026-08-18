@@ -56,28 +56,65 @@ struct PrimaryLanguageSelector: View {
                     .transition(.opacity)
             }
 
+            // La note d'abord, le bouton ensuite : elle explique l'état, il
+            // propose l'action. Les intervertir ferait lire la conséquence
+            // avant la cause.
+            if !showsCatalog {
+                Note(prefs.selectedLanguages.count > 1
+                     ? "\(prefs.selectedLanguages.count) langues configurées. La "
+                       + "première est celle avec laquelle Sofler dicte ; les "
+                       + "autres attendent d'être activées ici."
+                     : "La langue principale pilote la reconnaissance vocale.")
+            }
+
             Divider().opacity(0.25)
 
-            DisclosureGroup(isExpanded: $showsCatalog) {
-                LanguagePicker()
-                    .padding(.top, 8)
-            } label: {
-                Label(showsCatalog ? "Masquer le catalogue"
-                                   : "Gérer / ajouter des langues…",
-                      systemImage: "globe")
-                    .font(.system(size: 12, weight: .medium))
-                    .contentShape(Rectangle())
-            }
-            .tint(Style.accent)
+            catalogueToggle
 
-            if !showsCatalog, prefs.selectedLanguages.count > 1 {
-                Note("\(prefs.selectedLanguages.count) langues configurées. La "
-                     + "première est celle avec laquelle Sofler dicte ; les "
-                     + "autres attendent d'être activées ici.")
+            if showsCatalog {
+                LanguagePicker()
             }
         }
         .animation(.easeOut(duration: 0.2), value: coordinator.confirmation)
         .onAppear { coordinator.audit() }
+    }
+
+    /// Le bouton qui déplie le catalogue — **toute la ligne**, pas le chevron.
+    ///
+    /// C'était un `DisclosureGroup`, et c'était un piège : sous macOS, seul le
+    /// petit triangle réagit au clic. On vise « Gérer / ajouter des langues… »,
+    /// il ne se passe rien, et on en conclut que le bouton est cassé. Le
+    /// prototype a la même faiblesse — son libellé est du texte à côté d'un
+    /// bouton — mais l'avoir dans les deux ne la rend pas acceptable.
+    ///
+    /// Une seule cible, large de toute la carte : impossible de la manquer, et
+    /// le survol montre où elle commence et où elle finit.
+    private var catalogueToggle: some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.18)) { showsCatalog.toggle() }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "globe")
+                    .font(.system(size: 12))
+                Text(showsCatalog ? "Masquer le catalogue"
+                                  : "Gérer / ajouter des langues…")
+                    .font(.system(size: 12, weight: .medium))
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .rotationEffect(.degrees(showsCatalog ? 90 : 0))
+            }
+            .foregroundStyle(Style.accent)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            // Sans ça, seuls les pixels du texte et de l'icône seraient
+            // cliquables, et le vide entre les deux ne le serait pas.
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(HoverHighlightButtonStyle())
+        .accessibilityLabel(showsCatalog ? "Masquer le catalogue de langues"
+                                         : "Gérer ou ajouter des langues")
+        .accessibilityAddTraits(showsCatalog ? [.isSelected, .isButton] : .isButton)
     }
 
     /// Le bandeau de repli, avec l'action qui le lève quand il y en a une.

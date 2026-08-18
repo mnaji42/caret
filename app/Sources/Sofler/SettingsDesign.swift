@@ -321,6 +321,27 @@ struct SoflerPrimaryButtonStyle: ButtonStyle {
     }
 }
 
+/// Un bouton qui occupe une ligne entière et se révèle au survol.
+///
+/// Pour les actions qui déplient une section : le survol dessine la surface
+/// réellement cliquable, ce qui répond avant le clic à la question « est-ce que
+/// ça se clique, et jusqu'où ». Un libellé nu ne le dit pas, et on finit par
+/// viser l'icône en espérant.
+struct HoverHighlightButtonStyle: ButtonStyle {
+    @State private var hovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(Color.white.opacity(configuration.isPressed ? 0.10
+                                              : (hovering ? 0.06 : 0))))
+            .onHover { hovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: hovering)
+    }
+}
+
 /// Bouton secondaire : même pilule, sans le remplissage.
 struct SoflerSecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
