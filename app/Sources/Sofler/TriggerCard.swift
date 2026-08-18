@@ -54,7 +54,7 @@ struct TriggerCard: View, ValidatingComponent {
     private var permissionsComplete: Bool { Self.isValid }
 
     var body: some View {
-        Card(title: "") {
+        Card {
             Row(label: "Dicter avec :") {
                 PillPicker(options: [(Preferences.TriggerKind.option, "Touche Option"),
                                      (Preferences.TriggerKind.shortcut, "Raccourci clavier")],

@@ -73,7 +73,7 @@ struct SpeechAccessRow: View {
 
 #Preview("Reconnaissance vocale") {
     VStack(alignment: .leading, spacing: 16) {
-        Card(title: "Moteur macOS · Dictée") {
+        Card {
             SpeechAccessRow(explains: true)
         }
     }

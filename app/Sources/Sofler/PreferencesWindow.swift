@@ -185,8 +185,12 @@ private struct PreferencesView: View {
         // bande. `.top` ne réserve que la barre de titre, sans marge ajoutée —
         // l'écart au-dessus faisait lire les onglets comme un bloc détaché,
         // alors qu'ils appartiennent au chrome de la fenêtre.
-        .padding(.horizontal, 10)
-        .padding(.top, 40)
+        // Pas de marge haute ajoutée : la fenêtre est en `fullSizeContentView`,
+        // mais SwiftUI réserve quand même l'encart de sécurité de la barre de
+        // titre. Les 40 pt que j'ajoutais s'empilaient dessus et creusaient un
+        // vide de la hauteur d'une carte au-dessus des onglets.
+        .padding(.horizontal, 8)
+        .padding(.top, 4)
         .padding(.bottom, 8)
         .background(
             Color(hex: 0x0F172A).opacity(0.65)
@@ -234,7 +238,7 @@ private struct RecordingTab: View {
         TriggerCard(showTrialSandbox: false)
 
         SectionLabel("Aperçu du texte en direct (Live Preview)")
-        Card(title: "") {
+        Card {
             SettingsToggleRow(
                 title: "Afficher les mots prononcés en temps réel",
                 description: "Affiche le flux sous la barre flottante pendant la "
@@ -256,7 +260,7 @@ private struct RecordingTab: View {
         }
 
         SectionLabel("Retours Sonores")
-        Card(title: "") {
+        Card {
             SettingsToggleRow(
                 title: "Sons de début et de fin",
                 description: "Émet un bip discret pour confirmer l'ouverture et "
@@ -266,6 +270,7 @@ private struct RecordingTab: View {
                 .onChange(of: soundsEnabled) { _, new in Feedback.soundsEnabled = new }
         }
 
+        SectionLabel("Micro")
         MicrophoneModeCard()
     }
 }
@@ -280,7 +285,7 @@ private struct MicrophoneModeCard: View {
     @State private var mode = AudioRecorder.microphoneModeLabel
 
     var body: some View {
-        Card(title: "Micro") {
+        Card {
             Row(label: "Mode") {
                 Text(mode).font(.system(size: 12)).foregroundStyle(.secondary)
             }
@@ -315,7 +320,7 @@ private struct LoginItemCard: View {
     @State private var refused = false
 
     var body: some View {
-        Card(title: "Démarrage") {
+        Card {
             SettingsToggleRow(
                 title: "Lancer Sofler à l'ouverture de session",
                 description: "Disponible dans la barre de menus dès le "
@@ -371,7 +376,7 @@ private struct CollectionTab: View {
             isOn: $prefs.corpusEnabled)
 
         if prefs.corpusEnabled {
-            Card(title: "") {
+            Card {
                 SettingsToggleRow(
                     title: "Conserver aussi l'audio (.wav)",
                     description: "Permet de ré-exécuter de futurs modèles sur vos "

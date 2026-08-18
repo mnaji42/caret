@@ -35,7 +35,7 @@ struct VocabularySettings: View {
     // MARK: - Ce que c'est
 
     private var explanation: some View {
-        Card(title: "") {
+        Card {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Vocabulaire & Mots Métier")
                     .font(.system(size: 13, weight: .semibold))

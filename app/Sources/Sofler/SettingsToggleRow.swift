@@ -38,7 +38,7 @@ struct SettingsToggleRow: View {
         // l'ouverture de session » criait plus fort que le titre de l'écran.
         // Dans le prototype, le titre est une ligne ordinaire *dans* la carte.
         if isCard {
-            Card(title: "") { content }
+            Card { content }
         } else {
             VStack(alignment: .leading, spacing: 8) { content }
         }

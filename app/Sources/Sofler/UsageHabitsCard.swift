@@ -38,7 +38,7 @@ struct UsageHabitsCard: View, ValidatingComponent {
     ]
 
     var body: some View {
-        Card(title: "") {
+        Card {
             ForEach(Self.questions, id: \.0) { habit, question in
                 choice(habit, question)
             }

@@ -93,7 +93,7 @@ struct CrisperEngineCard: View, ValidatingComponent {
             if isSubCard {
                 content
             } else {
-                Card(title: "") { content }
+                Card { content }
             }
         }
         // Le modèle peut changer depuis ailleurs — un retrait dans une autre

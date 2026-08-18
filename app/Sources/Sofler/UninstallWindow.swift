@@ -115,7 +115,8 @@ private struct UninstallView: View {
                 .font(.system(size: 13))
                 .fixedSize(horizontal: false, vertical: true)
 
-            Card(title: "à retirer aussi") {
+            SectionLabel("à retirer aussi")
+            Card {
                 ForEach(scope.items) { item in
                     let present = Uninstall.isPresent(item)
                     VStack(alignment: .leading, spacing: 3) {
@@ -145,7 +146,8 @@ private struct UninstallView: View {
             }
 
             if selected.contains(.corpus), Corpus.shared.statistics().count > 0 {
-                Card(title: "attention") {
+                SectionLabel("attention")
+                Card {
                     Note("Vous avez coché **\(Corpus.shared.statistics().count) "
                          + "dictées archivées**. Elles vont à la corbeille, "
                          + "donc elles sont récupérables tant que vous ne "
@@ -154,7 +156,8 @@ private struct UninstallView: View {
                 }
             }
 
-            Card(title: "ce qui n'est jamais touché") {
+            SectionLabel("ce qui n'est jamais touché")
+            Card {
                 Note("**Votre fichier de notes.** S'il en existe un, c'est "
                      + "votre document : Sofler y écrivait, il ne lui "
                      + "appartient pas.")
@@ -169,7 +172,8 @@ private struct UninstallView: View {
 
     private func summary(_ lines: [String]) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Card(title: "ce qui a été fait") {
+            SectionLabel("ce qui a été fait")
+            Card {
                 ForEach(lines, id: \.self) { line in
                     Text(line)
                         .font(.system(size: 12, design: .monospaced))
@@ -179,7 +183,8 @@ private struct UninstallView: View {
             }
 
             if !selected.contains(.corpus), Corpus.shared.statistics().count > 0 {
-                Card(title: "ce qui reste") {
+                SectionLabel("ce qui reste")
+                Card {
                     Note("Vos dictées archivées sont toujours là, dans "
                          + "`~/Library/Application Support/Sofler`. "
                          + "Réinstaller Sofler les retrouvera.")

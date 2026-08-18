@@ -72,7 +72,7 @@ struct AppleEngineCard: View, ValidatingComponent {
         if isSubCard {
             VStack(alignment: .leading, spacing: 12) { content }
         } else {
-            Card(title: "") { content }
+            Card { content }
         }
     }
 

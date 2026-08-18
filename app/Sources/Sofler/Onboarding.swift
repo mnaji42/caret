@@ -196,7 +196,7 @@ private struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 0) {
             SectionLabel("Le principe en trois points")
 
-            Card(title: "") {
+            Card {
                 principle(1, "Écrivez au son de votre voix",
                           "Appuyez sur une touche, parlez naturellement dans "
                           + "n'importe quelle application, relâchez. Le texte "
@@ -218,7 +218,7 @@ private struct OnboardingView: View {
 
             SectionLabel("Ce que nous allons configurer")
 
-            Card(title: "", highlighted: true) {
+            Card(highlighted: true) {
                 Text(.init("Ce court parcours vous aide à **choisir vos "
                            + "langues**, **activer les deux accès système "
                            + "requis** et **faire un premier essai vocal**."))
@@ -252,7 +252,7 @@ private struct OnboardingView: View {
     private var preferencesStep: some View {
         VStack(alignment: .leading, spacing: 0) {
             SectionLabel("Langues de dictée (Au moins 1 langue requise)")
-            Card(title: "") { LanguagePicker() }
+            Card { LanguagePicker() }
                 .padding(.bottom, 12)
 
             SectionLabel("Vos habitudes d'expression (Optionnel)")

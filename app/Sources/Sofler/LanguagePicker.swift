@@ -235,7 +235,7 @@ struct LanguagePicker: View, ValidatingComponent {
 
 #Preview("Catalogue de langues") {
     ScrollView {
-        Card(title: "Langues de dictée") {
+        Card {
             LanguagePicker()
         }
         .padding(Style.windowPadding)

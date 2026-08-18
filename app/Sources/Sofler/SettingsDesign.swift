@@ -391,7 +391,6 @@ struct NumberBadge: View {
 /// Remplace `Section` dans un `Form` groupé, dont le rendu système jure avec le
 /// reste de l'application.
 struct Card<Content: View>: View {
-    let title: String
     /// Teintée turquoise, pour la carte qui porte le message essentiel d'un
     /// écran. Une seule par écran : deux accents concurrents et plus rien ne
     /// ressort.
@@ -399,31 +398,26 @@ struct Card<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Un titre vide n'imprime pas de ligne : certaines cartes se
-            // suffisent, et réserver la hauteur laisserait un blanc inexpliqué.
-            if !title.isEmpty {
-                Text(title.uppercased())
-                    .font(.system(size: 10.5, weight: .bold))
-                    .kerning(0.9)
-                    .foregroundStyle(Style.textTertiary)
-            }
-
-            VStack(alignment: .leading, spacing: 14) { content }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: Style.cardRadius, style: .continuous)
-                        .fill(highlighted ? Style.accent.opacity(0.05) : Style.cardFill)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Style.cardRadius,
-                                             style: .continuous)
-                                .strokeBorder(highlighted ? Style.accentBorder
-                                                          : Style.cardStroke,
-                                              lineWidth: 1))
-                )
-        }
+        // **Pas de titre.** Le paramètre existait, et il produisait des titres
+        // en double : la page posait « DÉMARRAGE & SYSTÈME », la carte
+        // répondait « DÉMARRAGE » juste en dessous. Le retirer rend la faute
+        // impossible plutôt qu'à surveiller — c'est la page parente qui nomme
+        // ses sections avec `SectionLabel`, puis appelle le composant qui porte
+        // la logique.
+        VStack(alignment: .leading, spacing: 14) { content }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: Style.cardRadius, style: .continuous)
+                    .fill(highlighted ? Style.accent.opacity(0.05) : Style.cardFill)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Style.cardRadius,
+                                         style: .continuous)
+                            .strokeBorder(highlighted ? Style.accentBorder
+                                                      : Style.cardStroke,
+                                          lineWidth: 1))
+            )
     }
 }
 

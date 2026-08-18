@@ -44,7 +44,7 @@ struct DestinationCard: View, ValidatingComponent {
     private var hasFile: Bool { prefs.noteFile != nil }
 
     var body: some View {
-        Card(title: "") {
+        Card {
             HStack(alignment: .top, spacing: 16) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Mode d'insertion par défaut")
