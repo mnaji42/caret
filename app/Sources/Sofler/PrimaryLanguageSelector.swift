@@ -29,11 +29,20 @@ struct PrimaryLanguageSelector: View {
 
     var body: some View {
         Card {
-            if prefs.selectedLanguages.count <= Self.pillLimit {
-                PillPicker(options: prefs.activeLanguages.map { ($0.code, $0.badge) },
-                           selection: $prefs.primaryLanguage)
-            } else {
-                Row(label: "Langue active") {
+            // « Langue active : » à gauche, le sélecteur à droite — la
+            // `card-row` du prototype. Les pastilles étaient collées à gauche
+            // sans rien pour les nommer : la ligne ne disait pas de quoi elle
+            // parlait, et rien ne l'alignait sur les autres réglages de la
+            // fenêtre, qui posent tous leur libellé à gauche.
+            HStack(spacing: 12) {
+                Text("Langue active :")
+                    .font(.system(size: 12.5, weight: .medium))
+                Spacer(minLength: 8)
+
+                if prefs.selectedLanguages.count <= Self.pillLimit {
+                    PillPicker(options: prefs.activeLanguages.map { ($0.code, $0.badge) },
+                               selection: $prefs.primaryLanguage)
+                } else {
                     Picker("", selection: $prefs.primaryLanguage) {
                         ForEach(prefs.activeLanguages) { language in
                             Text(language.badge).tag(language.code)
@@ -41,7 +50,7 @@ struct PrimaryLanguageSelector: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
-                    .frame(width: 200)
+                    .fixedSize()
                 }
             }
 
@@ -61,10 +70,11 @@ struct PrimaryLanguageSelector: View {
             // propose l'action. Les intervertir ferait lire la conséquence
             // avant la cause.
             if !showsCatalog {
-                Note(prefs.selectedLanguages.count > 1
-                     ? "\(prefs.selectedLanguages.count) langues configurées. La "
-                       + "première est celle avec laquelle Sofler dicte ; les "
-                       + "autres attendent d'être activées ici."
+                // Ne dit plus « la première est celle avec laquelle Sofler
+                // dicte » : c'est devenu faux le jour où la langue principale
+                // a cessé de se déduire de l'ordre de la liste.
+                Note(prefs.selectedLanguages.count > Self.pillLimit
+                     ? "Vous avez \(prefs.selectedLanguages.count) langues actives configurées."
                      : "La langue principale pilote la reconnaissance vocale.")
             }
 
@@ -77,7 +87,7 @@ struct PrimaryLanguageSelector: View {
             }
         }
         .animation(.easeOut(duration: 0.2), value: coordinator.confirmation)
-        .onAppear { coordinator.audit() }
+        .onAppear { coordinator.probePrimaryLanguage() }
     }
 
     /// Le bouton qui déplie le catalogue — **toute la ligne**, pas le chevron.

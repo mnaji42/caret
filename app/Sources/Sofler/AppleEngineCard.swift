@@ -27,6 +27,42 @@ struct AppleEngineCard: View, ValidatingComponent {
     /// en-tête, qui feraient une carte dans une carte.
     var isSubCard = false
 
+    /// Lequel des deux moteurs cette carte règle.
+    ///
+    /// Le même composant sert deux fois — sous la bascule de l'aperçu en direct,
+    /// et dans le panneau « macOS (Natif) » du moteur final — et chaque
+    /// exemplaire pilote **son** réglage. C'est le `target` de
+    /// `AppleEngineCard.jsx`. Sans lui, les deux cartes écrivaient la même
+    /// valeur : choisir Dictée pour l'aperçu basculait aussi la transcription,
+    /// et réciproquement.
+    var target: Target = .live
+
+    enum Target { case live, final }
+
+    /// La version réglée par cette carte-ci.
+    private var technology: EngineChoice {
+        target == .final ? prefs.finalAppleTechnology : prefs.liveEngineTechnology
+    }
+
+    private func setTechnology(_ choice: EngineChoice) {
+        switch target {
+        case .final:
+            prefs.finalAppleTechnology = choice
+        case .live:
+            prefs.liveEngineTechnology = choice
+            // Le seul point de contact qui subsiste, et il ne joue qu'une fois :
+            // tant que la version de la passe finale n'a jamais été choisie,
+            // régler l'aperçu la règle aussi. C'est le cas de l'accueil, où
+            // l'écran 3 vient avant l'écran 4 — sans ça, prendre Dictée pour
+            // l'aperçu laisserait Apple Intelligence en transcription sans que
+            // personne l'ait demandé. Dès qu'elle a été choisie une fois, elle
+            // ne bouge plus toute seule.
+            if !prefs.finalTechnologyWasChosen {
+                prefs.finalAppleTechnology = choice
+            }
+        }
+    }
+
     @State private var prefs = Preferences.shared
     @State private var assets = SpeechAssets.shared
     @State private var monitor = PermissionsMonitor.shared
@@ -39,11 +75,20 @@ struct AppleEngineCard: View, ValidatingComponent {
     /// Deux conditions selon la version, et elles n'ont rien à voir : Apple
     /// Intelligence veut son modèle sur le disque, la Dictée veut le droit de
     /// reconnaissance vocale — elle se sert des actifs que macOS a déjà.
-    static func validate() -> ComponentValidationError? {
+    /// `target` décide **quelle** version on juge : l'écran de l'aperçu en
+    /// direct valide celle de l'aperçu, l'écran du moteur final celle de la
+    /// passe finale. Les juger toutes deux sur la seconde bloquait l'écran 3
+    /// de l'accueil sur l'état d'un réglage qui ne s'y règle pas.
+    /// La conformité au protocole, qui juge la passe finale — la seule dont
+    /// dépend ce qui sera réellement inséré.
+    static func validate() -> ComponentValidationError? { validate(target: .final) }
+
+    static func validate(target: Target) -> ComponentValidationError? {
         let prefs = Preferences.shared
         let language = prefs.primaryLanguage
 
-        switch prefs.appleTechnology {
+        switch target == .final ? prefs.finalAppleTechnology
+                                : prefs.liveEngineTechnology {
         case .apple:
             guard EngineChoice.apple.isAvailable(for: language) else {
                 return .noSystemEngine(
@@ -61,8 +106,8 @@ struct AppleEngineCard: View, ValidatingComponent {
             return PermissionsMonitor.shared.speechGranted
                 ? nil : .speechRecognitionPermissionRequired
         case .crisperWhisper:
-            // Impossible par construction : `appleTechnology` ne prend que les
-            // deux versions de macOS. On ne bloque pas sur un état qui ne peut
+            // Impossible par construction : les deux réglages de version ne
+              // prennent que les deux versions de macOS. On ne bloque pas sur un état qui ne peut
             // pas exister.
             return nil
         }
@@ -99,7 +144,7 @@ struct AppleEngineCard: View, ValidatingComponent {
 
         versionPicker
 
-        switch prefs.appleTechnology {
+        switch technology {
         case .appleLegacy:
             SpeechAccessRow(explains: !isSubCard)
         default:
@@ -126,12 +171,12 @@ struct AppleEngineCard: View, ValidatingComponent {
     }
 
     private var headerTitle: String {
-        let version = prefs.appleTechnology
+        let version = technology
         return "macOS · \(version.versionLabel ?? version.label)"
     }
 
     private var headerDetail: String {
-        prefs.appleTechnology == .apple
+        technology == .apple
             ? "Fourni par macOS 26+ (SpeechTranscriber) : modèles neuronaux sur "
                 + "puce Apple. Zéro donnée envoyée au cloud, 0 Mo de RAM résidente."
             : "Fourni par macOS (SFSpeechRecognizer) : prêt immédiatement, "
@@ -162,10 +207,10 @@ struct AppleEngineCard: View, ValidatingComponent {
             Row(label: "Technologie :") {
                 PillPicker(options: available.map { ($0, $0.versionLabel ?? $0.label) },
                            selection: Binding(
-                               get: { prefs.appleTechnology },
-                               set: { prefs.appleTechnology = $0 }))
+                               get: { technology },
+                               set: { setTechnology($0) }))
             }
-            if let explanation = prefs.appleTechnology.versionExplanation {
+            if let explanation = technology.versionExplanation {
                 Note(explanation)
             }
         } else if let only = available.first {
@@ -286,7 +331,6 @@ struct AppleEngineCard: View, ValidatingComponent {
                 for code in codes { await assets.install(code) }
                 installing.subtract(codes)
                 // Le repli éventuel se lève dès que le modèle est là.
-                LanguageSwitchCoordinator.shared.audit()
             }
         }
         .buttonStyle(.borderedProminent)

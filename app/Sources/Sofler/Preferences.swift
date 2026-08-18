@@ -32,6 +32,7 @@ final class Preferences {
         static let defaultMode = "sofler.mode"
         static let language = "sofler.language"          // hérité, migré vers languages
         static let languages = "sofler.languages.selected"
+        static let primaryLanguage = "sofler.languages.primary"
         static let noteFile = "sofler.notes.file"
         static let destination = "sofler.dictation.destination"
         static let livePreview = "sofler.preview.live"
@@ -39,7 +40,7 @@ final class Preferences {
         static let corpusAudio = "sofler.corpus.audio"
         static let engine = "sofler.engine"              // hérité, migré vers final/apple
         static let finalEngine = "sofler.engine.final"
-        static let appleTechnology = "sofler.engine.apple"
+        static let finalAppleTechnology = "sofler.engine.apple"
         static let liveTechnology = "sofler.engine.live"
         static let shortcut = "sofler.shortcut"
         static let corpusEngines = "sofler.corpus.engines"
@@ -218,36 +219,59 @@ final class Preferences {
                 return
             }
             defaults.set(selectedLanguages, forKey: Key.languages)
-            // La langue principale a pu changer de place. Tout ce qui en dépend
-            // — la version de macOS capable de l'écrire, le moteur final — est
-            // réévalué au même endroit pour tout le monde.
-            if oldValue.first != selectedLanguages.first {
-                LanguageSwitchCoordinator.shared.primaryLanguageChanged()
+            // Retirer la langue principale la remplace par la première qui
+            // reste — la seule circonstance où l'ordre a son mot à dire. Le
+            // reste du temps il ne décide de rien : ajouter, retirer ou
+            // réordonner ne change pas avec quoi on dicte.
+            if !selectedLanguages.contains(storedPrimaryLanguage) {
+                storedPrimaryLanguage = selectedLanguages[0]
             }
         }
     }
 
-    /// La langue avec laquelle on dicte, c'est-à-dire la première de la liste.
+    /// La langue principale, **rangée à part de l'ordre de la liste**.
     ///
-    /// Calculée plutôt que stockée : deux champs pour une seule vérité, c'est
-    /// une occasion de les voir diverger, et ce projet en a déjà payé une
-    /// (cf. `DictationController`, où les réglages étaient recopiés).
-    ///
-    /// L'affecter **déplace** la langue en tête au lieu de l'ajouter : on
-    /// choisit sa langue principale parmi celles qu'on a déclarées, on n'en
-    /// déclare pas une nouvelle par ce chemin.
-    var primaryLanguage: String {
-        get { selectedLanguages.first ?? Language.fallback }
-        set {
-            guard selectedLanguages.contains(newValue) else { return }
-            guard newValue != selectedLanguages.first else { return }
-            selectedLanguages = [newValue]
-                + selectedLanguages.filter { $0 != newValue }
+    /// Elle se déduisait de la position 0, et l'affecter remontait la langue en
+    /// tête. Les deux se voyaient : choisir l'anglais faisait permuter les
+    /// pastilles sous le curseur, et la liste du gestionnaire se réordonnait à
+    /// chaque bascule. L'ordre et la langue active sont deux faits distincts —
+    /// *quand la langue a été ajoutée*, et *avec laquelle on dicte* — et le
+    /// prototype les range d'ailleurs dans deux états séparés.
+    private var storedPrimaryLanguage: String {
+        didSet {
+            guard storedPrimaryLanguage != oldValue else { return }
+            defaults.set(storedPrimaryLanguage, forKey: Key.primaryLanguage)
+            // Tout ce qui dépend de la langue — la version de macOS capable de
+            // l'écrire, le moteur final — est réévalué au même endroit pour
+            // tout le monde.
+            LanguageSwitchCoordinator.shared.primaryLanguageChanged()
         }
     }
 
-    /// Les langues déclarées, en plus de la principale.
-    var secondaryLanguages: [String] { Array(selectedLanguages.dropFirst()) }
+    /// La langue avec laquelle on dicte.
+    ///
+    /// L'affecter ne **déplace rien** : on choisit sa langue principale parmi
+    /// celles qu'on a déclarées, et les autres restent où elles étaient.
+    /// Une valeur qui ne fait pas partie des langues déclarées est ignorée,
+    /// et la lecture retombe sur la première déclarée — l'invariant « la
+    /// principale est toujours l'une des déclarées » tient donc même si les
+    /// réglages sur disque ont été édités à la main.
+    var primaryLanguage: String {
+        get {
+            selectedLanguages.contains(storedPrimaryLanguage)
+                ? storedPrimaryLanguage
+                : (selectedLanguages.first ?? Language.fallback)
+        }
+        set {
+            guard selectedLanguages.contains(newValue) else { return }
+            storedPrimaryLanguage = newValue
+        }
+    }
+
+    /// Les langues déclarées, en plus de la principale — dans leur ordre.
+    var secondaryLanguages: [String] {
+        selectedLanguages.filter { $0 != primaryLanguage }
+    }
 
     /// La licence de recherche non commerciale des poids a-t-elle été acceptée ?
     ///
@@ -319,7 +343,11 @@ final class Preferences {
             if selectedLanguages.contains(newValue) {
                 primaryLanguage = newValue
             } else {
-                selectedLanguages = [newValue] + selectedLanguages
+                // Ajoutée **à la fin**, comme le fait `toggleLanguage` dans le
+                // prototype : la liste garde l'ordre de déclaration. C'est le
+                // choix de la principale qui la rend principale, pas sa place.
+                selectedLanguages.append(newValue)
+                primaryLanguage = newValue
             }
         }
     }
@@ -426,36 +454,44 @@ final class Preferences {
     ///
     /// Toujours une des deux, jamais CrisperWhisper : c'est ce que garantit le
     /// point d'entrée `engine`, seul chemin d'écriture exposé aux vues.
-    var appleTechnology: EngineChoice {
+    var finalAppleTechnology: EngineChoice {
         didSet {
-            defaults.set(appleTechnology.rawValue, forKey: Key.appleTechnology)
+            defaults.set(finalAppleTechnology.rawValue, forKey: Key.finalAppleTechnology)
         }
     }
 
     /// La version de macOS qui alimente l'aperçu en direct.
     ///
-    /// Stockée à part, mais **pas indépendante**, et c'est délibéré. Quand
-    /// macOS écrit, l'aperçu emploie exactement la version qui écrira : il
-    /// devient alors une vraie préversion du texte inséré, et non une seconde
-    /// opinion qui ne ressemblera pas au résultat. Les documents de conception
-    /// demandaient deux réglages libres ; ça aurait fait afficher pendant la
-    /// dictée un texte qu'aucun moteur n'allait produire.
-    ///
-    /// La valeur stockée ne sert donc que lorsque CrisperWhisper écrit — cas où
-    /// aucune préversion fidèle n'est possible, puisque le moteur final ne
-    /// travaille qu'une fois la phrase finie.
+    /// **Indépendante de celle de la passe finale.** Elle était couplée : régler
+    /// l'aperçu sur Dictée réglait aussi la transcription sur Dictée, et
+    /// l'inverse. L'argument était qu'un aperçu utilisant l'autre version
+    /// afficherait un texte que le moteur final n'allait pas produire — mais ce
+    /// sont deux besoins différents et l'utilisateur arbitre lui-même : Dictée
+    /// pour un aperçu léger pendant qu'on parle, Apple Intelligence pour le
+    /// texte définitif, ou l'inverse. Le prototype range d'ailleurs les deux
+    /// dans deux états séparés (`liveEngineTechnology`, `finalAppleTechnology`)
+    /// et `AppleEngineCard` choisit lequel piloter via son `target`.
     var liveEngineTechnology: EngineChoice {
-        get { finalEngine == .apple ? appleTechnology : storedLiveTechnology }
-        set {
-            storedLiveTechnology = newValue
-            if finalEngine == .apple { appleTechnology = newValue }
+        didSet {
+            defaults.set(liveEngineTechnology.rawValue, forKey: Key.liveTechnology)
         }
     }
 
-    private var storedLiveTechnology: EngineChoice {
-        didSet {
-            defaults.set(storedLiveTechnology.rawValue, forKey: Key.liveTechnology)
-        }
+    /// La version de la passe finale a-t-elle déjà été choisie **explicitement** ?
+    ///
+    /// Sert au seul endroit où les deux réglages se parlent encore : pendant
+    /// l'accueil, choisir la version de l'aperçu alors que celle de la
+    /// transcription n'a jamais été touchée pose la même des deux côtés. Sans
+    /// ça, quelqu'un qui prend Dictée à l'écran 3 se retrouve avec Apple
+    /// Intelligence à l'écran 4 sans l'avoir demandé. Dès qu'elle est choisie
+    /// une fois, elle ne bouge plus toute seule — y compris si l'on revient en
+    /// arrière changer l'aperçu.
+    ///
+    /// Mesuré sur la présence de la clé, et non sur un drapeau de plus : les
+    /// observateurs ne se déclenchent pas pendant l'initialisation, donc la
+    /// valeur par défaut calculée au démarrage n'écrit rien.
+    var finalTechnologyWasChosen: Bool {
+        defaults.string(forKey: Key.finalAppleTechnology) != nil
     }
 
     /// Le moteur qui écrit, recomposé à partir des deux réglages ci-dessus.
@@ -465,13 +501,13 @@ final class Preferences {
     /// décompose vers le bon couple, ce qui évite à chaque appelant de savoir
     /// que la décision est désormais rangée en deux morceaux.
     var engine: EngineChoice {
-        get { finalEngine == .crisperWhisper ? .crisperWhisper : appleTechnology }
+        get { finalEngine == .crisperWhisper ? .crisperWhisper : finalAppleTechnology }
         set {
             switch newValue {
             case .crisperWhisper:
                 finalEngine = .crisperWhisper
             case .apple, .appleLegacy:
-                appleTechnology = newValue
+                finalAppleTechnology = newValue
                 finalEngine = .apple
             }
         }
@@ -612,6 +648,13 @@ final class Preferences {
             languages = [Language.fallback]
         }
         selectedLanguages = languages
+        // Avant, la principale était la première de la liste. Les installations
+        // existantes n'ont donc pas la clé : leur `languages[0]` *est* leur
+        // langue principale, et la reprendre telle quelle ne change rien pour
+        // elles.
+        let storedPrimary = defaults.string(forKey: Key.primaryLanguage)
+        storedPrimaryLanguage = storedPrimary.flatMap { languages.contains($0) ? $0 : nil }
+            ?? languages[0]
         // La langue principale sert plus bas à choisir un moteur par défaut.
         // Elle passe par une locale, et non par `selectedLanguages` : sous
         // `@Observable`, relire une propriété stockée avant que toutes le
@@ -668,11 +711,11 @@ final class Preferences {
         // l'ancien réglage désignait s'il en désignait une, sinon celle que
         // cette machine sait faire tourner — mesuré, jamais déduit du numéro
         // de version.
-        let resolvedApple = EngineChoice(rawValue: defaults.string(forKey: Key.appleTechnology) ?? "")
+        let resolvedApple = EngineChoice(rawValue: defaults.string(forKey: Key.finalAppleTechnology) ?? "")
             ?? (legacyEngine?.isSystem == true ? legacyEngine : nil)
             ?? Self.defaultEngine(for: primary)
-        appleTechnology = resolvedApple
-        storedLiveTechnology = EngineChoice(rawValue: defaults.string(forKey: Key.liveTechnology) ?? "")
+        finalAppleTechnology = resolvedApple
+        liveEngineTechnology = EngineChoice(rawValue: defaults.string(forKey: Key.liveTechnology) ?? "")
             ?? Self.defaultEngine(for: primary)
         // Au premier lancement, le dernier moteur valide est celui qu'on vient
         // de retenir : rien n'a encore échoué, et démarrer sur un repli

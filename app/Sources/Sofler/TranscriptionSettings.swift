@@ -13,13 +13,17 @@ import SwiftUI
 /// de deux copies : on ajoute une fonctionnalité là où on travaille, et elle
 /// manque ailleurs sans que rien ne le signale.
 ///
-/// Le découpage en composants va au bout de la même idée. Chaque question vit
+/// Le découpage en composants va au bout de la même idée : chaque question vit
 /// dans une vue autonome qui porte sa propre logique système et sa propre
-/// validité, et cette vue-ci n'est plus qu'un ordre de lecture : la langue
-/// décide de ce que les moteurs peuvent faire, donc elle vient d'abord.
+/// validité.
+///
+/// **La langue ne se change pas ici.** Le sélecteur y était aussi, en double
+/// avec l'onglet Général — deux endroits pour un seul réglage, donc deux
+/// endroits à tenir d'accord, et la question « laquelle des deux fait foi »
+/// posée à qui les voit. Le prototype ne la propose que dans Général ; cet
+/// onglet choisit le moteur, celui-là choisit la langue.
 struct TranscriptionSettings: View {
     var body: some View {
-        PrimaryLanguageSelector()
         FinalEngineCard()
     }
 }

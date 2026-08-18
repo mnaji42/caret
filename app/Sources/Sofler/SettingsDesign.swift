@@ -525,16 +525,28 @@ struct PillPicker<Value: Hashable>: View {
         HStack(spacing: 2) {
             ForEach(options, id: \.value) { option in
                 let active = option.value == selection
-                Text(option.label)
-                    .font(.system(size: 12, weight: active ? .semibold : .medium))
-                    .foregroundStyle(active ? Style.accent : Color.secondary)
-                    .padding(.horizontal, 10)
-                    .frame(height: Self.height - 2 * Self.inset)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(active ? Style.accent.opacity(0.20) : .clear))
-                    .contentShape(Rectangle())
-                    .onTapGesture { if !disabled { selection = option.value } }
+                // De vrais boutons, comme la barre d'onglets. Un `Text` avec un
+                // `onTapGesture` n'existe ni pour le clavier ni pour VoiceOver
+                // — et ce composant porte le choix de la langue, celui de la
+                // destination et celui de la version du moteur : trois
+                // réglages qu'on ne pouvait atteindre qu'à la souris.
+                Button {
+                    selection = option.value
+                } label: {
+                    Text(option.label)
+                        .font(.system(size: 12, weight: active ? .semibold : .medium))
+                        .foregroundStyle(active ? Style.accent : Color.secondary)
+                        .padding(.horizontal, 10)
+                        .frame(height: Self.height - 2 * Self.inset)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(active ? Style.accent.opacity(0.20) : .clear))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(disabled)
+                .accessibilityLabel(option.label)
+                .accessibilityAddTraits(active ? [.isSelected] : [])
             }
         }
         .padding(Self.inset)

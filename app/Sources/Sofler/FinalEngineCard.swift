@@ -79,7 +79,7 @@ struct FinalEngineCard: View, ValidatingComponent {
     private func commitIfReady() {
         guard let draft, draft != prefs.finalEngine else { return }
         let target: EngineChoice = draft == .crisperWhisper
-            ? .crisperWhisper : prefs.appleTechnology
+            ? .crisperWhisper : prefs.finalAppleTechnology
         if safety.commit(target, for: prefs.primaryLanguage) {
             self.draft = nil
         }
@@ -104,7 +104,7 @@ struct FinalEngineCard: View, ValidatingComponent {
             }
             switch choice {
             case .apple:
-                AppleEngineCard(isSubCard: true)
+                AppleEngineCard(isSubCard: true, target: .final)
             case .crisperWhisper:
                 CrisperEngineCard(isSubCard: true, isOnboarding: isOnboarding)
             }

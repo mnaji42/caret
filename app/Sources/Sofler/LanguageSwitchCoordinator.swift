@@ -61,6 +61,23 @@ final class LanguageSwitchCoordinator {
             }
         }
 
+        /// L'identité de la note, suffixée par la langue.
+        ///
+        /// Reprend la forme des `id` du prototype (`live-fallback-${code}`) :
+        /// écarter un bandeau vaut pour cette langue, pas pour toutes.
+        var id: String {
+            switch self {
+            case .appleVersionSwitched(_, _, let language):
+                "apple-version-switched-\(language)"
+            case .modelMissing(let language):
+                "model-missing-\(language)"
+            case .crisperUncovered(let language):
+                "crisper-uncovered-\(language)"
+            case .noSystemEngine(let language, _):
+                "no-system-engine-\(language)"
+            }
+        }
+
         /// Le titre du bandeau — ce qui vient de changer, en une ligne.
         ///
         /// Le prototype distingue quatre cas selon que l'aperçu en direct, la
@@ -99,7 +116,33 @@ final class LanguageSwitchCoordinator {
         }
     }
 
-    private(set) var notice: Notice?
+    /// La note en cours, **recalculée à chaque lecture**.
+    ///
+    /// Elle était stockée, et posée par un `audit()` qu'il fallait penser à
+    /// appeler. Deux conséquences. Choisir une langue dont le modèle n'est pas
+    /// encore sondé produisait « rien à signaler », et l'état arrivait trop
+    /// tard pour être vu : le bandeau n'apparaissait qu'en revenant sur
+    /// l'onglet, parce qu'une autre vue rappelait `audit()` au passage. Et
+    /// deux chemins de changement de langue sur trois oubliaient l'appel.
+    ///
+    /// Dérivée, elle suit ses entrées : la langue, les deux versions de macOS,
+    /// le moteur final, l'inventaire des modèles. Toutes sont observables, donc
+    /// SwiftUI redessine dès que l'une bouge — y compris quand le sondage du
+    /// modèle se termine, ce qui est exactement le moment où la note devient
+    /// vraie. C'est ce que fait le prototype, qui rappelle
+    /// `evaluateLanguageSwitch` à chaque rendu.
+    var notice: Notice? {
+        guard let candidate = evaluate() else { return nil }
+        return dismissed.contains(candidate.id) ? nil : candidate
+    }
+
+    /// Les notes écartées, par identité.
+    ///
+    /// L'identité porte la langue : écarter « le modèle espagnol manque » ne
+    /// masque pas la même note pour l'allemand, et revenir à l'espagnol la
+    /// redonne. C'est le `dismissedBanners` du prototype, dont les
+    /// identifiants sont suffixés par le code de langue.
+    private var dismissed: Set<String> = []
 
     /// Une confirmation brève, affichée puis retirée.
     ///
@@ -111,10 +154,25 @@ final class LanguageSwitchCoordinator {
     // MARK: - Audit
 
     /// Appelé quand la langue principale vient de changer.
+    ///
+    /// Il n'y a plus rien à recalculer — la note se déduit. Mais l'inventaire
+    /// des modèles, lui, ne connaît que les langues déjà sondées : une langue
+    /// fraîchement choisie y vaut « inconnue », ce qui n'est pas « manquante »
+    /// et ne déclenchait donc aucune note. Le sondage se lance ici, et la note
+    /// apparaît d'elle-même quand il rend son verdict.
     func primaryLanguageChanged() {
-        notice = nil
         confirmation = nil
-        audit()
+        probePrimaryLanguage()
+    }
+
+    /// Demande à l'inventaire l'état du modèle de la langue courante.
+    ///
+    /// Sans effet s'il le connaît déjà. À appeler à l'affichage des vues qui
+    /// montrent la note : au tout premier lancement, aucune langue n'a encore
+    /// été sondée, et « inconnue » ne dit rien à personne.
+    func probePrimaryLanguage() {
+        let language = Preferences.shared.primaryLanguage
+        Task { await SpeechAssets.shared.check(language) }
     }
 
     /// Réévalue l'état complet et replie ce qui doit l'être.
@@ -125,7 +183,7 @@ final class LanguageSwitchCoordinator {
     ///
     /// ## Ce service ne décide rien, il constate
     ///
-    /// Il repliait en écrivant `prefs.appleTechnology`. Deux raisons de ne
+    /// Il repliait en écrivant `prefs.finalAppleTechnology`. Deux raisons de ne
     /// plus le faire. D'abord c'était redondant : `EngineSafetyManager`
     /// calcule déjà le moteur effectif au moment de dicter, donc la dictée
     /// était juste sans cette écriture. Ensuite c'était destructeur — passer
@@ -136,27 +194,26 @@ final class LanguageSwitchCoordinator {
     ///
     /// C'est aussi ce que fait le service du prototype : il rend un
     /// `effective` à côté du `requested`, sans jamais toucher au second.
-    func audit() {
+    private func evaluate() -> Notice? {
         let prefs = Preferences.shared
         let language = prefs.primaryLanguage
 
         // 1. La version de macOS sait-elle écrire cette langue ?
-        let requested = prefs.appleTechnology
+        let requested = prefs.finalAppleTechnology
         let effective: EngineChoice
         if requested.isAvailable(for: language) {
             effective = requested
         } else if let usable = EngineChoice.systemEngine(preferring: requested,
                                                          for: language) {
             effective = usable
-            notice = .appleVersionSwitched(from: requested, to: usable,
-                                           language: language)
+            return .appleVersionSwitched(from: requested, to: usable,
+                                         language: language)
         } else {
-            notice = .noSystemEngine(
+            return .noSystemEngine(
                 language: language,
                 reason: LegacySpeechEngine.unavailabilityReason(for: language)
                     ?? "Aucune version du moteur de macOS n'est utilisable "
                        + "ici pour cette langue.")
-            return
         }
 
         // 2. CrisperWhisper couvre-t-il cette langue ? Ses poids embarquent
@@ -165,8 +222,7 @@ final class LanguageSwitchCoordinator {
         //    ne le connaît pas produit du charabia plutôt qu'une erreur.
         if prefs.finalEngine == .crisperWhisper,
            !Language.named(language).isCoveredByCrisperWhisper {
-            notice = .crisperUncovered(language: language)
-            return
+            return .crisperUncovered(language: language)
         }
 
         // 3. Le modèle Apple Intelligence de cette langue est-il là ? Posé en
@@ -177,8 +233,10 @@ final class LanguageSwitchCoordinator {
         //    sujet, et l'annoncer remplacerait une note juste par une autre.
         if effective == .apple,
            case .missing = SpeechAssets.shared.state(of: language) {
-            notice = .modelMissing(language: language)
+            return .modelMissing(language: language)
         }
+
+        return nil
     }
 
     // MARK: - Résolution
@@ -190,13 +248,8 @@ final class LanguageSwitchCoordinator {
     /// bien parce que la requête est revenue sans erreur.
     func installMissingModel(for language: String) async {
         await SpeechAssets.shared.ensure(language)
-        guard SpeechAssets.shared.state(of: language).isReady else {
-            audit()
-            return
-        }
+        guard SpeechAssets.shared.state(of: language).isReady else { return }
         let name = Language.named(language).displayName
-        notice = nil
-        audit()
         // La confirmation n'a de sens que si rien d'autre ne cloche : la poser
         // par-dessus une note encore active dirait « c'est réglé » devant un
         // bandeau qui dit le contraire.
@@ -209,8 +262,9 @@ final class LanguageSwitchCoordinator {
         }
     }
 
+    /// Écarte la note affichée — celle-là, et pour cette langue-là.
     func dismiss() {
-        notice = nil
+        if let shown = evaluate() { dismissed.insert(shown.id) }
         confirmation = nil
     }
 }

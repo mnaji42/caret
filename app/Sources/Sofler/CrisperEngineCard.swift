@@ -622,7 +622,6 @@ struct CrisperEngineCard: View, ValidatingComponent {
         EngineInstall.remove(model: model)
         // Retirer le modèle qui écrivait laisse la dictée sans moteur : le
         // repli s'en occupe, mais il faut qu'il soit réévalué tout de suite.
-        LanguageSwitchCoordinator.shared.audit()
         draftModel = EngineInstall.selectedModel
         catalogueExpanded = true
     }

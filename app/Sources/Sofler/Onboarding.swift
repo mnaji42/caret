@@ -481,7 +481,7 @@ private struct OnboardingView: View {
         case .preferences: LanguagePicker.validate()
         // Le déclencheur **et** le moteur d'aperçu : c'est l'étape qui rend
         // Sofler utilisable, et la dernière qu'exige la garde d'accès.
-        case .liveEngine: TriggerCard.validate() ?? AppleEngineCard.validate()
+        case .liveEngine: TriggerCard.validate() ?? AppleEngineCard.validate(target: .live)
         case .finalEngine: FinalEngineCard.validate()
         case .completion: nil
         }
