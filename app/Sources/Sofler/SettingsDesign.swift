@@ -467,55 +467,101 @@ struct Row<Trailing: View>: View {
 /// choisir, ce que l'option coûte et ce qu'elle empêche. D'où une ligne haute
 /// qui porte son texte, plutôt qu'une pastille et une note en dessous qui ne
 /// parle que de l'option déjà retenue.
-struct ChoiceRow<Detail: View>: View {
+/// Une carte de choix : la pastille radio, le titre, ce que ça change, et le
+/// panneau qui ne s'ouvre que si on l'a retenue.
+///
+/// Reprend `.choice-card` du prototype — rayon 14, `16px 18px`, fond teinté
+/// d'accent et bordure turquoise quand elle est sélectionnée.
+///
+/// ## Le dévoilement progressif
+///
+/// Le détail n'apparaît **que** sous la carte retenue. C'est ce qui rend la
+/// page lisible : deux moteurs entièrement dépliés côte à côte, ce sont deux
+/// écrans de réglages empilés pour une seule décision à prendre. Tant qu'on
+/// n'a pas choisi, on lit deux phrases et on compare ; une fois choisi, on
+/// configure.
+struct ChoiceCard<Detail: View>: View {
     let title: String
     let subtitle: String
     let selected: Bool
-    /// Ce moteur a-t-il des options propres ? Explicite plutôt que déduit du
-    /// contenu : tester `detail is EmptyView` marche mal dans un ViewBuilder.
-    var hasDetail = true
+    /// Le badge « ★ Conseillé pour vous », quand il y a lieu.
+    var recommended = false
     let action: () -> Void
     @ViewBuilder var detail: Detail
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: 11) {
-                Image(systemName: selected ? "largecircle.fill.circle" : "circle")
-                    .foregroundStyle(selected ? Style.accent : Color.secondary)
-                    .font(.system(size: 14))
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                RadioCircle(selected: selected)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.system(size: 13, weight: selected ? .semibold : .regular))
-                    Text(subtitle)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(title)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Spacer(minLength: 8)
+                        if recommended {
+                            Text("★ Conseillé pour vous")
+                                .font(.system(size: 10.5, weight: .semibold))
+                                .foregroundStyle(Style.accent)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Style.accent.opacity(0.15))
+                                    .overlay(Capsule().strokeBorder(Style.accentBorder,
+                                                                    lineWidth: 1)))
+                        }
+                    }
+                    Text(.init(subtitle))
+                        .font(.system(size: 12))
+                        .foregroundStyle(Style.textSecondary)
+                        .lineSpacing(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer(minLength: 0)
             }
-            .padding(12)
             .contentShape(Rectangle())
             .onTapGesture(perform: action)
 
-            // Les options du moteur retenu sont attachées sous lui, pas
-            // ailleurs : elles n'existent que parce qu'il a été choisi.
-            // Affichées même quand le moteur n'est pas retenu : on peut
-            // écrire avec macOS tout en collectant avec CrisperWhisper, et il
-            // faut alors pouvoir régler ce dernier.
-            if hasDetail {
-                Divider().opacity(0.25).padding(.horizontal, 12)
-                VStack(alignment: .leading, spacing: 12) { detail }
-                    .padding(12)
+            if selected {
+                VStack(alignment: .leading, spacing: 10) { detail }
+                    .padding(.top, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(alignment: .top) {
+                        Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+                    }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
         .background(
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
+            RoundedRectangle(cornerRadius: Style.cardRadius, style: .continuous)
                 .fill(selected ? Style.accent.opacity(0.08) : Color.white.opacity(0.03))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 11, style: .continuous)
-                        .strokeBorder(selected ? Style.accent.opacity(0.35)
-                                               : Color.white.opacity(0.07),
+                    RoundedRectangle(cornerRadius: Style.cardRadius, style: .continuous)
+                        .strokeBorder(selected ? Style.accentBorder
+                                               : Color.white.opacity(0.06),
                                       lineWidth: 1)))
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
+    }
+}
+
+/// La pastille radio du prototype : un cercle bordé, rempli d'un point quand il
+/// est retenu. Dessinée plutôt qu'empruntée à SF Symbols, dont le
+/// `largecircle.fill.circle` a des proportions différentes.
+struct RadioCircle: View {
+    let selected: Bool
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .strokeBorder(selected ? Style.accent : Style.textTertiary,
+                              lineWidth: 1.5)
+                .frame(width: 16, height: 16)
+            if selected {
+                Circle().fill(Style.accent).frame(width: 8, height: 8)
+            }
+        }
+        .padding(.top, 2)
     }
 }
 

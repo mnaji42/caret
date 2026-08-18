@@ -32,8 +32,13 @@ struct SettingsToggleRow: View {
     var isCard = true
 
     var body: some View {
+        // `isCard` décide du **cadre**, jamais du titre. Le passer à
+        // `Card(title:)` le faisait remonter en capitales espacées au-dessus de
+        // la carte, comme un libellé de section — si bien que « Lancer Sofler à
+        // l'ouverture de session » criait plus fort que le titre de l'écran.
+        // Dans le prototype, le titre est une ligne ordinaire *dans* la carte.
         if isCard {
-            Card(title: title) { content }
+            Card(title: "") { content }
         } else {
             VStack(alignment: .leading, spacing: 8) { content }
         }
@@ -43,13 +48,10 @@ struct SettingsToggleRow: View {
     private var content: some View {
         HStack(alignment: .firstTextBaseline, spacing: 16) {
             VStack(alignment: .leading, spacing: 3) {
-                // Dans une carte, le titre est déjà l'en-tête : le répéter
-                // ici ferait lire deux fois la même chose à dix pixels
-                // d'écart. Hors carte, c'est lui qui nomme le réglage.
-                if !isCard {
-                    Text(title)
-                        .font(.system(size: 13, weight: .semibold))
-                }
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let description {
                     Text(.init(description))
                         .font(.system(size: 11.5))

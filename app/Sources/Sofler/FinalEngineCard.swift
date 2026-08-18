@@ -48,7 +48,10 @@ struct FinalEngineCard: View, ValidatingComponent {
     }
 
     var body: some View {
-        Card(title: "Moteur de transcription") {
+        // Pas d'enveloppe : les deux cartes de choix **sont** le contenu de
+        // l'écran, et les emboîter dans une troisième carte ajouterait un cadre
+        // autour de deux cadres.
+        VStack(alignment: .leading, spacing: 10) {
             choiceRow(.apple)
             choiceRow(.crisperWhisper)
 
@@ -89,13 +92,11 @@ struct FinalEngineCard: View, ValidatingComponent {
         let selected = shown == choice
         let pending = draft == choice && prefs.finalEngine != choice
 
-        ChoiceRow(title: title(for: choice),
-                  subtitle: subtitle(for: choice),
-                  selected: selected,
-                  // Dévoilement progressif : les détails techniques n'ont pas à
-                  // occuper la fenêtre tant qu'on n'a pas retenu le moteur.
-                  hasDetail: selected,
-                  action: { draft = choice }) {
+        ChoiceCard(title: title(for: choice),
+                   subtitle: subtitle(for: choice),
+                   selected: selected,
+                   recommended: showsRecommendation && isRecommended(choice),
+                   action: { draft = choice }) {
             if pending {
                 Note("Ce choix sera enregistré dès que le moteur sera prêt. "
                      + "En attendant, Sofler dicte toujours avec "
@@ -110,19 +111,30 @@ struct FinalEngineCard: View, ValidatingComponent {
         }
     }
 
+    /// Le titre et la description sont ceux du prototype.
+    ///
+    /// Ils nomment ce que **change** le choix plutôt que la technologie, et le
+    /// badge « ★ Conseillé pour vous » est porté par la carte au lieu d'être
+    /// collé au titre : il se lit alors comme une annotation, pas comme une
+    /// partie du nom du moteur.
     private func title(for choice: Preferences.FinalEngineChoice) -> String {
-        let base = switch choice {
-        case .apple: EngineChoice.apple.label
-        case .crisperWhisper: EngineChoice.crisperWhisper.label
+        switch choice {
+        case .apple: "macOS (Natif)"
+        case .crisperWhisper: "CrisperWhisper 2.0 (IA Multilingue & Code)"
         }
-        guard showsRecommendation, isRecommended(choice) else { return base }
-        return "\(base)  ★ conseillé pour vous"
     }
 
     private func subtitle(for choice: Preferences.FinalEngineChoice) -> String {
         switch choice {
-        case .apple: EngineChoice.apple.explanation
-        case .crisperWhisper: EngineChoice.crisperWhisper.explanation
+        case .apple:
+            "Fourni par macOS : aucune licence, aucun compte, rien à installer, "
+                + "et rien ne réside en mémoire entre deux dictées. **0 Mo de "
+                + "RAM résidente**."
+        case .crisperWhisper:
+            "Deuxième passe intelligente par IA locale : comprend le "
+                + "**Franglais sans changer de langue**, respecte le "
+                + "**vocabulaire technique et le code** (`useEffect`, "
+                + "variables) et nettoie les hésitations (*euh*)."
         }
     }
 
