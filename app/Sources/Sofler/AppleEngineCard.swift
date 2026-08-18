@@ -72,12 +72,31 @@ struct AppleEngineCard: View, ValidatingComponent {
         if isSubCard {
             VStack(alignment: .leading, spacing: 12) { content }
         } else {
-            Card(title: "Moteur macOS") { content }
+            Card(title: "") { content }
         }
     }
 
     @ViewBuilder
     private var content: some View {
+        // Hors sous-carte, la carte porte son propre en-tête : une pastille qui
+        // dit si le moteur est opérationnel, le nom de la version active, et ce
+        // qu'elle est. En sous-carte, la ligne de choix parente le dit déjà.
+        if !isSubCard {
+            HStack(alignment: .top, spacing: 12) {
+                statusCircle
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(headerTitle)
+                        .font(.system(size: 13.5, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text(headerDetail)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Style.textSecondary)
+                        .lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+
         versionPicker
 
         switch prefs.appleTechnology {
@@ -86,6 +105,37 @@ struct AppleEngineCard: View, ValidatingComponent {
         default:
             models
         }
+    }
+
+    /// La pastille d'état : pleine et cochée quand le moteur peut écrire,
+    /// cerclée sinon. `.status-circle` du prototype.
+    @ViewBuilder
+    private var statusCircle: some View {
+        if Self.isValid {
+            ZStack {
+                Circle().fill(Style.accent).frame(width: 18, height: 18)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 10, weight: .heavy))
+                    .foregroundStyle(Style.onAccent)
+            }
+        } else {
+            Circle()
+                .strokeBorder(Style.textTertiary, lineWidth: 1.5)
+                .frame(width: 18, height: 18)
+        }
+    }
+
+    private var headerTitle: String {
+        let version = prefs.appleTechnology
+        return "macOS · \(version.versionLabel ?? version.label)"
+    }
+
+    private var headerDetail: String {
+        prefs.appleTechnology == .apple
+            ? "Fourni par macOS 26+ (SpeechTranscriber) : modèles neuronaux sur "
+                + "puce Apple. Zéro donnée envoyée au cloud, 0 Mo de RAM résidente."
+            : "Fourni par macOS (SFSpeechRecognizer) : prêt immédiatement, "
+                + "aucune licence ni téléchargement requis."
     }
 
     // MARK: - La version
@@ -101,7 +151,15 @@ struct AppleEngineCard: View, ValidatingComponent {
     @ViewBuilder
     private var versionPicker: some View {
         if available.count > 1 {
-            Row(label: "Technologie") {
+            if !isSubCard {
+                Divider().opacity(0.25)
+            }
+            Text("VERSION DU MOTEUR")
+                .font(.system(size: 10, weight: .bold))
+                .kerning(0.6)
+                .foregroundStyle(Style.textTertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Row(label: "Technologie :") {
                 PillPicker(options: available.map { ($0, $0.versionLabel ?? $0.label) },
                            selection: Binding(
                                get: { prefs.appleTechnology },

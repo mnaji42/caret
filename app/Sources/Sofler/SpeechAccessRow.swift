@@ -28,11 +28,32 @@ struct SpeechAccessRow: View {
     var body: some View {
         Group {
             if monitor.speechGranted {
-                GrantedLine("Reconnaissance vocale Apple accordée")
+                GrantedLine("Reconnaissance Vocale Apple accordée")
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    StatusRow(ok: false, label: "Reconnaissance vocale",
-                              detail: "pas encore accordée", warningOnly: true)
+                    HStack(alignment: .top, spacing: 10) {
+                        Circle()
+                            .strokeBorder(Style.textTertiary, lineWidth: 1.5)
+                            .frame(width: 18, height: 18)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Reconnaissance Vocale Apple (Requis)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white)
+                            Text("Exigée par macOS pour permettre à Apple "
+                                 + "Dictée de traiter le signal vocal.")
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(Style.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 8)
+                        Button("Accorder") {
+                            Task {
+                                _ = await LegacySpeechEngine.requestAuthorisation()
+                                monitor.refresh()
+                            }
+                        }
+                        .buttonStyle(SoflerPrimaryButtonStyle())
+                    }
 
                     if explains {
                         Note("Le moteur de la **Dictée** de macOS passe par ce "
@@ -42,15 +63,6 @@ struct SpeechAccessRow: View {
                              + "transcrire si la machine ne sait pas le faire.")
                     }
 
-                    Button("Accorder") {
-                        Task {
-                            _ = await LegacySpeechEngine.requestAuthorisation()
-                            monitor.refresh()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Style.accent)
-                    .controlSize(.small)
                 }
             }
         }

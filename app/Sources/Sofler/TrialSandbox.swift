@@ -31,46 +31,50 @@ struct TrialSandbox: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("ZONE D'ESSAI")
-                    .font(.system(size: 10, weight: .bold))
-                    .kerning(0.9)
-                    .foregroundStyle(.tertiary)
+                Text("ZONE D'ESSAI EN DIRECT")
+                    .font(.system(size: 11, weight: .bold))
+                    .kerning(0.55)
+                    .foregroundStyle(Style.textTertiary)
                 Spacer()
                 if isLocked {
-                    Label("Accordez les accès ci-dessus", systemImage: "lock.fill")
+                    Text("🔒 Accordez les accès ci-dessus pour débloquer")
                         .font(.system(size: 11))
                         .foregroundStyle(Style.warning)
                 } else {
-                    Label("Prêt pour l'essai", systemImage: "sparkles")
+                    Text("✨ Prêt pour l'essai")
                         .font(.system(size: 11))
                         .foregroundStyle(Style.accent)
                 }
             }
 
-            Text(.init("Cliquez dans le cadre, tapez **\(triggerLabel)**, dites "
-                       + "une phrase, puis tapez à nouveau."))
-                .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            TextEditor(text: $text)
-                .font(.system(size: 12))
-                .scrollContentBackground(.hidden)
-                .padding(6)
-                .frame(height: 84)
-                .background(
-                    RoundedRectangle(cornerRadius: Style.fieldRadius, style: .continuous)
-                        .fill(Style.innerBoxFill)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Style.fieldRadius,
-                                             style: .continuous)
-                                .strokeBorder(Style.cardStroke, lineWidth: 1)))
+            ZStack(alignment: .topLeading) {
+                if text.isEmpty {
+                    Text("Cliquez ici puis appuyez sur \(triggerLabel) pour tester…")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(Style.textTertiary)
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 14)
+                        .allowsHitTesting(false)
+                }
+                TextEditor(text: $text)
+                    .font(.system(size: 12.5))
+                    .scrollContentBackground(.hidden)
+                    .padding(6)
+            }
+            .frame(height: 80)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: Style.innerRadius, style: .continuous)
+                    .fill(Color.black.opacity(0.28))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Style.innerRadius,
+                                         style: .continuous)
+                            .strokeBorder(Style.cardStroke, lineWidth: 1)))
 
             if !text.isEmpty {
-                Label("C'est bien votre voix qui a écrit ça — par le même "
-                      + "chemin que dans vos applications.",
-                      systemImage: "checkmark.circle.fill")
-                    .font(.system(size: 11))
+                Text("🎉 Bravo ! Votre voix écrit directement au curseur.")
+                    .font(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(Style.accent)
                     .fixedSize(horizontal: false, vertical: true)
             }

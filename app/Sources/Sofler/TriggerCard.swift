@@ -54,8 +54,8 @@ struct TriggerCard: View, ValidatingComponent {
     private var permissionsComplete: Bool { Self.isValid }
 
     var body: some View {
-        Card(title: "Déclencheur") {
-            Row(label: "Dicter avec") {
+        Card(title: "") {
+            Row(label: "Dicter avec :") {
                 PillPicker(options: [(Preferences.TriggerKind.option, "Touche Option"),
                                      (Preferences.TriggerKind.shortcut, "Raccourci clavier")],
                            selection: $prefs.triggerKind)
@@ -97,20 +97,25 @@ struct TriggerCard: View, ValidatingComponent {
             PillPicker(options: ModifierKeyMonitor.Side.allCases.map { ($0, $0.label) },
                        selection: $prefs.triggerSide)
         }
+        Text(.init("Utilise la touche **Option (⌥)** située à droite de la "
+                   + "barre d'espace."))
+            .font(.system(size: 11.5))
+            .foregroundStyle(Style.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
         VStack(alignment: .leading, spacing: 4) {
-            gesture("1er appui", "ouvre la barre flottante et commence à écouter")
-            gesture("2e appui", "termine l'écoute et insère le texte")
-            gesture("Échap ⎋", "annule la dictée sans rien écrire")
+            gesture("1er appui :", "Ouvre la barre flottante et commence l'enregistrement")
+            gesture("2e appui :", "Termine l'écoute et insère le texte au curseur")
+            gesture("Échap (⎋)", "pendant l'enregistrement : Annule la dictée sans rien écrire")
         }
         Note("La touche reste utilisable normalement : rien ne se déclenche si "
-             + "une autre touche est pressée entre-temps.\n\n"
-             + "**Maintenir Option une seconde** ouvre les Réglages.")
+             + "une autre touche est pressée entre-temps. **Maintenir Option "
+             + "une seconde** ouvre les Réglages.")
     }
 
     private func gesture(_ key: String, _ effect: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text("•").foregroundStyle(.tertiary)
-            Text(.init("**\(key)** : \(effect)"))
+            Text(.init("**\(key)** \(effect)"))
                 .font(.system(size: 11.5))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -119,17 +124,15 @@ struct TriggerCard: View, ValidatingComponent {
 
     @ViewBuilder
     private var shortcutMode: some View {
-        Row(label: "Raccourci") {
+        Row(label: "Raccourci :") {
             ShortcutRecorder(shortcut: $prefs.dictateShortcut) { _ in }
                 .frame(width: 150, height: 26)
         }
         Note("Cliquez puis tapez la combinaison voulue. macOS refuse les "
-             + "raccourcis sans Contrôle ni Commande.")
-        Note("La touche Option ne déclenche plus rien, et ne maintient plus "
-             + "l'ouverture des Réglages — ils restent accessibles depuis le "
-             + "menu. En contrepartie, un raccourci fonctionne **sans "
-             + "l'autorisation d'Accessibilité** pour être capté ; elle reste "
-             + "nécessaire pour écrire le texte à votre curseur.")
+             + "raccourcis sans Contrôle ni Commande. La touche Option ne "
+             + "déclenche plus rien. Vous déclenchez l'écoute avec votre "
+             + "raccourci, et Sofler insère le texte directement à votre "
+             + "curseur grâce à l'Accessibilité.")
     }
 
     // MARK: - Autorisations
@@ -171,8 +174,8 @@ struct TriggerCard: View, ValidatingComponent {
         VStack(alignment: .leading, spacing: 8) {
             PermissionNeed(
                 title: "Accès Microphone",
-                detail: "Requis pour écouter votre voix pendant la dictée. "
-                    + "Sofler n'ouvre le micro qu'entre les deux appuis.",
+                detail: "Requis pour écouter votre voix lorsque vous pressez "
+                    + "la touche.",
                 // Refusé : le bouton d'action serait un bouton qui ne fait
                 // rien, puisque macOS ne représente plus le dialogue.
                 action: monitor.micAccess == .undetermined ? "Accorder" : nil) {
@@ -196,9 +199,8 @@ struct TriggerCard: View, ValidatingComponent {
         VStack(alignment: .leading, spacing: 8) {
             PermissionNeed(
                 title: "Accès Accessibilité",
-                detail: "Requis pour écrire le texte dans l'application que "
-                    + "vous avez devant vous, et pour voir la touche Option "
-                    + "pressée seule.",
+                detail: "Requis pour écouter la touche Option seule et insérer "
+                    + "le texte à votre curseur.",
                 action: "Accorder") {
                 NSApp.activate(ignoringOtherApps: true)
                 Permissions.requestAccessibility()
