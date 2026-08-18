@@ -247,11 +247,28 @@ struct PageHeader: View {
     /// est censé introduire. Les six onglets du prototype surchargent tous
     /// `h1` à 18 pt et la marge basse à 14 pt ; c'est cette échelle-là.
     enum Scale {
+        /// Une étape d'accueil, qui n'a que ça à dire.
         case screen
+        /// Un onglet de réglages, qui coiffe des sections.
         case tab
+        /// L'écran final de l'accueil. Il ne présente rien : il constate. Le
+        /// prototype le resserre à l'extrême — titre à 18 pt, deux points
+        /// sous le titre, deux points sous l'ensemble — pour que le
+        /// récapitulatif commence presque tout de suite.
+        case summary
 
         var titleSize: CGFloat { self == .screen ? 24 : 18 }
-        var bottomMargin: CGFloat { self == .screen ? 20 : 14 }
+
+        var titleGap: CGFloat { self == .summary ? 2 : 6 }
+
+        var bottomMargin: CGFloat {
+            switch self {
+            case .screen: 20
+            case .tab: 14
+            case .summary: 2
+            }
+        }
+
         /// `letter-spacing: -0.03em`, donc proportionnel au corps.
         var kerning: CGFloat { titleSize * -0.03 }
     }
@@ -261,7 +278,7 @@ struct PageHeader: View {
     var scale: Scale = .screen
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: scale.titleGap) {
             Text(title)
                 .font(.system(size: scale.titleSize, weight: .bold))
                 .kerning(scale.kerning)

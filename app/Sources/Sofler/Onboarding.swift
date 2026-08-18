@@ -36,7 +36,7 @@ final class OnboardingWindowController {
         // `weak var` capturé plus bas : la vue met à jour le titre de la
         // fenêtre qui la contient, ce que SwiftUI ne sait pas faire seul.
         var host: NSWindow?
-        let window = NSWindow.sofler(title: Step.welcome.windowTitle) {
+        let window = NSWindow.sofler(title: Step.resumed.windowTitle) {
             OnboardingView(onFinish: { [weak self] in self?.close() },
                            onOpenSettings: { [weak self] in
                                self?.close()
@@ -69,6 +69,19 @@ private enum Step: Int, CaseIterable {
     ///
     /// Repris tel quel de `HeaderNav.jsx` : la barre de titre annonce où l'on
     /// est, elle ne répète pas « Bienvenue » sur les cinq écrans.
+    /// L'étape sur laquelle rouvrir.
+    ///
+    /// Lue à deux endroits — la vue, pour savoir quoi afficher, et la fenêtre,
+    /// pour son titre. Les deux la déduisaient séparément, et la fenêtre s'en
+    /// remettait à un rappel qui arrivait trop tard : `onAppear` se déclenche
+    /// pendant la construction de la fenêtre, avant que la variable qui la
+    /// désigne soit affectée, si bien que la mise à jour du titre partait dans
+    /// le vide. La barre annonçait « Bienvenue dans Sofler » au-dessus de
+    /// « Vos Préférences » jusqu'au premier changement d'étape.
+    @MainActor static var resumed: Step {
+        Step(rawValue: Preferences.shared.onboardingStep) ?? .welcome
+    }
+
     var windowTitle: String {
         switch self {
         case .welcome: "Bienvenue dans Sofler"
@@ -115,6 +128,14 @@ private enum Step: Int, CaseIterable {
         default: "Continuer  →"
         }
     }
+
+    /// Le même libellé, sans la flèche. Elle indique la direction à l'œil et
+    /// n'ajoute rien à l'oreille : lue, elle donnait « Continuer, flèche vers
+    /// la droite ».
+    var spokenActionLabel: String {
+        actionLabel.replacingOccurrences(of: "→", with: "")
+            .trimmingCharacters(in: .whitespaces)
+    }
 }
 
 // MARK: - Fenêtre
@@ -139,19 +160,17 @@ private struct OnboardingView: View {
         // Reprend là où on s'était arrêté. Rouvrir sur la page de bienvenue
         // quelqu'un qui était à l'étape des autorisations lui ferait relire ce
         // qu'il vient de lire, et douter d'avoir progressé.
-        _step = State(initialValue:
-            Step(rawValue: Preferences.shared.onboardingStep) ?? .welcome)
+        _step = State(initialValue: Step.resumed)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            WindowChrome {
-                StepCounter(current: step.rawValue + 1, total: Step.allCases.count)
-            }
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     if let header = step.header {
-                        PageHeader(title: header.title, subtitle: header.subtitle)
+                        PageHeader(title: header.title,
+                                   subtitle: header.subtitle,
+                                   scale: step == .completion ? .summary : .screen)
                     }
                     content
                 }
@@ -169,6 +188,20 @@ private struct OnboardingView: View {
             footer
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // Le compteur appartient à la barre de titre, aligné sur les pastilles
+        // — c'est là que le prototype le place, dans `.titlebar`. En le posant
+        // dans le flux, il s'ajoutait *sous* la barre de titre : SwiftUI
+        // décale déjà le contenu de la hauteur du titre, si bien qu'une bande
+        // vide de 48 pt séparait la pastille du titre de l'écran. En calque,
+        // et affranchi de cette marge, il retrouve la ligne des pastilles.
+        .overlay(alignment: .topTrailing) {
+            StepCounter(current: step.rawValue + 1, total: Step.allCases.count)
+                // Centré dans les 28 pt de la barre de titre : la pastille en
+                // fait 20, il reste 4 de part et d'autre.
+                .padding(.top, 4)
+                .padding(.trailing, Style.windowPadding)
+                .ignoresSafeArea(edges: .top)
+        }
         .background(WindowBackground().ignoresSafeArea())
         .onAppear { onStepChange(step) }
         // Enregistrée en continu : quitter l'application au milieu d'une étape
@@ -194,7 +227,7 @@ private struct OnboardingView: View {
 
     private var welcomeStep: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SectionLabel("Le principe en trois points")
+            SectionLabel("Le principe en trois points", followsHeader: true)
 
             Card {
                 principle(1, "Écrivez au son de votre voix",
@@ -251,7 +284,7 @@ private struct OnboardingView: View {
 
     private var preferencesStep: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SectionLabel("Langues de dictée (Au moins 1 langue requise)")
+            SectionLabel("Langues de dictée (Au moins 1 langue requise)", followsHeader: true)
             Card { LanguagePicker() }
                 .padding(.bottom, 12)
 
@@ -271,7 +304,7 @@ private struct OnboardingView: View {
     /// apparaître après coup dans une carte qu'on croyait finie.
     private var liveEngineStep: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SectionLabel("Moteur de reconnaissance en direct")
+            SectionLabel("Moteur de reconnaissance en direct", followsHeader: true)
             AppleEngineCard()
                 .padding(.bottom, 12)
 
@@ -295,20 +328,20 @@ private struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel("Bon à savoir pour votre quotidien")
                 VStack(spacing: 0) {
-                    tip("📍", "Barre des menus & Raccourci rapide",
+                    tip("menubar.arrow.up.rectangle", "Barre des menus & Raccourci rapide",
                         "Sofler reste toujours accessible dans la barre des "
                         + "menus en haut.\n**💡 Astuce :** Maintenir votre "
                         + "touche de dictée (**⌥ Option**) pendant **1 "
                         + "seconde** ouvre directement les Réglages.")
                     Divider().opacity(0.25)
-                    tip("🛡️", "Filet de sécurité : vous ne perdez jamais rien",
+                    tip("checkmark.shield", "Filet de sécurité : vous ne perdez jamais rien",
                         "Même si aucune application n'a le focus ou si votre "
                         + "curseur n'était pas actif, votre dictée est "
                         + "immédiatement enregistrée dans l'**Historique "
                         + "local** du menu pour que vous puissiez la copier à "
                         + "tout moment.")
                     Divider().opacity(0.25)
-                    tip("📁", "Au curseur ou dans un fichier de notes",
+                    tip("text.cursor", "Au curseur ou dans un fichier de notes",
                         "Par défaut, Sofler écrit là où clignote votre "
                         + "curseur. Vous pouvez aussi lui désigner un fichier "
                         + "de notes (ex : `journal.md`) dans les Réglages pour "
@@ -402,11 +435,19 @@ private struct OnboardingView: View {
         }
     }
 
-    private func tip(_ emoji: String, _ title: String,
+    /// Le prototype ouvre chaque astuce par un emoji. Ils ont le défaut des
+    /// emoji de la barre d'onglets : rendu variable selon la police système,
+    /// aucune valeur d'accessibilité, et une correspondance approximative —
+    /// une punaise de carte pour désigner la barre des menus. Un symbole SF
+    /// s'aligne sur le texte, suit le poids et nomme vraiment la chose.
+    private func tip(_ symbol: String, _ title: String,
                      _ detail: String) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 7) {
-                Text(emoji).font(.system(size: 12.5))
+                Image(systemName: symbol)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Style.accent)
+                    .frame(width: 16)
                 Text(title)
                     .font(.system(size: 12.5, weight: .semibold))
                     .foregroundStyle(.white)
@@ -467,6 +508,9 @@ private struct OnboardingView: View {
                     step = Step(rawValue: step.rawValue - 1) ?? .welcome
                 }
                 .buttonStyle(SoflerSecondaryButtonStyle())
+                // La flèche est un ornement : lue telle quelle, VoiceOver
+                // annonçait « flèche vers la gauche, Retour ».
+                .accessibilityLabel("Retour")
                 // Masqué, pas retiré : le retirer décalerait les points de
                 // navigation d'un écran à l'autre.
                 .opacity(step == .welcome ? 0 : 1)
@@ -493,6 +537,7 @@ private struct OnboardingView: View {
                     }
                 }
                 .buttonStyle(SoflerPrimaryButtonStyle())
+                .accessibilityLabel(step.spokenActionLabel)
                 .disabled(blocker != nil)
                 .keyboardShortcut(.defaultAction)
             }
