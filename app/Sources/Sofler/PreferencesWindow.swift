@@ -29,7 +29,10 @@ final class PreferencesWindowController {
 
 // MARK: - Fenêtre
 
-private struct PreferencesView: View {
+// Interne, et non `private` : son énumération d'onglets est la cible de
+// `selectSettingsTab`, que des composants d'autres fichiers empruntent pour
+// renvoyer vers l'onglet qui résout ce qu'ils signalent.
+struct PreferencesView: View {
     let history: TranscriptionHistory
     @State private var tab: Tab = .general
 
@@ -146,6 +149,7 @@ private struct PreferencesView: View {
         }
         .background(WindowBackground().ignoresSafeArea())
         .tint(Style.accent)
+        .environment(\.selectSettingsTab) { tab = $0 }
     }
 
     /// La barre segmentée du prototype : un rail sombre à coins arrondis, six

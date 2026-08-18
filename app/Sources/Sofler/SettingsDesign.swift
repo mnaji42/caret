@@ -801,3 +801,27 @@ struct FlowLayout: Layout {
         }
     }
 }
+
+/// Le moyen, pour un composant, de renvoyer vers un autre onglet des Réglages.
+///
+/// Un bandeau qui annonce « CrisperWhisper ne couvre pas cette langue » doit
+/// pouvoir offrir « Configurer dans Moteur IA » — le prototype le fait. Mais
+/// c'est la fenêtre qui détient l'onglet courant, et le bandeau vit trois
+/// niveaux plus bas, dans un composant qui sert aussi ailleurs. Passer un
+/// binding de main en main obligerait chaque vue intermédiaire à connaître une
+/// navigation dont elle n'a que faire ; l'environnement le porte sans les
+/// impliquer.
+///
+/// Vaut `nil` hors de la fenêtre des Réglages — dans l'accueil, par exemple,
+/// où il n'y a pas d'onglet vers quoi aller. Les bandeaux masquent alors leur
+/// bouton plutôt que d'en proposer un qui ne ferait rien.
+struct SettingsTabNavigationKey: EnvironmentKey {
+    static let defaultValue: ((PreferencesView.Tab) -> Void)? = nil
+}
+
+extension EnvironmentValues {
+    var selectSettingsTab: ((PreferencesView.Tab) -> Void)? {
+        get { self[SettingsTabNavigationKey.self] }
+        set { self[SettingsTabNavigationKey.self] = newValue }
+    }
+}

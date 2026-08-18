@@ -20,6 +20,7 @@ import SwiftUI
 struct PrimaryLanguageSelector: View {
     @State private var prefs = Preferences.shared
     @State private var coordinator = LanguageSwitchCoordinator.shared
+    @Environment(\.selectSettingsTab) private var selectSettingsTab
     @State private var showsCatalog = false
     @State private var installing = false
 
@@ -121,9 +122,35 @@ struct PrimaryLanguageSelector: View {
     @ViewBuilder
     private func fallbackBanner(_ notice: LanguageSwitchCoordinator.Notice) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(notice.message, systemImage: "info.circle.fill")
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                Text(notice.title)
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 8)
+
+                // Le prototype laisse écarter chaque bandeau. Un repli qui ne
+                // se répare pas tout de suite — une langue que CrisperWhisper
+                // ne couvre pas, par exemple — n'a pas à occuper l'écran
+                // indéfiniment une fois qu'on l'a lu et accepté.
+                Button {
+                    coordinator.dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .bold))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Fermer cette notification")
+                .help("Fermer cette notification")
+            }
+            .foregroundStyle(Style.warning)
+
+            Text(.init(notice.message))
                 .font(.system(size: 11.5))
-                .foregroundStyle(Style.warning)
+                .foregroundStyle(Style.textSecondary)
+                .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
 
             // Zéro saut de contexte : le modèle manquant se télécharge d'ici,
@@ -150,6 +177,18 @@ struct PrimaryLanguageSelector: View {
                     .tint(Style.accent)
                     .controlSize(.small)
                 }
+            }
+
+            // L'autre action du prototype : celle qui n'installe rien mais
+            // emmène là où le réglage se change. Elle existait déjà dans
+            // `actionLabel` sans qu'aucun bouton ne la porte — le bandeau de
+            // CrisperWhisper nommait une résolution qu'il n'offrait pas.
+            if case .crisperUncovered = notice,
+               let action = notice.actionLabel,
+               let goToTab = selectSettingsTab {
+                Button(action) { goToTab(.engine) }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
             }
         }
         .padding(10)

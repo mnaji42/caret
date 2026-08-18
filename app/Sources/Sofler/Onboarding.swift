@@ -409,14 +409,19 @@ private struct OnboardingView: View {
                     .strokeBorder(Style.accentBorder, lineWidth: 1)))
     }
 
+    /// Ce qui écrira, et non ce qui est coché.
+    ///
+    /// Le récapitulatif est la dernière chose lue avant « Terminer » : il doit
+    /// annoncer ce qui va se passer. Lu sur la préférence, il promettait Apple
+    /// Intelligence même quand le modèle de la langue n'est pas téléchargé et
+    /// que la Dictée classique prendra le relais.
     private var engineSummary: String {
-        switch prefs.finalEngine {
+        switch EngineSafetyManager.shared.effectiveEngine {
         case .crisperWhisper:
             let model = EngineInstall.selectedModel.label.uppercased()
             return "CrisperWhisper IA · Modèle \(model) (0 Mo au repos)"
-        case .apple:
-            let version = prefs.appleTechnology.versionLabel
-                ?? prefs.appleTechnology.label
+        case let macOS:
+            let version = macOS.versionLabel ?? macOS.label
             return "macOS Natif · \(version) (0 Mo de RAM, instantané)"
         }
     }

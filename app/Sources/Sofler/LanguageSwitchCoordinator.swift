@@ -61,6 +61,30 @@ final class LanguageSwitchCoordinator {
             }
         }
 
+        /// Le titre du bandeau — ce qui vient de changer, en une ligne.
+        ///
+        /// Le prototype distingue quatre cas selon que l'aperçu en direct, la
+        /// passe finale, ou les deux se replient. Ici l'aperçu suit la version
+        /// que la passe finale emploie dès que macOS écrit, si bien qu'un
+        /// modèle manquant les emporte tous les deux ; il ne reste indépendant
+        /// que sous CrisperWhisper, où la passe finale ne dépend pas d'Apple
+        /// Intelligence. Les deux cas mènent donc aux deux titres du
+        /// prototype, sans avoir à interroger deux réglages séparés.
+        @MainActor var title: String {
+            switch self {
+            case .modelMissing:
+                Preferences.shared.finalEngine == .crisperWhisper
+                    ? "Aperçu Live : Bascule sur macOS Dictée"
+                    : "Bascule sur macOS Dictée (Aperçu Live & Moteur Final)"
+            case .appleVersionSwitched:
+                "Moteur Final : Bascule sur macOS Dictée"
+            case .crisperUncovered:
+                "Moteur Final : Bascule sur macOS Natif (0 Mo)"
+            case .noSystemEngine:
+                "Aucun moteur macOS pour cette langue"
+            }
+        }
+
         /// L'intitulé du bouton qui lève la note, quand il y en a un.
         var actionLabel: String? {
             switch self {
@@ -98,26 +122,41 @@ final class LanguageSwitchCoordinator {
     /// Sans effet de bord quand tout va bien : c'est le cas courant, et il ne
     /// doit produire aucune note. Un bandeau qui apparaît à chaque bascule
     /// finit par se faire ignorer, y compris le jour où il dit quelque chose.
+    ///
+    /// ## Ce service ne décide rien, il constate
+    ///
+    /// Il repliait en écrivant `prefs.appleTechnology`. Deux raisons de ne
+    /// plus le faire. D'abord c'était redondant : `EngineSafetyManager`
+    /// calcule déjà le moteur effectif au moment de dicter, donc la dictée
+    /// était juste sans cette écriture. Ensuite c'était destructeur — passer
+    /// une heure sur une langue dont le modèle Apple Intelligence n'est pas
+    /// téléchargé suffisait à convertir définitivement le réglage en
+    /// « Dictée », et revenir au français ne le rendait pas. Le choix de
+    /// quelqu'un n'est pas à nous.
+    ///
+    /// C'est aussi ce que fait le service du prototype : il rend un
+    /// `effective` à côté du `requested`, sans jamais toucher au second.
     func audit() {
         let prefs = Preferences.shared
         let language = prefs.primaryLanguage
 
-        // 1. La version de macOS. C'est la logique qui vivait dans le `didSet`
-        //    de la langue — déplacée, pas dupliquée.
-        let current = prefs.appleTechnology
-        if !current.isAvailable(for: language) {
-            if let usable = EngineChoice.systemEngine(preferring: current, for: language) {
-                prefs.appleTechnology = usable
-                notice = .appleVersionSwitched(from: current, to: usable,
-                                               language: language)
-            } else {
-                notice = .noSystemEngine(
-                    language: language,
-                    reason: LegacySpeechEngine.unavailabilityReason(for: language)
-                        ?? "Aucune version du moteur de macOS n'est utilisable "
-                           + "ici pour cette langue.")
-                return
-            }
+        // 1. La version de macOS sait-elle écrire cette langue ?
+        let requested = prefs.appleTechnology
+        let effective: EngineChoice
+        if requested.isAvailable(for: language) {
+            effective = requested
+        } else if let usable = EngineChoice.systemEngine(preferring: requested,
+                                                         for: language) {
+            effective = usable
+            notice = .appleVersionSwitched(from: requested, to: usable,
+                                           language: language)
+        } else {
+            notice = .noSystemEngine(
+                language: language,
+                reason: LegacySpeechEngine.unavailabilityReason(for: language)
+                    ?? "Aucune version du moteur de macOS n'est utilisable "
+                       + "ici pour cette langue.")
+            return
         }
 
         // 2. CrisperWhisper couvre-t-il cette langue ? Ses poids embarquent
@@ -133,7 +172,10 @@ final class LanguageSwitchCoordinator {
         // 3. Le modèle Apple Intelligence de cette langue est-il là ? Posé en
         //    dernier parce que c'est le seul cas qui se répare tout seul, en
         //    téléchargeant — et le seul dont la note porte un bouton qui agit.
-        if prefs.appleTechnology == .apple,
+        //    Mesuré sur la version **effective** : quand la version demandée
+        //    ne sait déjà pas écrire cette langue, ses modèles ne sont pas le
+        //    sujet, et l'annoncer remplacerait une note juste par une autre.
+        if effective == .apple,
            case .missing = SpeechAssets.shared.state(of: language) {
             notice = .modelMissing(language: language)
         }
