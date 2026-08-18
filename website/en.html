@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sofler — 100% Local & Open Source AI Voice Dictation for macOS</title>
+  <meta name="description" content="Ultra-fast, private and open-source local AI dictation for macOS. Hold ⌥ Option, local AI cleans your speech hesitations and types at the speed of thought.">
+  
+  <!-- OpenGraph / Social -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://sofler.lyriastudio.fr/en.html">
+  <meta property="og:title" content="Sofler — 100% Local & Open Source AI Voice Dictation for macOS">
+  <meta property="og:description" content="Speak naturally. Your Mac writes at the speed of your thought. Zero cloud, 100% Open Source.">
+  <meta property="og:image" content="https://sofler.lyriastudio.fr/images/og-preview.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#07090e">
+
+  <!-- SEO hreflang -->
+  <link rel="canonical" href="https://sofler.lyriastudio.fr/en.html">
+  <link rel="alternate" hreflang="fr" href="https://sofler.lyriastudio.fr/">
+  <link rel="alternate" hreflang="en" href="https://sofler.lyriastudio.fr/en.html">
+  <link rel="alternate" hreflang="x-default" href="https://sofler.lyriastudio.fr/">
+
+  <!-- Favicon SVG -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2300d2ff'/%3E%3Cstop offset='100%25' stop-color='%230072ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='29' y='16' width='6' height='32' rx='3' fill='%23ffffff'/%3E%3Cpath d='M23 23C20.5 25.5 19 28.5 19 32C19 35.5 20.5 38.5 23 41' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' fill='none'/%3E%3Cpath d='M16 16C12 20.5 9.5 26 9.5 32C9.5 38 12 43.5 16 48' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' fill='none'/%3E%3Cpath d='M41 23C43.5 25.5 45 28.5 45 32C45 35.5 43.5 38.5 41 41' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' fill='none'/%3E%3Cpath d='M48 16C52 20.5 54.5 26 54.5 32C54.5 38 52 43.5 48 48' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+
+  <!-- Preconnect & Non-Blocking Google Fonts (100/100 Lighthouse Performance) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" media="print" onload="this.media='all'">
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap">
+  </noscript>
+
+  <!-- Preload Local Stylesheet to Avoid Chaining Critical Requests -->
+  <link rel="preload" as="style" href="style.css?v=2.1">
+  <link rel="stylesheet" href="style.css?v=2.1">
+</head>
+<body>
+
+  <!-- BACKGROUND GLOWS -->
+  <div class="glow-orb glow-top-left"></div>
+  <div class="glow-orb glow-top-right"></div>
+  <div class="glow-orb glow-bottom-center"></div>
+
+  <!-- NAVIGATION HEADER -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="en.html" class="brand-logo" aria-label="Sofler Home">
+        <div class="logo-squircle">
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="29" y="18" width="6" height="28" rx="3" fill="#ffffff" />
+            <path d="M21 24C19 26.5 17.5 29 17.5 32C17.5 35 19 37.5 21 40" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+            <path d="M14 18C10 22.5 8 27 8 32C8 37 10 41.5 14 46" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+            <path d="M43 24C45 26.5 46.5 29 46.5 32C46.5 35 45 37.5 43 40" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+            <path d="M50 18C54 22.5 56 27 56 32C56 37 54 41.5 50 46" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">Sofler</span>
+          <span class="brand-sub">by Lyria Studio</span>
+        </div>
+      </a>
+
+      <nav class="nav-links">
+        <a href="#demo" class="nav-link">Live Demo</a>
+        <a href="#engines" class="nav-link">Dual Engines</a>
+        <a href="#features" class="nav-link">Superpowers</a>
+        <a href="#opensource" class="nav-link">Open Source</a>
+        <a href="#faq" class="nav-link">FAQ</a>
+      </nav>
+
+      <div class="header-actions">
+        
+        <!-- Language Switcher to index.html -->
+        <div class="lang-switcher">
+          <a href="index.html" class="lang-btn" title="Passer en Français">🇫🇷 FR</a>
+          <span class="lang-divider">|</span>
+          <span class="lang-btn active">🇬🇧 EN</span>
+        </div>
+
+        <a href="https://github.com/mnaji42/sofler" target="_blank" rel="noopener noreferrer" class="btn-icon" title="View source on GitHub">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          <span class="desktop-only">GitHub</span>
+        </a>
+
+        <button type="button" class="btn btn-primary btn-sm download-trigger-btn header-download-btn" aria-label="Download Sofler">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.85c.66-.8 1.11-1.92.99-3.05-.96.04-2.13.64-2.82 1.44-.6.69-1.13 1.83-1 2.94 1.07.08 2.17-.53 2.83-1.33z"/>
+          </svg>
+          <span>Download</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT LANDMARK -->
+  <main id="main-content">
+
+  <!-- HERO SECTION WITH TYPEWRITER ANIMATION -->
+  <section class="hero-section">
+    <div class="container hero-content">
+      
+      <!-- Top Badge -->
+      <div class="hero-badge">
+        <span class="badge-dot"></span>
+        <span class="badge-text">⚡ 100% Local & Open Source AI Voice Dictation for macOS</span>
+      </div>
+
+      <!-- Main Headline with Super-Fast Single Line Typewriter -->
+      <h1 class="hero-title">
+        <span class="hero-title-static">Speak naturally. Your Mac</span>
+        <span class="typewriter-container"><span class="typewriter-text" id="typewriter-phrase">writes at the speed of thought.</span><span class="typewriter-cursor">|</span></span>
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="hero-subtitle">
+        Hold <strong>⌥ Option</strong> and speak freely. Local AI transcribes and cleans speech hesitations <strong>instantly</strong>, typing directly wherever your cursor blinks. <strong>100% Offline. 100% Open Source. Zero accounts. Zero latency.</strong>
+      </p>
+
+      <!-- CTA Button & Live Meta -->
+      <div class="hero-cta-group">
+        <button type="button" id="main-download-btn" class="btn btn-primary btn-download-hero download-trigger-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.85c.66-.8 1.11-1.92.99-3.05-.96.04-2.13.64-2.82 1.44-.6.69-1.13 1.83-1 2.94 1.07.08 2.17-.53 2.83-1.33z"/>
+          </svg>
+          <span>Download for macOS</span>
+        </button>
+
+        <div class="release-status-banner" id="release-status">
+          <span class="status-indicator"></span>
+          <span id="release-info-text">Loading release info…</span>
+        </div>
+      </div>
+
+      <!-- INTERACTIVE FLOATING HUD SIMULATOR -->
+      <div id="demo" class="hud-simulator-wrapper">
+        <div class="hud-mockup-header">
+          <div class="mac-window-dots">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+          </div>
+          <span class="hud-mockup-title">Live simulation of the Sofler recording lifecycle</span>
+          <div class="hud-badge-tag">Hold ⌥ Option to dictate</div>
+        </div>
+
+        <div class="hud-stage-scene">
+          
+          <!-- Mockup Text Editor in Background -->
+          <div class="mock-editor">
+            <div class="mock-editor-header">
+              <span class="mock-file-name">meeting-notes.md</span>
+              <span class="mock-cursor-pos">Ln 14, Col 32</span>
+            </div>
+            <div class="mock-editor-content">
+              <p class="editor-faded"># Sofler Architecture — Local Dictation</p>
+              <p class="editor-faded">- Ultra-fast inference and instant typing</p>
+              <p class="editor-active-line">
+                <span id="mock-inserted-text"></span>
+                <span class="cursor-blink">|</span>
+              </p>
+            </div>
+          </div>
+
+          <!-- The Floating HUD Overlay (Strict 440pt constant width) -->
+          <div class="floating-hud-card" id="interactive-hud">
+            
+            <!-- Line 1: Timer, Waveform, Mic Mode, Collecte Badge -->
+            <div class="hud-top-row">
+              <div class="hud-status-left">
+                <span class="hud-rec-dot" id="hud-dot"></span>
+                <span class="hud-timer" id="hud-timer">0:03</span>
+                <div class="hud-vumeter" id="hud-vumeter">
+                  <div class="vu-bar" style="height: 6px;"></div>
+                  <div class="vu-bar" style="height: 12px;"></div>
+                  <div class="vu-bar" style="height: 16px;"></div>
+                  <div class="vu-bar" style="height: 14px;"></div>
+                  <div class="vu-bar" style="height: 8px;"></div>
+                  <div class="vu-bar" style="height: 15px;"></div>
+                  <div class="vu-bar" style="height: 10px;"></div>
+                  <div class="vu-bar" style="height: 14px;"></div>
+                </div>
+              </div>
+
+              <div class="hud-status-right">
+                <button type="button" class="hud-btn-mode" id="btn-mic-mode" title="macOS Mic Mode">Isolation</button>
+                <button type="button" class="hud-btn-badge" id="btn-collecte" title="Local corpus archive">COLLECT</button>
+              </div>
+            </div>
+
+            <!-- Line 2: Realtime Live Italic Preview & Status -->
+            <div class="hud-preview-text" id="hud-live-text">
+              … and all transcriptions strictly remain on the machine with zero data leaks.
+            </div>
+
+          </div>
+
+          <!-- HUD Bottom Floating Tabs -->
+          <div class="hud-bottom-tabs" id="hud-tabs">
+            <div class="hud-pill-group">
+              <button type="button" class="hud-pill-btn active" id="tab-clean">Cleaned</button>
+              <button type="button" class="hud-pill-btn" id="tab-raw">Raw</button>
+            </div>
+            
+            <div class="hud-pill-indicator">
+              <span>🇬🇧</span>
+              <span>EN</span>
+            </div>
+
+            <div class="hud-pill-group">
+              <button type="button" class="hud-pill-btn active" id="tab-caret">Cursor</button>
+              <button type="button" class="hud-pill-btn" id="tab-notes">Notes</button>
+            </div>
+          </div>
+
+          <!-- Simulator interactive triggers -->
+          <div class="simulator-controls">
+            <button type="button" class="sim-btn" id="btn-trigger-dictate">
+              <span>▶ Replay dictation</span>
+            </button>
+            <span class="sim-hint">Instant Live Preview while speaking, followed by instant insertion of cleaned text</span>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- BEFORE / AFTER COMPARISON SECTION -->
+  <section class="section comparison-section">
+    <div class="container">
+      <div class="section-header text-center">
+        <span class="section-tag">Intelligence applied to your voice</span>
+        <h2 class="section-title">Why standard dictation is frustrating,<br>and how Sofler reinvents it.</h2>
+        <p class="section-subtitle">Classic dictation engines write every 'um', repetition, and stutter. Sofler understands your train of thought and delivers clean, structured, and punctuated text.</p>
+      </div>
+
+      <div class="comparison-grid">
+        
+        <!-- Classic Dictation Card -->
+        <div class="comparison-card card-classic">
+          <div class="card-badge-status status-bad">❌ Standard Dictation (Cloud / Built-in)</div>
+          <h3 class="comparison-card-title">Raw & Cluttered with Hesitations</h3>
+          <div class="speech-bubble speech-bubble-bad">
+            <p>
+              "So um wait, let's create the function um <span class="highlight-bad">get user data</span> no wait <span class="highlight-bad">fetch user data</span> with a try catch comma and um if it fails return null question mark"
+            </p>
+          </div>
+          <ul class="comparison-points">
+            <li><span>⚠️</span> No removal of stutters or false starts</li>
+            <li><span>⚠️</span> Awkward oral punctuation you have to say out loud</li>
+            <li><span>⚠️</span> Catastrophic handling of code terms and technical jargon</li>
+          </ul>
+        </div>
+
+        <!-- Sofler Cleaned Card -->
+        <div class="comparison-card card-sofler">
+          <div class="card-badge-status status-good">✨ With Sofler (CrisperWhisper AI)</div>
+          <h3 class="comparison-card-title">Cleaned, Structured & Punctuated</h3>
+          <div class="speech-bubble speech-bubble-good">
+            <p>
+              "Let's create the <code>fetchUserData</code> function with a try/catch block, and return <code>null</code> on error."
+            </p>
+          </div>
+          <ul class="comparison-points">
+            <li><span>✓</span> Automatic removal of 'ums', repetitions and false starts</li>
+            <li><span>✓</span> Natural punctuation and capitalization inferred from sentence context</li>
+            <li><span>✓</span> Flawless recognition of code variables, acronyms and tech terms</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- DUAL ENGINES SHOWCASE SECTION -->
+  <section id="engines" class="section engines-section">
+    <div class="container">
+      <div class="section-header text-center">
+        <span class="section-tag">Flexibility & Performance</span>
+        <h2 class="section-title">Two Engines Included.<br>Tailor Sofler to your Workflow.</h2>
+        <p class="section-subtitle">Switch in 1 click in Settings depending on whether you want instant 0 MB RAM speed or the power of AI text restructuring.</p>
+      </div>
+
+      <div class="engines-grid">
+        
+        <!-- Engine 1: Apple Native -->
+        <div class="engine-card engine-apple">
+          <div class="engine-header">
+            <span class="engine-badge badge-apple">🚀 Zero RAM · Instant</span>
+            <h3>macOS Native Engine</h3>
+            <p>Leverages Apple's built-in system speech frameworks (Speech Recognition / Apple Intelligence).</p>
+          </div>
+          <ul class="engine-features-list">
+            <li><strong>0 MB extra RAM:</strong> Utilizes system macOS speech models already in memory.</li>
+            <li><strong>Total zero latency:</strong> Instant word-by-word streaming dictation.</li>
+            <li><strong>Ultra lightweight:</strong> Ideal for battery saving or quick short phrases.</li>
+          </ul>
+        </div>
+
+        <!-- Engine 2: CrisperWhisper IA -->
+        <div class="engine-card engine-crisper">
+          <div class="engine-header">
+            <span class="engine-badge badge-crisper">✨ Next-Gen AI · Smart Cleanup</span>
+            <h3>CrisperWhisper AI Engine</h3>
+            <p>Runs a local Whisper model optimized with Metal GPU & Neural Engine hardware acceleration.</p>
+          </div>
+          <ul class="engine-features-list">
+            <li><strong>Removes hesitations:</strong> Strips out 'ums', filler words, stutters, and repetitions.</li>
+            <li><strong>Auto punctuation & capitalization:</strong> Inferred from grammatical context.</li>
+            <li><strong>Code & Technical terms:</strong> Understands programming keywords and mixed languages flawlessly.</li>
+          </ul>
+          <div class="engine-license-note">
+            💡 Model trained by Nyra Labs, distributed under a <a href="https://huggingface.co/nyralabs/CrisperWhisper2.0_turbo/blob/main/LICENSE.md" target="_blank" rel="noopener noreferrer">non-commercial research license</a>.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- BENTO GRID SUPER-POWERS -->
+  <section id="features" class="section bento-section">
+    <div class="container">
+      <div class="section-header text-center">
+        <span class="section-tag">Superpowers</span>
+        <h2 class="section-title">A macOS app engineered for raw speed.</h2>
+        <p class="section-subtitle">Pure native Swift engineering combined with local AI models optimized for Neural Engine and GPU.</p>
+      </div>
+
+      <div class="bento-grid">
+        
+        <!-- Row 1 Left: Card 1 - 100% Local & Privacy (Span 2) -->
+        <div class="bento-card bento-span-2">
+          <div class="bento-card-header">
+            <div class="bento-icon-box">🔒</div>
+            <div class="bento-header-text">
+              <span class="bento-tag">Absolute Privacy</span>
+              <h3 class="bento-title">100% Local. Zero Cloud. Zero Data Leaks.</h3>
+            </div>
+          </div>
+          <p class="bento-desc">
+            Your voice and text never leave your Mac. Inference runs locally on Apple Silicon (Metal/MPS) or Intel CPU. Turn off your Wi-Fi: Sofler runs exactly the same.
+          </p>
+          <div class="bento-graphic-privacy">
+            <div class="privacy-pill"><span>✓</span> 0 bytes sent over the Internet</div>
+            <div class="privacy-pill"><span>✓</span> Zero telemetry or trackers</div>
+            <div class="privacy-pill"><span>✓</span> No account required</div>
+          </div>
+        </div>
+
+        <!-- Row 1 Right: Card 2 - Hold to talk (Span 1) -->
+        <div class="bento-card">
+          <div class="bento-card-header">
+            <div class="bento-icon-box">⌨️</div>
+            <div class="bento-header-text">
+              <span class="bento-tag">Instant Hold-to-Talk</span>
+              <h3 class="bento-title">⌥ Option Key or Custom Shortcut</h3>
+            </div>
+          </div>
+          <p class="bento-desc">
+            Hold the Option key (or your custom shortcut), speak your thought, and release: text is typed instantly. No clicking, no switching windows.
+          </p>
+        </div>
+
+        <!-- Row 2 Left: Card 3 - Non-Intrusive HUD (Span 1) -->
+        <div class="bento-card">
+          <div class="bento-card-header">
+            <div class="bento-icon-box">🪟</div>
+            <div class="bento-header-text">
+              <span class="bento-tag">Non-Intrusive HUD</span>
+              <h3 class="bento-title">Zero focus stealing</h3>
+            </div>
+          </div>
+          <p class="bento-desc">
+            A lightweight non-activating panel (NSPanel): it displays your live audio waves and streaming text without ever unfocusing the app you are typing in.
+          </p>
+        </div>
+
+        <!-- Row 2 Center: Card 4 - Smart Routing (Span 1) -->
+        <div class="bento-card">
+          <div class="bento-card-header">
+            <div class="bento-icon-box">🎯</div>
+            <div class="bento-header-text">
+              <span class="bento-tag">Smart Routing</span>
+              <h3 class="bento-title">At Cursor or Append to Notes</h3>
+            </div>
+          </div>
+          <p class="bento-desc">
+            Dictate directly into VS Code, Slack, Notion, Word... Or continuously append your thoughts to a daily Markdown journal without interrupting your task.
+          </p>
+        </div>
+
+        <!-- Row 2 Right: Card 5 - Metal GPU Acceleration (Span 1) -->
+        <div class="bento-card">
+          <div class="bento-card-header">
+            <div class="bento-icon-box">⚡</div>
+            <div class="bento-header-text">
+              <span class="bento-tag">Hardware Performance</span>
+              <h3 class="bento-title">Metal GPU & Neural Engine</h3>
+            </div>
+          </div>
+          <p class="bento-desc">
+            Ultra-fast inference optimized for Apple Silicon M1, M2, M3, M4 and Intel processors with minimal battery impact.
+          </p>
+        </div>
+
+        <!-- Row 3: Card 6 - Polyglot & Custom Tech Lexicon (Span 3 Full Width) -->
+        <div class="bento-card bento-span-3">
+          <div class="bento-card-header">
+            <div class="bento-icon-box">🌐</div>
+            <div class="bento-header-text">
+              <span class="bento-tag">Polyglot & Custom Lexicon</span>
+              <h3 class="bento-title">24+ Languages & Hotwords Dictionary</h3>
+            </div>
+          </div>
+          <p class="bento-desc">
+            Native support for 24+ languages with instant switching. Add your custom acronyms, variable names, and technical terms to your custom dictionary for pinpoint accuracy without manual edits.
+          </p>
+          <div class="vocabulary-tags-cloud">
+            <span class="vocab-tag">TypeScript</span>
+            <span class="vocab-tag">GraphQL</span>
+            <span class="vocab-tag">PostgreSQL</span>
+            <span class="vocab-tag">Kubernetes</span>
+            <span class="vocab-tag">TailwindCSS</span>
+            <span class="vocab-tag">PR Review</span>
+            <span class="vocab-tag">async/await</span>
+            <span class="vocab-tag">FastAPI</span>
+            <span class="vocab-tag">PyTorch</span>
+            <span class="vocab-tag">SwiftUI</span>
+            <span class="vocab-tag">Docker</span>
+            <span class="vocab-tag">Rust</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- OPEN SOURCE & FREEDOM SECTION -->
+  <section id="opensource" class="section os-section">
+    <div class="container">
+      <div class="section-header text-center">
+        <span class="section-tag">Transparency & Freedom</span>
+        <h2 class="section-title">100% Open Source. Free. Auditable.</h2>
+        <p class="section-subtitle">Sofler belongs to the community. No hidden subscriptions, no paywalled features, no opaque proprietary code.</p>
+      </div>
+
+      <div class="os-cards-grid">
+        <div class="os-feature-card">
+          <div class="os-card-header">
+            <div class="os-icon">🐙</div>
+            <div class="os-header-text">
+              <span class="os-tag">Transparency</span>
+              <h3>Public Source Code on GitHub</h3>
+            </div>
+          </div>
+          <p>All Swift code (AppKit, SwiftUI) and the Python engine (uv, PyTorch, Whisper) are open source. Inspect every single line, fork the repo, or build it yourself.</p>
+        </div>
+
+        <div class="os-feature-card">
+          <div class="os-card-header">
+            <div class="os-icon">🛠️</div>
+            <div class="os-header-text">
+              <span class="os-tag">Customization</span>
+              <h3>Forkable & Modular</h3>
+            </div>
+          </div>
+          <p>Train custom models, tweak transcription prompts, or integrate custom audio pipelines to fit your exact developer workflow.</p>
+        </div>
+
+        <div class="os-feature-card">
+          <div class="os-card-header">
+            <div class="os-icon">🧹</div>
+            <div class="os-header-text">
+              <span class="os-tag">macOS Integrity</span>
+              <h3>Clean Uninstaller & Zero Residue</h3>
+            </div>
+          </div>
+          <p>Sofler includes a dedicated clean uninstaller that completely wipes the Python environment, caches, and models without leaving orphan files on your Mac.</p>
+        </div>
+      </div>
+
+      <div class="text-center" style="margin-top: 36px;">
+        <a href="https://github.com/mnaji42/sofler" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-lg">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          <span>View GitHub Repository</span>
+        </a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FAQ SECTION -->
+  <section id="faq" class="section faq-section">
+    <div class="container faq-container">
+      <div class="section-header text-center">
+        <span class="section-tag">Frequently Asked Questions</span>
+        <h2 class="section-title">Everything you need to know about Sofler</h2>
+      </div>
+
+      <div class="faq-accordion">
+        
+        <div class="faq-item">
+          <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-ans-1">
+            <span>Which Mac models and macOS versions are supported?</span>
+            <span class="faq-icon" aria-hidden="true">+</span>
+          </button>
+          <div class="faq-answer" id="faq-ans-1">
+            <p>Sofler is compatible with <strong>macOS 14 (Sonoma)</strong>, <strong>macOS 15 (Sequoia)</strong> and later. It runs at full speed on <strong>Apple Silicon chips (M1, M2, M3, M4)</strong> using Metal/MPS GPU acceleration, and fully supports <strong>Intel</strong> Macs.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-ans-2">
+            <span>Can my audio recordings or text ever be sent over the internet?</span>
+            <span class="faq-icon" aria-hidden="true">+</span>
+          </button>
+          <div class="faq-answer" id="faq-ans-2">
+            <p><strong>No, never.</strong> Sofler operates completely offline. The app has no backend servers, no user accounts, no cloud API connections, and zero telemetry. Your voice strictly remains in your Mac's memory.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-ans-3">
+            <span>Why does macOS show a security prompt on first launch?</span>
+            <span class="faq-icon" aria-hidden="true">+</span>
+          </button>
+          <div class="faq-answer" id="faq-ans-3">
+            <p>To distribute software without Gatekeeper prompts, Apple requires a recurring $99/year developer subscription. As a 100% free and open-source project, Sofler is distributed directly. Following the 1-click step (Open Anyway in System Settings) permanently authorizes the app on your Mac.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-ans-4">
+            <span>How does the ⌥ Option key dictation trigger work?</span>
+            <span class="faq-icon" aria-hidden="true">+</span>
+          </button>
+          <div class="faq-answer" id="faq-ans-4">
+            <p>It's <em>Hold-to-talk</em>: simply hold the Option key down while you speak, then release it. The moment you release, Sofler cleans the text and instantly types it right where your cursor is.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-ans-5">
+            <span>Can I use Sofler with programming code and technical terms?</span>
+            <span class="faq-icon" aria-hidden="true">+</span>
+          </button>
+          <div class="faq-answer" id="faq-ans-5">
+            <p>Absolutely! That's one of CrisperWhisper's biggest strengths. It natively recognizes programming keywords (<code>async/await</code>, <code>useState</code>, <code>try/catch</code>), technical acronyms, and English tech terms seamlessly.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- BOTTOM DOWNLOAD CTA BANNER -->
+  <section class="section bottom-cta-section">
+    <div class="container">
+      <div class="bottom-cta-box">
+        <div class="cta-glow-bg"></div>
+        <div class="bottom-cta-content">
+          <h2 class="bottom-cta-title">Ready to write faster than you can type?</h2>
+          <p class="bottom-cta-desc">Download Sofler for free and experience the power of next-generation local voice dictation on your Mac.</p>
+          <div class="bottom-cta-actions">
+            <button type="button" class="btn btn-primary btn-download-hero download-trigger-btn">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.85c.66-.8 1.11-1.92.99-3.05-.96.04-2.13.64-2.82 1.44-.6.69-1.13 1.83-1 2.94 1.07.08 2.17-.53 2.83-1.33z"/>
+              </svg>
+              <span>Download Sofler for macOS</span>
+            </button>
+            <span class="cta-safe-note">✓ 100% Free · Open Source on GitHub · macOS 14+</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  </main>
+
+  <!-- SITE FOOTER WITH LYRIA STUDIO BRANDING & LEGAL LINKS -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-top-row">
+        <div class="footer-brand">
+          <div class="logo-squircle logo-footer">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="29" y="18" width="6" height="28" rx="3" fill="#ffffff" />
+              <path d="M21 24C19 26.5 17.5 29 17.5 32C17.5 35 19 37.5 21 40" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+              <path d="M14 18C10 22.5 8 27 8 32C8 37 10 41.5 14 46" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+              <path d="M43 24C45 26.5 46.5 29 46.5 32C46.5 35 45 37.5 43 40" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+              <path d="M50 18C54 22.5 56 27 56 32C56 37 54 41.5 50 46" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+            </svg>
+          </div>
+          <div>
+            <span class="footer-title">Sofler</span>
+            <p class="footer-desc">Ultra-fast, private, and 100% local AI voice dictation for macOS.</p>
+          </div>
+        </div>
+
+        <div class="footer-links">
+          <a href="https://github.com/mnaji42/sofler" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="https://github.com/mnaji42/sofler/releases" target="_blank" rel="noopener noreferrer">Releases & Changelog</a>
+          <a href="https://github.com/mnaji42/sofler/issues" target="_blank" rel="noopener noreferrer">Report an Issue</a>
+          <a href="https://sofler.lyriastudio.fr/">Official Website</a>
+        </div>
+      </div>
+
+      <div class="footer-bottom-bar">
+        <p>© 2026 Sofler. All rights reserved.</p>
+        <div class="footer-legal-links">
+          <a href="legal.html">Legal Notice</a>
+          <span class="footer-sep">|</span>
+          <a href="privacy.html">Privacy Policy</a>
+          <span class="footer-sep">|</span>
+          <span>Designed & maintained by <a href="https://lyriastudio.fr" target="_blank" rel="noopener noreferrer" class="lyria-backlink">Lyria Studio</a></span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- DOWNLOAD & LARGE 8-STEP CAROUSEL MODAL -->
+  <div id="download-modal" class="modal-backdrop">
+    <div class="modal-card">
+      <button type="button" class="modal-close-btn" id="modal-close-btn" aria-label="Close window">&times;</button>
+      
+      <div class="modal-header">
+        <div class="logo-squircle logo-modal">
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="29" y="18" width="6" height="28" rx="3" fill="#ffffff" />
+            <path d="M21 24C19 26.5 17.5 29 17.5 32C17.5 35 19 37.5 21 40" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+            <path d="M14 18C10 22.5 8 27 8 32C8 37 10 41.5 14 46" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+            <path d="M43 24C45 26.5 46.5 29 46.5 32C46.5 35 45 37.5 43 40" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+            <path d="M50 18C54 22.5 56 27 56 32C56 37 54 41.5 50 46" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+          </svg>
+        </div>
+        <h2 class="modal-title">Downloading Sofler… 🚀</h2>
+        <p class="modal-subtitle">Your <code>Sofler.dmg</code> installer is downloading. Follow this visual step-by-step guide to run it:</p>
+      </div>
+
+      <!-- Why Callout -->
+      <div class="modal-why-box">
+        <p class="modal-why-title"><strong>💡 Why are these extra steps required?</strong></p>
+        <p>Sofler is <strong>100% free and open-source</strong>. We do not pay Apple's $99/yr developer fee, so macOS displays a standard security prompt on first launch. Following these steps takes only <strong>30 seconds</strong> and is done only once!</p>
+      </div>
+
+      <!-- Large Interactive Carousel Container -->
+      <div class="carousel-wrapper">
+        <div class="carousel-step-header">
+          <span class="carousel-counter-badge" id="carousel-step-badge">Step 1 of 8</span>
+          <h3 class="carousel-step-title" id="carousel-step-title">1. Download and open Sofler.dmg</h3>
+        </div>
+
+        <div class="carousel-slide-viewport">
+          <img src="images/01-fichier-telecharger-doubleclick.png" alt="Step 1: double click Sofler.dmg to mount" class="carousel-img" id="carousel-img" width="560" height="340" loading="lazy" decoding="async">
+        </div>
+
+        <p class="carousel-instruction-text" id="carousel-step-desc">
+          Download <code>Sofler.dmg</code>, then double-click it in your Finder to open the installer window.
+        </p>
+
+        <!-- Carousel Navigation Controls -->
+        <div class="carousel-nav-row">
+          <button type="button" class="carousel-nav-btn" id="carousel-prev-btn" aria-label="Previous step">‹ Previous</button>
+          
+          <div class="carousel-dots-group" id="carousel-dots">
+            <!-- 8 dynamic dots generated by app.js -->
+          </div>
+
+          <button type="button" class="carousel-nav-btn" id="carousel-next-btn" aria-label="Next step">Next ›</button>
+        </div>
+      </div>
+
+      <!-- Modal Footer Action -->
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="modal-confirm-btn" aria-label="Close installation guide">Got it!</button>
+        <a href="https://github.com/mnaji42/sofler/releases/latest/download/Sofler.dmg" class="modal-restart-link" aria-label="Restart Sofler.dmg download">Download didn't start automatically? Click here to retry.</a>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="app.js?v=2.1" defer></script>
+</body>
+</html>

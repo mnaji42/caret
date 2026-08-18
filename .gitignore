@@ -1,8 +1,9 @@
-# Brouillons de test dictés dans l'app — contenu personnel, pas du code.
+# Documentation locale et prototypes — contenu personnel
 test-sofler.md
 test-*.md
 scratch/
 notes/
+docs/
 
 # Enregistrements de voix — données personnelles, ne jamais publier.
 poc/samples/
