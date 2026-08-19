@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let preferences = PreferencesWindowController()
     private let onboarding = OnboardingWindowController()
     private let engineNotice = EngineStartupNoticeController()
+    private let installPrompt = InstallPromptWindowController()
     private let uninstaller = UninstallWindowController.shared
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -102,6 +103,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         Task {
+            // Depuis l'image disque, rien d'autre ne s'ouvre tant qu'on n'a pas
+            // répondu : configurer des langues et des autorisations sur une
+            // copie en lecture seule serait du travail à refaire, puisque les
+            // autorisations tiennent au chemin et que ce chemin va disparaître.
+            if promptToInstallIfNeeded() {
+                await refreshMenu()
+                return
+            }
             // Au premier lancement, l'accueil prend la main sur le micro : il
             // l'explique avant de le demander. Les deux en même temps feraient
             // surgir le dialogue système derrière la fenêtre d'accueil, et
@@ -116,7 +125,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Avant tout le reste de l'asynchrone : si l'application tourne depuis
         // l'image disque, rien de ce qui suit ne tiendra.
-        warnIfNotInstalled()
 
         // Hors du chemin critique : ça ne conditionne rien de ce lancement-ci,
         // seulement le confort des suivants.
@@ -146,57 +154,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// D'où un dialogue qui *agit* au lieu d'instruire : ouvrir la copie déjà
     /// installée, ou installer et ouvrir s'il n'y en a pas. Un clic, et le
     /// problème n'a plus lieu d'être expliqué.
-    private func warnIfNotInstalled() {
-        guard Uninstall.runsFromReadOnlyVolume else { return }
+    /// Rend `true` si la modale a pris la main — auquel cas rien d'autre ne
+    /// s'ouvre, et c'est elle qui enchaînera sur l'accueil.
+    @discardableResult
+    private func promptToInstallIfNeeded() -> Bool {
+        guard Uninstall.runsFromReadOnlyVolume else { return false }
         let destination = URL(fileURLWithPath: "/Applications/Sofler.app")
         let installed = FileManager.default.fileExists(atPath: destination.path)
+        let volume = sourceVolume
 
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        // « Pas installé » portait un jugement là où il n'y a qu'un fait, et
-        // un fait discutable : l'application est bien là, elle est simplement
-        // sur un support qui va disparaître. On nomme donc l'endroit, pas un
-        // état — et on dit ce que cet endroit empêche, pour que le choix se
-        // fasse en connaissance de cause plutôt que sur une injonction.
-        alert.messageText = installed
-            ? "Ce n'est pas la copie installée"
-            : "Sofler tourne depuis l'image disque"
-        alert.informativeText = installed
-            ? """
-              Sofler est bien dans Applications, mais c'est la copie restée \
-              dans l'image disque qui vient de s'ouvrir — les deux icônes se \
-              ressemblent, et celle de l'image est la plus proche.
-
-              Celle-ci est en lecture seule : les autorisations que vous lui \
-              accorderez seront perdues, et les mises à jour ne s'y \
-              installeront pas. Ouvrez plutôt celle d'Applications.
-              """
-            : """
-              Cette copie vit sur l'image disque montée : elle disparaîtra \
-              quand vous éjecterez l'image, et macOS l'exécute en lecture \
-              seule.
-
-              Deux conséquences concrètes. Les autorisations micro et \
-              accessibilité s'attachent à ce chemin temporaire, donc elles \
-              seront à ré-accorder. Et les mises à jour ne peuvent pas \
-              s'installer sur un volume qu'on ne peut pas écrire.
-
-              Applications est l'endroit habituel parce qu'il est permanent \
-              et inscriptible — mais n'importe quel dossier de votre disque \
-              ferait l'affaire, et ce message ne reviendrait pas. Sofler peut \
-              s'y copier, éjecter l'image et s'y rouvrir tout seul.
-              """
-        alert.addButton(withTitle: installed
-                        ? "Ouvrir la copie installée"
-                        : "Installer dans Applications")
-        alert.addButton(withTitle: "Continuer quand même")
-
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        if installed {
-            relaunch(from: destination, ejecting: sourceVolume)
-        } else {
-            install(to: destination)
-        }
+        installPrompt.show(.init(
+            alreadyInstalled: installed,
+            onPrimary: { [weak self] in
+                guard let self else { return }
+                if installed {
+                    relaunch(from: destination, ejecting: volume)
+                } else {
+                    install(to: destination)
+                }
+            },
+            onContinue: { [weak self] in
+                guard let self else { return }
+                // Le refus n'annule que l'installation, pas la suite : on
+                // continue exactement là où on serait allé sans image disque.
+                Task { @MainActor in
+                    if Preferences.shared.onboarded {
+                        await self.requestMicrophoneIfNeeded()
+                    } else {
+                        self.onboarding.show()
+                    }
+                }
+            }))
+        return true
     }
 
     /// Recopie l'application dans Applications, puis s'y rouvre.
