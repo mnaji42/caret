@@ -26,9 +26,40 @@ enum EngineService {
         FileManager.default.fileExists(atPath: agentPath)
     }
 
+    /// launchd a-t-il lancé le processus ?
+    ///
+    /// ## Pourquoi une mémoire d'une seconde
+    ///
+    /// Cette réponse coûte un `launchctl`, c'est-à-dire un sous-processus, et
+    /// elle est demandée depuis `EngineInstall.step`, que les vues appellent
+    /// dans leur corps. `step` étant une propriété calculée, un seul rendu la
+    /// relit plusieurs fois — et pendant le démarrage du service, le rendu se
+    /// refait chaque seconde.
+    ///
+    /// Le résultat : une poignée de `launchctl` lancés **de façon synchrone sur
+    /// le fil principal** à chaque rafraîchissement. L'interface se figeait
+    /// exactement là où elle avait le plus besoin de bouger — le libellé
+    /// restait bloqué sur « … 10 s » pendant que la barre de progression, elle,
+    /// continuait de tourner, puisqu'elle est animée par le serveur de rendu et
+    /// non par le fil principal.
+    ///
+    /// Une seconde de mémoire suffit : c'est le pas auquel l'état est affiché,
+    /// et launchd ne change pas d'avis plus vite que ça.
     static var isRunning: Bool {
-        run(["list", label]) != nil
+        let now = Date()
+        if let cached = runningCache, now.timeIntervalSince(cached.at) < 1 {
+            return cached.value
+        }
+        let value = run(["list", label]) != nil
+        runningCache = (value, now)
+        return value
     }
+
+    /// Oublie la réponse mémorisée — après avoir lancé ou arrêté le service,
+    /// où l'attendre une seconde de plus n'aurait aucun sens.
+    static func forgetRunningState() { runningCache = nil }
+
+    private static var runningCache: (value: Bool, at: Date)?
 
     /// Le service **répond**-il ? Ce qui n'est pas la même question.
     ///
@@ -167,6 +198,7 @@ enum EngineService {
         default:
             break
         }
+        forgetRunningState()
     }
 
     private static var domain: String { "gui/\(getuid())" }

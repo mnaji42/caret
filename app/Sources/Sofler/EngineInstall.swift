@@ -150,7 +150,10 @@ enum EngineInstall {
 
         // Recharger un service déjà présent échoue : on le sort d'abord.
         _ = launchctl(["bootout", "gui/\(getuid())/\(label)"])
-        return launchctl(["bootstrap", "gui/\(getuid())", url.path])
+        let started = launchctl(["bootstrap", "gui/\(getuid())", url.path])
+        // L'état mémorisé vient d'être rendu faux par ce qu'on vient de faire.
+        EngineService.forgetRunningState()
+        return started
     }
 
     /// Change le modèle chargé, ce qui suppose de redémarrer le service.
