@@ -22,8 +22,9 @@ final class PillSelector: NSView {
     private let stack = NSStackView()
     private(set) var selectedIndex = 0
 
-    private static let height: CGFloat = 32
-    private static let inset: CGFloat = 4
+    // `padding: 3px` autour de segments de 22 pt.
+    private static let height: CGFloat = 28
+    private static let inset: CGFloat = 3
 
     init(labels: [String], accent: NSColor) {
         self.accent = accent
@@ -150,22 +151,34 @@ private final class SegmentButton: NSButton {
     /// garde sous les yeux pendant qu'on travaille, c'est fatigant. Un fond à
     /// faible opacité suffit à désigner l'état, et le texte à la teinte le
     /// confirme sans forcer le contraste.
+    /// Le segment actif est **turquoise plein, texte sombre**.
+    ///
+    /// Il était turquoise à 20 % d'opacité avec du texte turquoise clairci :
+    /// un état sélectionné qui se lit comme un survol, et qui ne tranchait pas
+    /// assez sur le verre du groupe pour qu'on sache d'un coup d'œil quelle
+    /// langue écoute. Le prototype pose `background: var(--accent)` et
+    /// `color: #042f2e` — c'est la même pastille que les boutons primaires de
+    /// la fenêtre de réglages, et elle se voit.
     func restyle(selected: Bool, accent: NSColor) {
-        layer?.backgroundColor = selected
-            ? accent.withAlphaComponent(0.20).cgColor
-            : NSColor.clear.cgColor
+        layer?.backgroundColor = selected ? accent.cgColor : NSColor.clear.cgColor
         attributedTitle = NSAttributedString(string: title, attributes: [
-            .font: NSFont.systemFont(ofSize: 12, weight: selected ? .semibold : .medium),
+            .font: NSFont.systemFont(ofSize: 11, weight: .semibold),
             .foregroundColor: selected
-                ? accent.blended(withFraction: 0.25, of: .white) ?? accent
-                : NSColor.secondaryLabelColor,
+                ? Self.onAccent
+                : NSColor.white.withAlphaComponent(0.7),
         ])
     }
 
+    /// Le vert très sombre que le prototype pose sur le turquoise. Du blanc
+    /// dessus serait illisible : l'accent est une couleur claire.
+    private static let onAccent = NSColor(srgbRed: 0x04 / 255, green: 0x2F / 255,
+                                          blue: 0x2E / 255, alpha: 1)
+
     override var intrinsicContentSize: NSSize {
         var size = super.intrinsicContentSize
+        // `padding: 4px 10px`.
         size.width += 20
-        size.height = 24
+        size.height = 22
         return size
     }
 }

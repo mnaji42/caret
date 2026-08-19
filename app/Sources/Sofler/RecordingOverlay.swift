@@ -134,7 +134,8 @@ final class RecordingOverlay {
                                             blue: 0x3C / 255.0, alpha: 1)
 
     private static let rowHeight: CGFloat = 26
-    private static let controlRowHeight: CGFloat = 32
+    /// La hauteur d'un groupe de pastilles — `PillSelector` fait 28 pt.
+    private static let controlRowHeight: CGFloat = 28
     private static let padding: CGFloat = 13
     private static let rowSpacing: CGFloat = 9
     /// Vide entre les onglets flottants et la carte. C'est lui qui les fait
