@@ -32,6 +32,9 @@ enum CrisperWhisperModel: String, CaseIterable, Codable, Sendable {
     /// Octets des poids, relevés sur Hugging Face. Affichés avant de lancer un
     /// téléchargement : personne ne devrait découvrir qu'il en a pour trois
     /// gigaoctets une fois qu'ils sont partis.
+    /// Ce que pèsent uv, Python et les bibliothèques, une fois pour toutes.
+    static let environmentBytes: Int64 = 1_200_000_000
+
     var downloadBytes: Int64 {
         switch self {
         case .small: 480_000_000
@@ -41,8 +44,18 @@ enum CrisperWhisperModel: String, CaseIterable, Codable, Sendable {
         }
     }
 
-    var downloadSize: String {
-        ByteCountFormatter.string(fromByteCount: downloadBytes, countStyle: .file)
+    var downloadSize: String { Self.frenchSize(downloadBytes) }
+
+    /// « 480 Mo », « 1,62 Go ». En français, parce que l'interface l'est.
+    ///
+    /// `ByteCountFormatter` suit la langue du **système**, pas celle de
+    /// l'application : sur un Mac en anglais, la grille annonçait « 1,53 GB »
+    /// au milieu de phrases françaises.
+    static func frenchSize(_ bytes: Int64) -> String {
+        let mo = Double(bytes) / 1_000_000
+        if mo < 1000 { return "\(Int(mo.rounded())) Mo" }
+        return String(format: "%.2f Go", mo / 1000)
+            .replacingOccurrences(of: ".", with: ",")
     }
 
     /// Mémoire vive occupée par le service une fois le modèle chargé, en ordre
@@ -88,8 +101,8 @@ enum CrisperWhisperModel: String, CaseIterable, Codable, Sendable {
     /// Ne montrer que le poids du modèle ferait découvrir 1,2 Go de plus une
     /// fois le téléchargement lancé.
     var totalDownload: String {
-        let total = downloadBytes + 1_200_000_000
-        return "\(ByteCountFormatter.string(fromByteCount: total, countStyle: .file)) "
+        let total = downloadBytes + Self.environmentBytes
+        return "\(Self.frenchSize(total)) "
             + "(uv/python 1,2 Go + modèle \(downloadSize))"
     }
 

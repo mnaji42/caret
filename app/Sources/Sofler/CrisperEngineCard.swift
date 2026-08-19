@@ -549,12 +549,24 @@ struct CrisperEngineCard: View, ValidatingComponent {
                     .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)))
     }
 
+    /// Le bouton d'installation — ou la raison pour laquelle il n'y en a pas.
+    ///
+    /// L'empêchement était mesuré **après** le clic : on proposait un
+    /// téléchargement de plusieurs gigaoctets sur un Mac Intel, sur une copie
+    /// sans le code du moteur, ou sur un disque plein — et l'échec tombait
+    /// ensuite, parfois après vingt minutes de réseau. Ce qui empêche de
+    /// commencer se dit avant de commencer.
+    @ViewBuilder
     private func installButton(_ label: String) -> some View {
-        HStack {
-            Spacer()
-            Button(label) { install() }
-                .buttonStyle(SoflerPrimaryButtonStyle())
-                .disabled(!prefs.crisperLicenceAccepted)
+        if let obstacle = EngineBootstrap.obstacle(installing: draftModel) {
+            Note(obstacle, warning: true)
+        } else {
+            HStack {
+                Spacer()
+                Button(label) { install() }
+                    .buttonStyle(SoflerPrimaryButtonStyle())
+                    .disabled(!prefs.crisperLicenceAccepted)
+            }
         }
     }
 

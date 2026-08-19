@@ -613,6 +613,16 @@ struct ChoiceCard<Detail: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            // Un vrai bouton, mais **seulement l'en-tête**. Le panneau de
+            // détail reste dehors : l'englober ferait absorber par le bouton
+            // les pastilles, la grille des modèles et la licence qu'il
+            // contient — ils cesseraient d'être atteignables, et
+            // l'accessibilité les annoncerait comme un seul élément.
+            //
+            // C'était un `onTapGesture` : la ligne se cliquait à la souris, et
+            // à la souris seulement. Ces deux cartes portent le choix du moteur
+            // de transcription, qui décide de ce qui s'écrit.
+            Button(action: action) {
             HStack(alignment: .top, spacing: 12) {
                 RadioCircle(selected: selected)
                 VStack(alignment: .leading, spacing: 3) {
@@ -640,7 +650,10 @@ struct ChoiceCard<Detail: View>: View {
                 }
             }
             .contentShape(Rectangle())
-            .onTapGesture(perform: action)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(title)
+            .accessibilityAddTraits(selected ? [.isSelected] : [])
 
             if selected {
                 VStack(alignment: .leading, spacing: 10) { detail }

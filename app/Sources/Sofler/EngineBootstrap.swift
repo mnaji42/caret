@@ -115,6 +115,42 @@ final class EngineBootstrap {
         return nil
     }
 
+    /// Ce qui empêche d'installer **ce modèle-ci**, espace disque compris.
+    ///
+    /// Le contrôle d'espace manquait : on proposait un téléchargement de
+    /// plusieurs gigaoctets sans regarder s'il y avait la place, et l'échec
+    /// arrivait après vingt minutes de réseau, sous la forme d'une erreur de
+    /// `uv` que personne ne relie à un disque plein.
+    ///
+    /// Une marge d'un gigaoctet au-delà du strict nécessaire : les archives
+    /// sont décompressées avant d'être rangées, et un disque rempli à ras bord
+    /// met macOS en difficulté bien avant d'être plein.
+    static func obstacle(installing model: CrisperWhisperModel) -> String? {
+        if let general = obstacle { return general }
+
+        var needed = model.isDownloaded ? 0 : model.downloadBytes
+        if !EngineInstall.isAvailable {
+            needed += CrisperWhisperModel.environmentBytes
+        }
+        guard needed > 0 else { return nil }
+        needed += 1_000_000_000
+
+        guard let free = freeDiskBytes else { return nil }
+        guard free < needed else { return nil }
+        return "Il manque de la place : cette installation demande environ "
+            + "\(CrisperWhisperModel.frenchSize(needed)) et il en reste "
+            + "\(CrisperWhisperModel.frenchSize(free)) sur le disque de démarrage."
+    }
+
+    /// `nil` si le système ne sait pas répondre — auquel cas on ne bloque rien
+    /// plutôt que d'interdire sur une mesure absente.
+    private static var freeDiskBytes: Int64? {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let values = try? home.resourceValues(
+            forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        return values?.volumeAvailableCapacityForImportantUsage
+    }
+
     /// Le processeur, demandé au système plutôt que déduit de l'architecture
     /// du binaire : sous Rosetta, un exécutable Intel tourne très bien sur une
     /// puce Apple, et refuser l'installation dans ce cas serait faux.
@@ -159,7 +195,7 @@ final class EngineBootstrap {
             phase = .failed("La licence des poids n'a pas été acceptée.")
             return
         }
-        if let obstacle = Self.obstacle {
+        if let obstacle = Self.obstacle(installing: model) {
             phase = .failed(obstacle)
             return
         }
