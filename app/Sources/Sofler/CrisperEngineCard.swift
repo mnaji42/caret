@@ -125,12 +125,31 @@ struct CrisperEngineCard: View, ValidatingComponent {
         }
     }
 
+    /// Quatre sections, dans cet ordre, et qui ne se mélangent pas.
+    ///
+    /// 1. Ce qu'est CrisperWhisper — porté par la ligne de choix au-dessus.
+    /// 2. Le rendu : texte nettoyé ou mot à mot.
+    /// 3. **Le modèle**, avec deux états : la grille des quatre, ou celui qu'on
+    ///    a retenu avec de quoi en changer ou l'effacer.
+    /// 4. **L'action** : installer, télécharger, démarrer, ou l'état du service.
+    ///
+    /// Les sections 3 et 4 étaient mêlées — le bouton « Démarrer le service »
+    /// vivait dans la boîte qui nomme le modèle, si bien qu'on lisait « Turbo,
+    /// changer, supprimer, démarrer » d'un seul tenant sans savoir ce qui
+    /// répondait à quoi. Séparées, chacune ne pose qu'une question : *lequel*,
+    /// puis *et maintenant*.
     @ViewBuilder
     private var content: some View {
         renderSection
+        modelSection
+        actionBox
+    }
 
+    /// Section 3 — le modèle.
+    @ViewBuilder
+    private var modelSection: some View {
         if showsCompact {
-            compactStatus
+            chosenModelRow
         } else {
             catalogue
         }
@@ -182,43 +201,36 @@ struct CrisperEngineCard: View, ValidatingComponent {
 
     // MARK: - Vue compacte
 
-    private var compactStatus: some View {
+    /// Le modèle retenu, et rien d'autre : lequel, et comment en changer.
+    ///
+    /// L'état du service n'est **pas** ici. Il appartient à la section
+    /// suivante, qui répond à « et maintenant ». Les mêler faisait cohabiter
+    /// « Supprimer ce modèle » et « Démarrer le service » dans le même cadre,
+    /// à deux centimètres l'un de l'autre.
+    private var chosenModelRow: some View {
         HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(serviceIsUp ? Style.accent : Style.textTertiary)
-                        .frame(width: 8, height: 8)
-                        .shadow(color: serviceIsUp ? Style.accent : .clear, radius: 3)
-                    Text(compactTitle)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                    Text("· Modèle \(draftModel.catalogueName)")
-                        .font(.system(size: 13))
-                        .foregroundStyle(Style.textSecondary)
-                }
-                Text(compactDetail)
+                Text("MODÈLE RETENU")
+                    .font(.system(size: 10, weight: .bold))
+                    .kerning(0.6)
+                    .foregroundStyle(Style.textTertiary)
+                Text(draftModel.catalogueName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text("\(draftModel.residentMemory) en mémoire vive une fois chargé.")
                     .font(.system(size: 11.5))
                     .foregroundStyle(Style.textTertiary)
-                    .padding(.leading, 16)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
             VStack(alignment: .trailing, spacing: 4) {
-                // Le service arrêté se relance d'ici : c'est la seule chose
-                // qui manque, et redéployer le catalogue pour l'obtenir
-                // reviendrait à reposer une question déjà tranchée.
-                if step == .serviceStopped || step == .serviceMissing {
-                    Button("Démarrer le service") { start() }
-                        .buttonStyle(SoflerPrimaryButtonStyle())
-                }
                 Button("Changer de modèle…") { catalogueExpanded = true }
                     .buttonStyle(SoflerSecondaryButtonStyle())
                 DestructiveLink("Supprimer ce modèle (\(draftModel.downloadSize))") {
                     remove(draftModel)
                 }
-                .help("Supprimer les \(draftModel.downloadSize) de "
-                      + "\(draftModel.catalogueName) du disque")
+                .help("Retire les \(draftModel.downloadSize) du disque et oublie "
+                      + "ce choix : la grille des quatre modèles revient.")
             }
         }
         .padding(.horizontal, 16)
@@ -228,29 +240,6 @@ struct CrisperEngineCard: View, ValidatingComponent {
                 .fill(Color.white.opacity(0.025))
                 .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)))
-    }
-
-    private var serviceIsUp: Bool { step == .ready }
-
-    private var compactTitle: String {
-        switch step {
-        case .ready: "Prêt"
-        case .serviceStarting: "Démarrage…"
-        default: "Au repos"
-        }
-    }
-
-    private var compactDetail: String {
-        switch step {
-        case .ready:
-            "\(draftModel.residentMemory) alloués en mémoire vive · Service actif"
-        case .serviceStarting:
-            "Chargement de \(draftModel.catalogueName) en mémoire — la première "
-                + "fois peut prendre une minute."
-        default:
-            "Tout est téléchargé sur votre Mac. Démarrez le service pour charger "
-                + "le modèle en mémoire vive (\(draftModel.residentMemory))."
-        }
     }
 
     // MARK: - Catalogue
@@ -275,8 +264,6 @@ struct CrisperEngineCard: View, ValidatingComponent {
             .foregroundStyle(Style.textSecondary)
             .lineSpacing(2)
             .fixedSize(horizontal: false, vertical: true)
-
-        actionBox
     }
 
     /// La grille 2×2. Deux colonnes fixes : quatre modèles en une colonne
@@ -293,11 +280,21 @@ struct CrisperEngineCard: View, ValidatingComponent {
 
     /// Un modèle est-il inaccessible parce qu'un autre s'installe ?
     ///
+    /// Le verrou ne valait que pendant l'accueil. Or ce qu'il empêche — deux
+    /// téléchargements de 1,6 Go lancés en parallèle, ou un service qu'on
+    /// bascule pendant qu'il charge — est tout aussi fâcheux depuis les
+    /// réglages, où l'on passe justement pour changer de modèle. Il vaut
+    /// partout, pendant toute opération en cours.
+    ///
+    /// Il ne dépend plus non plus de `step == .ready` : un service qui tourne
+    /// n'est pas une raison d'interdire d'en changer, c'est même le cas
+    /// ordinaire du bouton « Changer de modèle… ».
+    ///
     /// `failure == nil` est la condition qui relâche tout : une erreur doit
     /// laisser choisir un autre modèle, pas enfermer sur celui qui échoue.
     private func isLocked(_ model: CrisperWhisperModel) -> Bool {
-        guard isOnboarding, failure == nil, model != draftModel else { return false }
-        return installing || step == .ready
+        guard failure == nil, model != draftModel else { return false }
+        return installing
     }
 
     private func modelTile(_ model: CrisperWhisperModel) -> some View {
@@ -615,7 +612,10 @@ struct CrisperEngineCard: View, ValidatingComponent {
             }
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
-                    Text("Prêt · \(draftModel.catalogueName)")
+                    // Le modèle est nommé juste au-dessus, dans la section qui
+                    // le choisit. Le répéter ici ferait lire deux fois « Turbo
+                    // ★ (Recommandé) » à trois lignes d'intervalle.
+                    Text("Service actif")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white)
                     Text("\(draftModel.residentMemory) RAM")
@@ -628,7 +628,7 @@ struct CrisperEngineCard: View, ValidatingComponent {
                             .overlay(RoundedRectangle(cornerRadius: 4)
                                 .strokeBorder(Style.accentBorder, lineWidth: 1)))
                 }
-                Text("Service actif, joignable sur son socket local.")
+                Text("Joignable sur son socket local. La dictée passe par lui.")
                     .font(.system(size: 11.5))
                     .foregroundStyle(Style.textSecondary)
             }
