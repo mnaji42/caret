@@ -34,7 +34,7 @@ final class PillSelector: NSView {
         translatesAutoresizingMaskIntoConstraints = false
 
         // Le groupe flotte au-dessus du panneau principal, donc au-dessus de
-        // n'importe quelle fenêtre : il lui faut son propre verre, sans quoi
+        // n'importe quelle fenêtre : il lui faut son propre fond, sans quoi
         // un simple fond translucide serait illisible sur du texte clair.
         let glass = NSVisualEffectView()
         glass.material = .hudWindow
@@ -45,12 +45,25 @@ final class PillSelector: NSView {
         glass.layer?.masksToBounds = true
         glass.layer?.borderWidth = 1
         glass.layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
-        // La même ardoise que la carte et que les fenêtres. Le verre seul ne
-        // teinte rien : sans ce fond, on lisait la fenêtre du dessous à
-        // travers les pastilles.
-        glass.layer?.backgroundColor = NSColor.soflerWindow.cgColor
         glass.translatesAutoresizingMaskIntoConstraints = false
         addSubview(glass)
+
+        // La même ardoise que la carte et que les fenêtres, dans une vue à
+        // part. La poser sur `glass.layer.backgroundColor` ne tenait pas :
+        // `NSVisualEffectView` réécrit son calque quand il ravive son matériau.
+        let tint = NSView()
+        tint.wantsLayer = true
+        tint.layer?.backgroundColor = NSColor.soflerWindow.cgColor
+        tint.layer?.cornerRadius = Self.height / 2
+        tint.layer?.masksToBounds = true
+        tint.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(tint)
+        NSLayoutConstraint.activate([
+            tint.leadingAnchor.constraint(equalTo: glass.leadingAnchor),
+            tint.trailingAnchor.constraint(equalTo: glass.trailingAnchor),
+            tint.topAnchor.constraint(equalTo: glass.topAnchor),
+            tint.bottomAnchor.constraint(equalTo: glass.bottomAnchor),
+        ])
 
         stack.orientation = .horizontal
         stack.spacing = 2
