@@ -89,6 +89,13 @@ final class RecordingOverlay {
     private let languageControl = PillSelector(labels: [], accent: accent)
     /// Les codes derrière les pastilles, dans le même ordre.
     private var languageCodes: [String] = []
+    /// Au-delà de trois langues déclarées : un menu, pas des pastilles.
+    ///
+    /// Trois pastilles tiennent dans la barre ; cinq la remplissent, et la
+    /// destination n'a plus de place. Le menu dit la langue en cours et donne
+    /// accès à toutes les autres sans rien élargir.
+    private let languageMenu = FirstMouseMenuButton()
+    private var menuCodes: [String] = []
     private let corpusBadge = BadgeButton()
     private var container: NSStackView?
     private var recordingRow: NSStackView?
@@ -384,7 +391,18 @@ final class RecordingOverlay {
         }
         // Sous CrisperWhisper aussi : la requête lui transmet la langue, il n'y
         // a donc aucune raison de retirer la bascule quand il écrit.
-        let canSwitch = switchable.count > 1
+        let all = status.switchableLanguages
+        let usesMenu = all.count > 3
+        let canSwitch = usesMenu || switchable.count > 1
+
+        if usesMenu, all.map(\.code) != menuCodes {
+            menuCodes = all.map(\.code)
+            languageMenu.removeAllItems()
+            languageMenu.addItems(withTitles: all.map(\.badge))
+        }
+        if usesMenu, let index = menuCodes.firstIndex(of: status.languageCode) {
+            languageMenu.selectItem(at: index)
+        }
         if canSwitch, switchable.map(\.code) != languageCodes {
             languageCodes = switchable.map(\.code)
             languageControl.setLabels(switchable.map(\.badge))
@@ -397,7 +415,8 @@ final class RecordingOverlay {
         // Masquer ne suffit pas à recentrer : les entretoises restent en
         // place et le contrôle survivant se retrouve décalé d'une demi-
         // entretoise. On refait la rangée avec les seuls contrôles visibles.
-        layoutTabs(showMode: status.modesAvailable, switchable: canSwitch)
+        layoutTabs(showMode: status.modesAvailable, switchable: canSwitch,
+                   usesMenu: usesMenu)
         layoutMode(showMode: status.modesAvailable)
 
         targetControl.setLabel(Self.noteLabel(for: status), at: 1)
@@ -742,8 +761,9 @@ final class RecordingOverlay {
     /// Appelée à chaque mise à jour, mais ne fait rien tant que la composition
     /// ne change pas : reconstruire des contraintes vingt fois par seconde
     /// pendant une dictée serait absurde.
-    private func layoutTabs(showMode: Bool, switchable: Bool) {
-        let wanted = Layout(showMode: showMode, switchable: switchable)
+    private func layoutTabs(showMode: Bool, switchable: Bool, usesMenu: Bool) {
+        let wanted = Layout(showMode: showMode, switchable: switchable,
+                            usesMenu: usesMenu)
         guard wanted != tabsLayout || textRow == nil else { return }
         tabsLayout = wanted
         guard let row = textRow else { return }
@@ -754,7 +774,8 @@ final class RecordingOverlay {
         // Les langues à gauche, la destination à droite. Toujours, quel que
         // soit le moteur : CrisperWhisper reçoit lui aussi la langue de la
         // requête, il n'y avait donc aucune raison de lui retirer la bascule.
-        let left: NSView = switchable ? languageControl : languageBadge
+        let left: NSView = !switchable ? languageBadge
+            : (usesMenu ? languageMenu : languageControl)
         fill(row, with: [left, targetControl])
 
     }
@@ -773,6 +794,7 @@ final class RecordingOverlay {
     private struct Layout: Equatable {
         var showMode: Bool
         var switchable: Bool
+        var usesMenu: Bool
     }
 
     /// Rangée `space-between` : les groupes sont plaqués aux bords.
@@ -887,11 +909,19 @@ final class RecordingOverlay {
         targetControl.onSelect = { [weak self] index in
             self?.onSelectTarget?(index == 1)
         }
+        languageMenu.target = self
+        languageMenu.action = #selector(pickLanguageFromMenu)
         languageControl.onSelect = { [weak self] index in
             guard let codes = self?.languageCodes, codes.indices.contains(index)
             else { return }
             self?.onSelectLanguage?(codes[index])
         }
+    }
+
+    @objc private func pickLanguageFromMenu(_ sender: NSPopUpButton) {
+        let index = sender.indexOfSelectedItem
+        guard menuCodes.indices.contains(index) else { return }
+        onSelectLanguage?(menuCodes[index])
     }
 
     /// Jette le panneau après un changement d'écrans, et le remonte aussitôt
@@ -998,6 +1028,30 @@ private final class BadgeButton: NSButton {
 /// Le panneau ne devient jamais clé — c'est ce qui garantit que le curseur ne
 /// bouge pas. En contrepartie tout clic y est un « premier clic », que
 /// `NSControl` ignore par défaut.
+/// Un menu déroulant qui répond au premier clic.
+///
+/// Le panneau ne prend pas le focus — c'est tout son intérêt : il ne vole pas
+/// le curseur à l'application dans laquelle on dicte. Mais un contrôle
+/// ordinaire consomme alors le premier clic pour activer la fenêtre, et il
+/// faut cliquer deux fois. Pendant une dictée, ce premier clic perdu est
+/// exactement celui qu'on croyait avoir donné.
+final class FirstMouseMenuButton: NSPopUpButton {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override init(frame: NSRect, pullsDown: Bool) {
+        super.init(frame: frame, pullsDown: pullsDown)
+        translatesAutoresizingMaskIntoConstraints = false
+        isBordered = false
+        font = .systemFont(ofSize: 11, weight: .semibold)
+        controlSize = .small
+    }
+
+    convenience init() { self.init(frame: .zero, pullsDown: false) }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) n'est pas utilisé") }
+}
+
 private final class FirstMouseButton: NSButton {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }

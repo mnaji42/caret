@@ -63,6 +63,13 @@ final class LegacySpeechEngine: SpeechEngine, @unchecked Sendable {
     /// Les deux conditions comptent autant l'une que l'autre : un
     /// `SFSpeechRecognizer` disponible mais incapable de travailler hors ligne
     /// ne nous sert à rien, puisqu'on ne l'utilisera jamais dans ce mode.
+    /// Combien de langues la Dictée de macOS propose ici.
+    ///
+    /// Demandé au système : la liste change avec la version de macOS.
+    static var supportedLocaleCount: Int {
+        SFSpeechRecognizer.supportedLocales().count
+    }
+
     static func isAvailable(for language: String) -> Bool {
         guard let recognizer = recognizer(for: language) else { return false }
         return recognizer.isAvailable && recognizer.supportsOnDeviceRecognition

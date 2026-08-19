@@ -210,6 +210,8 @@ struct AppleEngineCard: View, ValidatingComponent {
                                get: { technology },
                                set: { setTechnology($0) }))
             }
+            languageCoverage
+
             if let explanation = technology.versionExplanation {
                 Note(explanation)
             }
@@ -273,6 +275,7 @@ struct AppleEngineCard: View, ValidatingComponent {
         // Chaque langue vérifiée une fois à l'affichage, et de nouveau quand la
         // liste change. `check` ne télécharge rien : on regarde, on ne décide
         // pas à la place de quelqu'un qui n'a pas encore lu la question.
+        .task { await assets.refreshLocaleCount() }
         .task(id: prefs.selectedLanguages) {
             for code in prefs.selectedLanguages {
                 await assets.check(code)
@@ -328,6 +331,27 @@ struct AppleEngineCard: View, ValidatingComponent {
     /// Apple n'expose la taille d'un actif ni avant ni pendant l'installation.
     /// Afficher « 123 Mo » au point près serait un chiffre qu'on serait
     /// incapable de tenir, sur une opération que les gens surveillent.
+    /// Combien de langues cette version sait écrire, et si la vôtre en est.
+    ///
+    /// Le nombre vient du système, jamais d'une liste écrite ici : il dépend de
+    /// la version de macOS et du matériel. Trois exemples suffisent à donner
+    /// l'idée — en aligner soixante ferait de cette carte un catalogue.
+    @ViewBuilder
+    private var languageCoverage: some View {
+        let covered = Language.appleSupports(prefs.primaryLanguage) != false
+        if technology == .apple, let count = assets.appleLocaleCount {
+            Note("**\(count) langues** sur ce Mac — français, anglais, espagnol, "
+                 + "allemand, italien, portugais, japonais, coréen, chinois."
+                 + (covered ? ""
+                    : " **\(prefs.primary.displayName) n'en fait pas partie** : "
+                      + "la Dictée de macOS prend le relais."))
+        } else if technology == .appleLegacy {
+            Note("**\(LegacySpeechEngine.supportedLocaleCount) langues** sur ce "
+                 + "Mac : c'est la liste de la Dictée de macOS, la plus large "
+                 + "des trois.")
+        }
+    }
+
     private func totalLabel(_ languages: [Language]) -> String {
         let total = languages.reduce(Int64(0)) { $0 + $1.estimatedModelBytes }
         return ByteCountFormatter.string(fromByteCount: total, countStyle: .file)

@@ -179,8 +179,28 @@ struct CrisperEngineCard: View, ValidatingComponent {
     @ViewBuilder
     private var content: some View {
         renderSection
+        languageCoverage
         modelSection
         actionBox
+    }
+
+    /// Combien de langues les poids savent transcrire, et comment on la choisit.
+    ///
+    /// La question revient : « avec CrisperWhisper, faut-il encore choisir une
+    /// langue ? » Oui — la requête lui transmet la langue principale, et c'est
+    /// elle qu'il transcrit. Le dire ici évite de le découvrir en obtenant du
+    /// charabia après avoir parlé une autre langue.
+    @ViewBuilder
+    private var languageCoverage: some View {
+        let covered = prefs.primary.isCoveredByCrisperWhisper
+        Note("**\(Language.crisperWhisperBases.count) langues** : français, "
+             + "anglais, espagnol, allemand, italien, portugais, néerlandais, "
+             + "japonais, chinois, russe, arabe, coréen, polonais, suédois, "
+             + "turc, ukrainien, hindi. La langue principale lui est transmise "
+             + "à chaque dictée, et se change depuis la barre flottante."
+             + (covered ? ""
+                : " **\(prefs.primary.displayName) n'en fait pas partie** : "
+                  + "macOS écrit tant que cette langue est active."))
     }
 
     /// Section 3 — le modèle.

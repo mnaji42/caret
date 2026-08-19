@@ -33,7 +33,7 @@ final class EngineStartupNoticeController {
         }
         // Plus petite que les autres fenêtres de Sofler : elle ne porte qu'une
         // phrase et deux boutons. La géométrie commune ferait 580 × 700 de vide.
-        window.setContentSize(NSSize(width: 380, height: 168))
+        window.setContentSize(NSSize(width: 400, height: 196))
         window.styleMask.remove(.miniaturizable)
         self.window = window
         // Sans voler le focus : quelqu'un vient d'ouvrir sa session ou une
@@ -95,7 +95,12 @@ private struct EngineStartupNoticeView: View {
                     .buttonStyle(SoflerPrimaryButtonStyle())
             }
         }
-        .padding(20)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
+        // La fenêtre est en `fullSizeContentView` : sans cette réserve, la
+        // première ligne passe sous les feux tricolores. SwiftUI applique déjà
+        // un décalage de sécurité, mais il colle le texte au titre.
+        .padding(.top, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(WindowBackground().ignoresSafeArea())
         .tint(Style.accent)
