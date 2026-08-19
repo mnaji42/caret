@@ -79,6 +79,10 @@ cp "$APP_DIR/build/$APP_NAME.icns" "$STAGE/Contents/Resources/$APP_NAME.icns"
 # jour sans recompiler.
 cp "$APP_DIR/Sources/Caspr/Resources/languages.json" \
    "$STAGE/Contents/Resources/languages.json"
+# Les icônes vectorielles : barre de menus et fenêtres.
+mkdir -p "$STAGE/Contents/Resources/icons"
+cp "$APP_DIR"/Sources/Caspr/Resources/icons/*.svg \
+   "$STAGE/Contents/Resources/icons/"
 
 # Le moteur Python voyage dans le bundle. Son code pèse quelques centaines de
 # kilo-octets — trois dixièmes de pour cent de l'application — et l'embarquer

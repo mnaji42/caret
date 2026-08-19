@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" fill="none">
+
+  <!-- 1. FANTÔME CASPR OFFICIEL (Centré en haut) -->
+  <g transform="translate(0, -10)">
+    <path
+    fill="#FFFFFF"
+    d="
+      M128 20
+      C80 20 48 55 48 104
+      V158
+      C48 176 40 187 34 199
+      C27 212 31 225 43 232
+      C55 239 68 234 77 220
+      C85 232 96 238 108 238
+      C117 238 123 232 128 222
+      C133 232 139 238 148 238
+      C160 238 171 232 179 220
+      C188 234 201 239 213 232
+      C225 225 229 212 222 199
+      C216 187 208 176 208 158
+      V104
+      C208 55 176 20 128 20
+      Z
+    "
+  />
+
+  <!-- YEUX CAPSULES -->
+  <rect
+    x="90"
+    y="98"
+    width="19"
+    height="32"
+    rx="9.5"
+    fill="#0A0F14"
+  />
+
+  <rect
+    x="147"
+    y="98"
+    width="19"
+    height="32"
+    rx="9.5"
+    fill="#0A0F14"
+  />
+
+  <!-- BOUCHE DEMI-LUNE OFFICIELLE -->
+  <path
+    d="M 110 150 C 110 166 146 166 146 150 C 146 150 110 150 110 150 Z"
+    fill="#0A0F14"
+  />
+  </g>
+
+  <g transform="translate(64, 155)">
+    <!-- Coque de la bulle avec contour blanc fin -->
+    <path
+    d="M 30 8 H 98 C 110 8 120 18 120 30 V 52 C 120 64 110 74 98 74 H 74 L 64 89 L 54 74 H 30 C 18 74 8 64 8 52 V 30 C 8 18 18 8 30 8 Z"
+    fill="#0A0F14"
+    stroke="#FFFFFF"
+    stroke-width="3.5"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  />
+  <!-- 3 Dots Cyan Électrique (X=42, 64, 86, Y=41) -->
+  <circle cx="42" cy="41" r="6" fill="#00F0FF"/>
+  <circle cx="64" cy="41" r="6" fill="#00F0FF"/>
+  <circle cx="86" cy="41" r="6" fill="#00F0FF"/>
+  </g>
+</svg>

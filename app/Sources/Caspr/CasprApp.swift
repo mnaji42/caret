@@ -312,13 +312,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let (image, description): (NSImage?, String) = switch state {
         case .idle:
             controller.target.isLocked
-                ? (MenuBarIcon.image(listening: false, locked: true),
+                ? (MenuBarIcon.image(.idle),
                    "Caspr — écrit dans \(controller.target.displayName)")
-                : (MenuBarIcon.image(listening: false), "Caspr — prêt")
+                : (MenuBarIcon.image(.idle), "Caspr — prêt")
         case .recording:
-            (MenuBarIcon.image(listening: true), "Caspr — enregistrement")
+            (MenuBarIcon.image(.listening), "Caspr — enregistrement")
         case .processing:
-            (MenuBarIcon.image(listening: true, dimmed: true), "Caspr — transcription")
+            (MenuBarIcon.image(.processing), "Caspr — transcription")
         // Le seul état qui garde un symbole système. Le triangle d'alerte se
         // lit sans rien avoir appris, là où un caret en détresse ne voudrait
         // rien dire — et l'erreur est le moment où l'on a le moins envie de

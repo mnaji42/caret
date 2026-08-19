@@ -19,81 +19,41 @@ import AppKit
 /// rappelé à chaque rendu, donc à la résolution réelle de l'écran, et les
 /// variantes d'état ne coûtent pas un fichier chacune.
 enum MenuBarIcon {
-    /// 18 pt de haut, la hauteur utile de la barre de menus. La largeur est
-    /// plus généreuse pour loger les ondes sans les coller au bord.
-    private static let size = NSSize(width: 20, height: 18)
+    /// 18 pt de haut, la hauteur utile de la barre de menus.
+    private static let size = NSSize(width: 18, height: 18)
 
-    /// - Parameters:
-    ///   - listening: le micro tourne — fait apparaître les ondes.
-    ///   - dimmed: transcription en cours. Atténué plutôt que remplacé par un
-    ///     symbole différent : l'œil lit « la même chose, en attente » sans
-    ///     avoir à réapprendre une forme.
-    ///   - locked: la dictée part vers un fichier et non vers le curseur. Le
-    ///     point rappelle que le texte n'ira pas là où on l'attend — la
-    ///     mésaventure classique quand on a oublié le réglage.
-    static func image(listening: Bool, dimmed: Bool = false,
-                      locked: Bool = false) -> NSImage {
-        let image = NSImage(size: size, flipped: false) { _ in
-            let alpha: CGFloat = dimmed ? 0.45 : 1
-            NSColor.black.withAlphaComponent(alpha).setFill()
-            NSColor.black.withAlphaComponent(alpha).setStroke()
+    /// Ce que l'icône dit, et rien d'autre.
+    ///
+    /// La grammaire vient des dessins : **le fantôme ne change jamais**, une
+    /// bulle apparaît en bas à droite, et c'est son contenu qui porte l'état —
+    /// cinq barres pour l'écoute, trois points pour le traitement. L'œil
+    /// reconnaît l'application d'abord, son état ensuite.
+    enum State {
+        case idle, listening, processing
 
-            caret().fill()
-            if listening { for arc in waves() { arc.stroke() } }
-            if locked { lockDot().fill() }
-            return true
+        var fileName: String {
+            switch self {
+            case .idle: "caspr-ghost"
+            case .listening: "caspr-ghost-listening"
+            case .processing: "caspr-ghost-processing"
+            }
         }
-        // Sans ça le glyphe reste noir sur une barre sombre, donc invisible.
-        // `isTemplate` laisse macOS le teinter selon l'apparence et l'inverser
-        // quand le menu est ouvert.
+    }
+
+    static func image(_ state: State) -> NSImage? {
+        guard let url = Bundle.main.url(forResource: state.fileName,
+                                        withExtension: "svg",
+                                        subdirectory: "icons"),
+              let image = NSImage(contentsOf: url)
+        else { return nil }
+        image.size = size
+        // **Gabarit**, y compris pour les états colorés : la barre de menus est
+        // claire en thème clair, et un fantôme blanc y serait invisible. macOS
+        // reteint alors le dessin dans la couleur du texte, ce qui garde la
+        // silhouette lisible partout — c'est elle qui identifie l'application,
+        // et la forme de la bulle suffit à distinguer les trois états sans la
+        // couleur. Le cyan reste dans les fenêtres, où le fond est maîtrisé.
         image.isTemplate = true
         return image
-    }
-
-    // MARK: - Tracés
-
-    private static func caret() -> NSBezierPath {
-        let path = NSBezierPath()
-        let cx = size.width / 2, cy = size.height / 2
-        let height: CGFloat = 11, stem: CGFloat = 1.8
-        let serif: CGFloat = 6, serifH: CGFloat = 1.8
-
-        path.append(NSBezierPath(
-            roundedRect: NSRect(x: cx - stem / 2, y: cy - height / 2,
-                                width: stem, height: height),
-            xRadius: 0.6, yRadius: 0.6))
-        for y in [cy - height / 2, cy + height / 2 - serifH] {
-            path.append(NSBezierPath(
-                roundedRect: NSRect(x: cx - serif / 2, y: y,
-                                    width: serif, height: serifH),
-                xRadius: 0.6, yRadius: 0.6))
-        }
-        return path
-    }
-
-    /// Un seul arc de chaque côté, pas deux comme sur l'icône de l'app.
-    ///
-    /// À 18 pt, deux arcs concentriques se confondent en une tache : la barre
-    /// de menus demande moins de détail que le Dock, pas la même image
-    /// réduite.
-    private static func waves() -> [NSBezierPath] {
-        let c = NSPoint(x: size.width / 2, y: size.height / 2)
-        return [(-38.0, 38.0), (142.0, 218.0)].map { start, end in
-            let arc = NSBezierPath()
-            arc.appendArc(withCenter: c, radius: 6.6,
-                          startAngle: CGFloat(start), endAngle: CGFloat(end))
-            arc.lineWidth = 1.5
-            arc.lineCapStyle = .round
-            return arc
-        }
-    }
-
-    /// À hauteur du milieu du caret, et non en bas à droite comme un badge
-    /// d'application. Posé sous la ligne de base, le point se lisait comme une
-    /// ponctuation — le glyphe entier devenait « I. » — au lieu d'un état.
-    private static func lockDot() -> NSBezierPath {
-        NSBezierPath(ovalIn: NSRect(x: size.width / 2 + 4.2,
-                                    y: size.height / 2 - 1.5,
-                                    width: 3, height: 3))
     }
 }
