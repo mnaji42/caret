@@ -49,8 +49,16 @@ final class EngineSafetyManager {
         let language = prefs.primaryLanguage
         let wanted = prefs.engine
 
-        if wanted.isAvailable(for: language) { return wanted }
-        if prefs.lastValidEngine.isAvailable(for: language) {
+        // `isReady`, et non `isAvailable` : pour CrisperWhisper, « disponible »
+        // ne veut dire que « installé sur cette machine ». Le service arrêté,
+        // ses poids sont toujours sur le disque, donc le repli ne se
+        // déclenchait pas — et la dictée partait vers un socket fermé pour
+        // échouer sur « le modèle est en cours de chargement », ce qui est
+        // faux : rien ne chargeait, le service était éteint. Arrêter le
+        // service pour libérer la mémoire cassait donc la dictée jusqu'à ce
+        // qu'on pense à rouvrir les réglages.
+        if isReady(wanted, for: language) { return wanted }
+        if isReady(prefs.lastValidEngine, for: language) {
             return prefs.lastValidEngine
         }
         return EngineChoice.availableSystemEngines(for: language).first ?? wanted

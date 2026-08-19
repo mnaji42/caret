@@ -84,8 +84,8 @@ struct FinalEngineCard: View, ValidatingComponent {
         // avoir démarré CrisperWhisper, changer d'onglet et revenir affichait
         // « macOS (Natif) » sélectionné, parce que la vue recréée repart du
         // réglage — resté sur macOS — et non du brouillon, perdu avec elle.
-        .task(id: awaitingCommit ? commitTick : -1) {
-            guard awaitingCommit else { return }
+        .task(id: needsWatching ? commitTick : -1) {
+            guard needsWatching else { return }
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
             commitIfReady()
@@ -97,6 +97,17 @@ struct FinalEngineCard: View, ValidatingComponent {
     private var awaitingCommit: Bool {
         guard let draft else { return false }
         return draft != prefs.finalEngine
+    }
+
+    /// Faut-il continuer de regarder ?
+    ///
+    /// Oui tant qu'un choix attend, et oui dès que CrisperWhisper est le moteur
+    /// retenu : son service peut s'arrêter à tout moment — depuis le bouton
+    /// « Arrêter », ou de lui-même — et rien ne le signale. Sans ce regard, le
+    /// bandeau qui annonce le repli sur macOS n'apparaissait qu'au prochain
+    /// changement d'onglet, c'est-à-dire trop tard pour qui vient de cliquer.
+    private var needsWatching: Bool {
+        awaitingCommit || prefs.finalEngine == .crisperWhisper
     }
 
     private func commitIfReady() {
