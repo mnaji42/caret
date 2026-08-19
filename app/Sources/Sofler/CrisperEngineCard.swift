@@ -187,17 +187,22 @@ struct CrisperEngineCard: View, ValidatingComponent {
     /// Combien de langues les poids savent transcrire, et comment on la choisit.
     ///
     /// La question revient : « avec CrisperWhisper, faut-il encore choisir une
-    /// langue ? » Oui — la requête lui transmet la langue principale, et c'est
-    /// elle qu'il transcrit. Le dire ici évite de le découvrir en obtenant du
-    /// charabia après avoir parlé une autre langue.
+    /// langue ? » La requête la lui transmet, et elle construit le jeton de
+    /// langue du décodeur — mais Whisper est multilingue, et ce jeton
+    /// **oriente** sans contraindre : parler français avec l'anglais réglé
+    /// donne le plus souvent du français correct. C'est le même mécanisme qui
+    /// lui fait tenir le franglais, et c'est ce qu'il faut dire plutôt que de
+    /// promettre une contrainte que le modèle n'applique pas.
     @ViewBuilder
     private var languageCoverage: some View {
         let covered = prefs.primary.isCoveredByCrisperWhisper
-        Note("**\(Language.crisperWhisperBases.count) langues** : français, "
+        Note("**\(Language.crisperWhisperBases.count) langues** — français, "
              + "anglais, espagnol, allemand, italien, portugais, néerlandais, "
-             + "japonais, chinois, russe, arabe, coréen, polonais, suédois, "
-             + "turc, ukrainien, hindi. La langue principale lui est transmise "
-             + "à chaque dictée, et se change depuis la barre flottante."
+             + "japonais, chinois, russe… La langue principale lui est indiquée "
+             + "à chaque dictée et se change depuis la barre flottante, mais "
+             + "elle l'oriente plutôt qu'elle ne le contraint : le modèle est "
+             + "multilingue et retombe souvent sur ses pieds si vous parlez une "
+             + "autre langue. C'est ce qui lui permet de tenir le franglais."
              + (covered ? ""
                 : " **\(prefs.primary.displayName) n'en fait pas partie** : "
                   + "macOS écrit tant que cette langue est active."))

@@ -341,7 +341,7 @@ struct AppleEngineCard: View, ValidatingComponent {
         let covered = Language.appleSupports(prefs.primaryLanguage) != false
         if technology == .apple, let count = assets.appleLocaleCount {
             Note("**\(count) langues** sur ce Mac — français, anglais, espagnol, "
-                 + "allemand, italien, portugais, japonais, coréen, chinois."
+                 + "allemand, italien, portugais, japonais, coréen, chinois…"
                  + (covered ? ""
                     : " **\(prefs.primary.displayName) n'en fait pas partie** : "
                       + "la Dictée de macOS prend le relais."))
