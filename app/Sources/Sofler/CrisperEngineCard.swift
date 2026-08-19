@@ -106,8 +106,15 @@ struct CrisperEngineCard: View, ValidatingComponent {
     /// pour une décision déjà prise. Ce qui compte n'est pas que le service
     /// tourne à cet instant, c'est qu'un modèle ait été choisi : le relancer
     /// est alors un bouton, pas un catalogue.
+    ///
+    /// Ne dépend pas non plus d'une opération en cours. Démarrer le service
+    /// faisait réapparaître les quatre modèles sous les doigts de quelqu'un
+    /// qui venait justement d'en choisir un — la question du *lequel* était
+    /// tranchée, seule celle du *et maintenant* restait ouverte. La section du
+    /// modèle ne bouge donc plus pendant qu'on agit ; c'est la suivante qui
+    /// rend compte.
     private var showsCompact: Bool {
-        !catalogueExpanded && !installing && chosenModel != nil
+        !catalogueExpanded && chosenModel != nil
     }
 
     var body: some View {
@@ -669,6 +676,10 @@ struct CrisperEngineCard: View, ValidatingComponent {
     }
 
     private func install() {
+        // La grille reste ouverte pendant le téléchargement. Sans ça, retenir
+        // le modèle dès le premier octet la replierait aussitôt sur la vue
+        // compacte, et l'on ne verrait jamais les autres se griser.
+        catalogueExpanded = true
         Task {
             await bootstrap.install(model: draftModel,
                                     licenceAccepted: prefs.crisperLicenceAccepted)

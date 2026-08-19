@@ -208,7 +208,24 @@ final class EngineBootstrap {
     /// les deux choses qui manquaient : l'état pendant le chargement, et
     /// l'attente que le socket réponde avant d'annoncer « Prêt ».
     func startService(model: CrisperWhisperModel) async {
-        guard !isBusy else { return }
+        // Le service répond déjà : rien à lancer, et surtout rien à attendre.
+        if EngineService.isAnswering {
+            phase = .done
+            return
+        }
+        // Une attente restée en l'air ne doit pas condamner le bouton. Le
+        // garde-fou refusait tout tant que la phase n'était pas terminale, si
+        // bien qu'un démarrage qui n'avait pas abouti rendait tous les clics
+        // suivants silencieux — on cliquait, rien ne se passait, et rien ne
+        // disait pourquoi. Une installation en cours, elle, reste protégée :
+        // c'est la seule qu'on ne peut pas relancer sans dégât.
+        if case .startingService = phase {} else {
+            guard !isBusy else {
+                Log.info("engine: démarrage ignoré, phase déjà \(phase)")
+                return
+            }
+        }
+        Log.info("engine: démarrage demandé (\(model.rawValue))")
         Preferences.shared.chosenCrisperModel = model
         phase = .startingService(0)
         guard EngineInstall.installService(model: model) else {
@@ -239,8 +256,12 @@ final class EngineBootstrap {
     /// écrite.
     private func waitUntilAnswering() async throws {
         for elapsed in 0..<180 {
-            if EngineService.isAnswering { return }
+            if EngineService.isAnswering {
+                Log.info("engine: socket ouvert après \(elapsed) s")
+                return
+            }
             phase = .startingService(elapsed)
+            Log.info("engine: attente du socket, \(elapsed) s")
             try await Task.sleep(for: .seconds(1))
         }
         throw Failure.slowStart
