@@ -298,11 +298,7 @@ final class LanguageSwitchCoordinator {
         // par-dessus une note encore active dirait « c'est réglé » devant un
         // bandeau qui dit le contraire.
         if notice == nil {
-            confirmation = "Modèle installé — Apple Intelligence réactivé en \(name)."
-            Task {
-                try? await Task.sleep(for: .seconds(3))
-                if confirmation != nil { confirmation = nil }
-            }
+            announce("Modèle installé — Apple Intelligence réactivé en \(name).")
         }
     }
 
@@ -311,12 +307,12 @@ final class LanguageSwitchCoordinator {
     /// Pour les gestes voulus, dont il n'y a rien à redire : le message
     /// confirme et s'efface. Un bandeau d'avertissement dirait qu'il y a un
     /// problème là où quelqu'un a simplement obtenu ce qu'il demandait.
+    /// Reste à l'écran. Elle répond à un geste qu'on vient de faire, et un
+    /// texte qui s'évanouit pendant qu'on le lit oblige à recommencer pour
+    /// savoir ce qui s'est passé. Elle disparaît d'elle-même en quittant la
+    /// page — le geste sera loin, et l'écran dira alors l'état, pas l'histoire.
     func announce(_ message: String) {
         confirmation = message
-        Task {
-            try? await Task.sleep(for: .seconds(4))
-            if confirmation == message { confirmation = nil }
-        }
     }
 
     /// Écarte la note affichée — celle-là, et pour cette langue-là.

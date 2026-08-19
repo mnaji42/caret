@@ -24,11 +24,15 @@ import SwiftUI
 /// onglet choisit le moteur, celui-là choisit la langue.
 struct TranscriptionSettings: View {
     var body: some View {
+        FinalEngineCard()
         // Le même constat qu'ailleurs, à l'endroit où on le provoque : changer
         // de moteur, arrêter le service ou retirer des poids fait basculer la
         // dictée sur autre chose que ce qui est coché, et c'est ici que ça se
         // fait. Le bandeau n'existait que sous le sélecteur de langue.
+        //
+        // **Sous** les deux cartes, et non au-dessus : il rend compte du geste
+        // qu'on vient de faire dessus. Posé en tête de page, il repoussait les
+        // cartes vers le bas au moment même où on venait d'y cliquer.
         EngineNoticeBanner()
-        FinalEngineCard()
     }
 }

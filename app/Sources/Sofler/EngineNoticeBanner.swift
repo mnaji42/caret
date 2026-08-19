@@ -24,10 +24,28 @@ struct EngineNoticeBanner: View {
             content(notice)
         }
         if let confirmation = coordinator.confirmation {
-            Label(confirmation, systemImage: "checkmark.circle.fill")
-                .font(.system(size: 11))
-                .foregroundStyle(Style.accent)
-                .transition(.opacity)
+            // Le même cadre que l'avertissement, en turquoise : c'est une
+            // bonne nouvelle, mais elle se lit de la même façon. Sans cadre ni
+            // marges, elle flottait contre le texte voisin.
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 11))
+                Text(.init(confirmation))
+                    .font(.system(size: 11.5))
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(Style.accent)
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: Style.innerRadius, style: .continuous)
+                    .fill(Style.accent.opacity(0.08))
+                    .overlay(RoundedRectangle(cornerRadius: Style.innerRadius,
+                                              style: .continuous)
+                        .strokeBorder(Style.accentBorder, lineWidth: 1)))
+            .padding(.top, 12)
         }
     }
 
