@@ -20,9 +20,7 @@ import SwiftUI
 struct PrimaryLanguageSelector: View {
     @State private var prefs = Preferences.shared
     @State private var coordinator = LanguageSwitchCoordinator.shared
-    @Environment(\.selectSettingsTab) private var selectSettingsTab
     @State private var showsCatalog = false
-    @State private var installing = false
 
     /// Le seuil au-delà duquel les pastilles ne tiennent plus.
     private static let pillLimit = 2
@@ -56,15 +54,7 @@ struct PrimaryLanguageSelector: View {
 
             // Ce qui a été replié d'autorité, dit à l'endroit où on vient de
             // changer de langue — pas dans un journal, et pas silencieusement.
-            if let notice = coordinator.notice {
-                fallbackBanner(notice)
-            }
-            if let confirmation = coordinator.confirmation {
-                Label(confirmation, systemImage: "checkmark.circle.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Style.accent)
-                    .transition(.opacity)
-            }
+            EngineNoticeBanner()
 
             // La note d'abord, le bouton ensuite : elle explique l'état, il
             // propose l'action. Les intervertir ferait lire la conséquence
@@ -128,88 +118,6 @@ struct PrimaryLanguageSelector: View {
         .accessibilityAddTraits(showsCatalog ? [.isSelected, .isButton] : .isButton)
     }
 
-    /// Le bandeau de repli, avec l'action qui le lève quand il y en a une.
-    @ViewBuilder
-    private func fallbackBanner(_ notice: LanguageSwitchCoordinator.Notice) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 11))
-                Text(notice.title)
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Spacer(minLength: 8)
-
-                // Le prototype laisse écarter chaque bandeau. Un repli qui ne
-                // se répare pas tout de suite — une langue que CrisperWhisper
-                // ne couvre pas, par exemple — n'a pas à occuper l'écran
-                // indéfiniment une fois qu'on l'a lu et accepté.
-                Button {
-                    coordinator.dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 9, weight: .bold))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Fermer cette notification")
-                .help("Fermer cette notification")
-            }
-            .foregroundStyle(Style.warning)
-
-            Text(.init(notice.message))
-                .font(.system(size: 11.5))
-                .foregroundStyle(Style.textSecondary)
-                .lineSpacing(2)
-                .fixedSize(horizontal: false, vertical: true)
-
-            // Zéro saut de contexte : le modèle manquant se télécharge d'ici,
-            // plutôt que d'envoyer chercher le bouton dans un autre onglet.
-            if case .modelMissing(let language) = notice {
-                if installing {
-                    HStack(spacing: 8) {
-                        ProgressView().controlSize(.small)
-                        // Indéterminé, et c'est un correctif, pas un renoncement :
-                        // observer `request.progress` fait échouer le
-                        // téléchargement. Cf. SpeechAssets.
-                        Text("Téléchargement de \(Language.named(language).displayName)…")
-                            .font(.system(size: 11))
-                    }
-                } else if let action = notice.actionLabel {
-                    Button(action) {
-                        Task {
-                            installing = true
-                            await coordinator.installMissingModel(for: language)
-                            installing = false
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Style.accent)
-                    .controlSize(.small)
-                }
-            }
-
-            // L'autre action du prototype : celle qui n'installe rien mais
-            // emmène là où le réglage se change. Elle existait déjà dans
-            // `actionLabel` sans qu'aucun bouton ne la porte — le bandeau de
-            // CrisperWhisper nommait une résolution qu'il n'offrait pas.
-            if case .crisperUncovered = notice,
-               let action = notice.actionLabel,
-               let goToTab = selectSettingsTab {
-                Button(action) { goToTab(.engine) }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-            }
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: Style.innerRadius, style: .continuous)
-                .fill(Style.warning.opacity(0.10))
-                .overlay(RoundedRectangle(cornerRadius: Style.innerRadius,
-                                          style: .continuous)
-                    .strokeBorder(Style.warning.opacity(0.30), lineWidth: 1)))
-    }
 }
 
 #Preview("Langue principale") {

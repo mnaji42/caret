@@ -37,6 +37,11 @@ final class LanguageSwitchCoordinator {
         case modelMissing(language: String)
         /// CrisperWhisper ne couvre pas cette langue ; macOS écrit à sa place.
         case crisperUncovered(language: String)
+        /// Les poids du modèle retenu ne sont pas sur le disque.
+        case crisperWeightsMissing(model: CrisperWhisperModel)
+        /// Tout est là, mais le service ne tourne pas — après un « Libérer la
+        /// mémoire », ou parce que l'application vient de démarrer.
+        case crisperNotRunning(model: CrisperWhisperModel)
         /// Aucune version de macOS ne fonctionne ici pour cette langue.
         case noSystemEngine(language: String, reason: String)
 
@@ -64,6 +69,14 @@ final class LanguageSwitchCoordinator {
                 let name = Language.named(language).displayName
                 return "CrisperWhisper ne transcrit pas le \(name) : macOS "
                     + "écrit à sa place tant que cette langue est active."
+            case .crisperWeightsMissing(let model):
+                return "Les poids de \(model.catalogueName) "
+                    + "(\(model.downloadSize)) ne sont pas sur ce Mac. macOS "
+                    + "écrit en attendant."
+            case .crisperNotRunning(let model):
+                return "Son service est arrêté, donc \(model.residentMemory) "
+                    + "de mémoire sont libres. macOS écrit en attendant — "
+                    + "votre choix de moteur n'a pas changé."
             case .noSystemEngine(_, let reason):
                 return reason
             }
@@ -81,6 +94,10 @@ final class LanguageSwitchCoordinator {
                 "model-missing-\(language)"
             case .crisperUncovered(let language):
                 "crisper-uncovered-\(language)"
+            case .crisperWeightsMissing(let model):
+                "crisper-weights-missing-\(model.rawValue)"
+            case .crisperNotRunning(let model):
+                "crisper-not-running-\(model.rawValue)"
             case .noSystemEngine(let language, _):
                 "no-system-engine-\(language)"
             }
@@ -103,8 +120,10 @@ final class LanguageSwitchCoordinator {
                     : "Bascule sur macOS Dictée (Aperçu Live & Moteur Final)"
             case .appleVersionSwitched:
                 "Moteur Final : Bascule sur macOS Dictée"
-            case .crisperUncovered:
+            case .crisperUncovered, .crisperWeightsMissing:
                 "Moteur Final : Bascule sur macOS Natif (0 Mo)"
+            case .crisperNotRunning:
+                "CrisperWhisper est en veille"
             case .noSystemEngine:
                 "Aucun moteur macOS pour cette langue"
             }
@@ -118,6 +137,10 @@ final class LanguageSwitchCoordinator {
                 return "Télécharger \(lang.name) (environ \(lang.estimatedSizeLabel))"
             case .crisperUncovered:
                 return "Configurer dans Moteur IA"
+            case .crisperWeightsMissing(let model):
+                return "Télécharger les poids (\(model.downloadSize))"
+            case .crisperNotRunning:
+                return "Démarrer le service"
             case .appleVersionSwitched, .noSystemEngine:
                 return nil
             }
