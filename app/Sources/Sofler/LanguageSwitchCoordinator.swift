@@ -306,6 +306,19 @@ final class LanguageSwitchCoordinator {
         }
     }
 
+    /// Dit ce qui vient de se passer, brièvement.
+    ///
+    /// Pour les gestes voulus, dont il n'y a rien à redire : le message
+    /// confirme et s'efface. Un bandeau d'avertissement dirait qu'il y a un
+    /// problème là où quelqu'un a simplement obtenu ce qu'il demandait.
+    func announce(_ message: String) {
+        confirmation = message
+        Task {
+            try? await Task.sleep(for: .seconds(4))
+            if confirmation == message { confirmation = nil }
+        }
+    }
+
     /// Écarte la note affichée — celle-là, et pour cette langue-là.
     func dismiss() {
         if let shown = evaluate() { dismissed.insert(shown.id) }

@@ -733,8 +733,39 @@ struct CrisperEngineCard: View, ValidatingComponent {
         Task { await bootstrap.startService(model: draftModel) }
     }
 
+    /// Arrêter le service, c'est choisir de ne plus dicter avec CrisperWhisper.
+    ///
+    /// Le réglage suit donc le geste. Sans ça, le moteur restait coché sur
+    /// CrisperWhisper avec un bandeau d'avertissement permanent : rouvrir
+    /// l'application le retrouvait sélectionné mais inopérant, et le bandeau
+    /// annonçait une indisponibilité subie là où il s'agissait d'une décision.
+    ///
+    /// Rien n'est perdu : le modèle reste sur le disque et reste le modèle
+    /// retenu. Le reprendre est un clic.
+    ///
+    /// `finalEngine` et non `engine` : ce dernier écrirait aussi la version de
+    /// macOS, et forcerait Apple Intelligence à quelqu'un qui a choisi Dictée.
     private func stop() {
         EngineService.reconcile(needed: false)
+        prefs.finalEngine = .apple
+        LanguageSwitchCoordinator.shared.announce(
+            "Service arrêté — \(draftModel.residentMemory) libérés. "
+            + "macOS écrit désormais ; \(draftModel.catalogueName) reste sur "
+            + "votre disque.")
+        // Rien d'observable n'a changé : ni fichier surveillé, ni objet
+        // observé. Sans ce coup de pouce, la carte gardait « Service actif »
+        // sous les yeux de quelqu'un qui venait de l'arrêter.
+        //
+        // Une courte rafale plutôt qu'un seul coup : launchd rend la main avant
+        // que le serveur ait retiré son socket, donc le premier regard voit
+        // encore un service qui répond — et le sondage ordinaire, qui ne part
+        // que lorsque l'état n'est pas « prêt », ne démarrerait jamais.
+        Task {
+            for _ in 0..<6 {
+                try? await Task.sleep(for: .milliseconds(400))
+                tick &+= 1
+            }
+        }
     }
 
     private func remove(_ model: CrisperWhisperModel) {
