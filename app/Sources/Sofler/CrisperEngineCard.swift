@@ -117,6 +117,26 @@ struct CrisperEngineCard: View, ValidatingComponent {
         !catalogueExpanded && chosenModel != nil
     }
 
+    /// Bat la mesure tant que l'état n'est pas stable.
+    ///
+    /// Ce que cette carte affiche vient de trois sources qu'aucune notification
+    /// ne signale : des fichiers sur le disque, l'avis de launchd, et
+    /// l'existence d'un socket. Seule `phase` est observable — et s'y fier
+    /// seule s'est révélé insuffisant : le journal montre le service démarré et
+    /// `phase` passée à `.done`, pendant que la vue restait figée sur « … 9 s ».
+    /// Le sous-arbre entier avait cessé de se redessiner ; `commitIfReady` de
+    /// la carte parente ne repassait pas non plus.
+    ///
+    /// Deux fois par seconde, tant que le service n'est pas prêt ou qu'une
+    /// opération est en cours. Rien à sonder quand tout va bien, donc rien qui
+    /// tourne pour rien : la carte n'est visible que dans les réglages et
+    /// l'accueil, et l'appel à launchd garde sa mémoire d'une seconde.
+    @State private var tick = 0
+
+    private var needsPolling: Bool {
+        step != .ready || bootstrap.isBusy
+    }
+
     var body: some View {
         Group {
             if isSubCard {
@@ -129,6 +149,15 @@ struct CrisperEngineCard: View, ValidatingComponent {
         // carte, un descripteur réécrit par le service.
         .onAppear {
             draftModel = prefs.chosenCrisperModel ?? EngineInstall.selectedModel
+        }
+        // La clé porte aussi le besoin de sonder : sans elle, la boucle
+        // s'arrêterait une fois pour toutes au premier état stable et ne
+        // repartirait jamais quand une opération recommence.
+        .task(id: needsPolling ? tick : -1) {
+            guard needsPolling else { return }
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            tick &+= 1
         }
     }
 
