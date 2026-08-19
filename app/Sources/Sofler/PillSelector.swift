@@ -45,6 +45,10 @@ final class PillSelector: NSView {
         glass.layer?.masksToBounds = true
         glass.layer?.borderWidth = 1
         glass.layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
+        // La même ardoise que la carte et que les fenêtres. Le verre seul ne
+        // teinte rien : sans ce fond, on lisait la fenêtre du dessous à
+        // travers les pastilles.
+        glass.layer?.backgroundColor = NSColor.soflerWindow.cgColor
         glass.translatesAutoresizingMaskIntoConstraints = false
         addSubview(glass)
 

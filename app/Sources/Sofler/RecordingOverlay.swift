@@ -548,9 +548,37 @@ final class RecordingOverlay {
         card.layer?.cornerRadius = 16
         card.layer?.masksToBounds = true
         card.layer?.borderWidth = 1
-        card.layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
+        card.layer?.borderColor = NSColor.white.withAlphaComponent(0.16).cgColor
+        // L'ombre portée du prototype (`0 16px 36px rgba(0, 0, 0, 0.6)`) est
+        // déjà rendue par `panel.hasShadow` : macOS la dérive de l'alpha du
+        // contenu. La reposer sur le calque obligerait à lever
+        // `masksToBounds`, donc à laisser le flou déborder des coins.
         card.translatesAutoresizingMaskIntoConstraints = false
         root.addSubview(card)
+
+        // Le fond de fenêtre de l'application, et rien d'autre.
+        //
+        // La barre était en verre pur : un `NSVisualEffectView` en
+        // `.behindWindow` ne teinte rien, il diffuse ce qu'il y a derrière. On
+        // lisait donc le texte de la fenêtre du dessous au travers. Le design
+        // système a tranché — plus de glassmorphisme pour les fenêtres — et
+        // c'est la même ardoise partout : accueil, réglages, barre d'écoute.
+        //
+        // Posée dans une vue à part plutôt que sur `card.layer` :
+        // `NSVisualEffectView` gère son propre calque et réécrit sa couleur de
+        // fond quand il ravive son matériau, si bien que la teinte disparaissait
+        // sans prévenir.
+        let tint = NSView()
+        tint.wantsLayer = true
+        tint.layer?.backgroundColor = NSColor.soflerWindow.cgColor
+        tint.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(tint)
+        NSLayoutConstraint.activate([
+            tint.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+            tint.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            tint.topAnchor.constraint(equalTo: card.topAnchor),
+            tint.bottomAnchor.constraint(equalTo: card.bottomAnchor),
+        ])
 
         // Le reflet du verre : une lumière rasante en haut, qui s'éteint vers
         // le bas. C'est ce dégradé, plus que la transparence, qui donne
@@ -560,7 +588,7 @@ final class RecordingOverlay {
                         NSColor.white.withAlphaComponent(0.02).cgColor,
                         NSColor.clear.cgColor]
         sheen.locations = [0, 0.35, 1]
-        card.layer?.insertSublayer(sheen, at: 0)
+        tint.layer?.addSublayer(sheen)
         cardSheen = sheen
         self.card = card
 

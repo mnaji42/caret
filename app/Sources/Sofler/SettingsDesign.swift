@@ -82,6 +82,14 @@ extension NSColor {
     /// avaient fini par ne plus s'accorder tout à fait.
     static let soflerAccent = NSColor(srgbRed: 0x00 / 255.0, green: 0xE5 / 255.0,
                                       blue: 0xCC / 255.0, alpha: 1)
+
+    /// Le fond de fenêtre de l'application — `--bg-window`, `#141821` à 96 %.
+    ///
+    /// Le même pour l'accueil, les réglages et la barre d'écoute : c'est ce
+    /// que `WindowBackground` pose en SwiftUI, repris ici pour AppKit.
+    static let soflerWindow = NSColor(srgbRed: 0x14 / 255.0, green: 0x18 / 255.0,
+                                      blue: 0x21 / 255.0, alpha: 0.96)
+
     /// L'ambre des avertissements, pour le code AppKit.
     static let soflerWarning = NSColor(srgbRed: 0xF5 / 255.0, green: 0x9E / 255.0,
                                        blue: 0x0B / 255.0, alpha: 1)
