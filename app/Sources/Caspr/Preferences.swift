@@ -275,20 +275,18 @@ final class Preferences {
         selectedLanguages.filter { $0 != primaryLanguage }
     }
 
-    /// La licence de recherche non commerciale des poids a-t-elle été acceptée ?
+    /// La licence des poids a-t-elle été acceptée **pour ce téléchargement** ?
     ///
-    /// Persistée, alors qu'elle ne l'était pas : la case vivait dans un `@State`
-    /// de la vue d'installation, donc fermer les Réglages la décochait. Quelqu'un
-    /// qui avait accepté la licence, lancé un téléchargement, puis rouvert la
-    /// fenêtre retrouvait un bouton grisé et une case vide — comme si son accord
-    /// n'avait jamais été donné.
+    /// Volontairement non persistée. Elle l'était, et la case disparaissait dès
+    /// qu'on l'avait cochée une fois : six mois plus tard, on téléchargeait un
+    /// autre modèle sans que rien ne rappelle sous quelle licence. Or c'est le
+    /// seul moment où l'information compte — celui où l'on récupère les poids.
     ///
-    /// Ce n'est pas qu'un confort : `EngineBootstrap.install` refuse de
-    /// travailler sans cet accord, et le message d'échec parle de licence là où
-    /// l'utilisateur voit une case qu'il *avait* cochée.
-    var crisperLicenceAccepted: Bool {
-        didSet { defaults.set(crisperLicenceAccepted, forKey: Key.crisperLicence) }
-    }
+    /// La recocher prend deux secondes, et remet la licence sous les yeux à
+    /// chaque fois. Rien d'autre n'en dépend : elle ne sert qu'à autoriser le
+    /// bouton d'installation.
+    var crisperLicenceAccepted = false
+
 
     /// Ce que l'utilisateur a dit de son usage, à l'écran 2 de l'accueil.
     ///
@@ -757,7 +755,6 @@ final class Preferences {
         lastValidEngine = EngineChoice(rawValue: defaults.string(forKey: Key.lastValidEngine) ?? "")
             ?? (resolvedFinal == .crisperWhisper ? .crisperWhisper : resolvedApple)
 
-        crisperLicenceAccepted = defaults.bool(forKey: Key.crisperLicence)
         ignoredUpdateVersion = defaults.string(forKey: Key.ignoredUpdate)
         chosenCrisperModel = defaults.string(forKey: Key.crisperChosenModel)
             .flatMap(CrisperWhisperModel.init(rawValue:))

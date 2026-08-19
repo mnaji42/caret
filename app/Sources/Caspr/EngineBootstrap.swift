@@ -221,6 +221,15 @@ final class EngineBootstrap {
                 throw Failure.service
             }
             try await waitUntilAnswering()
+            // Installer, c'est choisir. Sans ça, le moteur final restait sur
+            // macOS, la réconciliation jugeait le service local inutile et le
+            // sortait aussitôt — on venait de télécharger 1,6 Go pour voir
+            // « Erreur de lancement » quelques secondes plus tard. Le service
+            // avait pourtant démarré : il a été arrêté, pas manqué.
+            EngineSafetyManager.shared.commit(.crisperWhisper,
+                                              for: Preferences.shared.primaryLanguage)
+            // La licence vaut pour ce téléchargement-ci.
+            Preferences.shared.crisperLicenceAccepted = false
             phase = .done
             Log.info("engine: installé (\(model.rawValue))")
         } catch is CancellationError {

@@ -466,7 +466,10 @@ struct CrisperEngineCard: View, ValidatingComponent {
                          + "\(model.catalogueName).")
                     // La licence ne réapparaît que si elle n'a pas été donnée :
                     // la redemander après un accord serait la faire douter.
-                    if !prefs.crisperLicenceAccepted { licence }
+                    // Toujours affichée, cochée ou non : c'est un rappel de
+                    // ce sous quoi on récupère les poids, pas une formalité
+                    // qu'on expédie une fois pour toutes.
+                    licence
                     installButton("Télécharger les poids (\(model.downloadSize))")
 
                 case .serviceMissing, .serviceStopped:
