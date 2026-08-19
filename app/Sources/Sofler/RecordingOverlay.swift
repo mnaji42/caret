@@ -99,6 +99,9 @@ final class RecordingOverlay {
     private var processingGlow: CALayer?
     private var tabsBelowCard: NSLayoutConstraint?
     private var cardAlone: NSLayoutConstraint?
+    /// La carte sous la rangée du mode, ou collée en haut quand elle n'y est pas.
+    private var cardBelowMode: NSLayoutConstraint?
+    private var cardAtTop: NSLayoutConstraint?
     private var previewLineCount = 1
     /// Composition courante de la rangée d'onglets.
     private var tabsLayout: Layout?
@@ -198,6 +201,10 @@ final class RecordingOverlay {
         textRow?.isHidden = false
         cardAlone?.isActive = false
         tabsBelowCard?.isActive = true
+        // `layoutTabs` remettra la rangée du mode si le moteur la demande ;
+        // d'ici là, la carte reprend le haut.
+        cardBelowMode?.isActive = false
+        cardAtTop?.isActive = true
         // Une ligne vide laisserait croire que l'aperçu est en panne le temps
         // que les premiers mots arrivent.
         setPreviewNotice(status.previewEnabled ? "en écoute…" : "")
@@ -222,6 +229,14 @@ final class RecordingOverlay {
         textRow?.isHidden = true
         tabsBelowCard?.isActive = false
         cardAlone?.isActive = true
+        // La rangée du mode disparaît avec le reste. Laissée en place, elle
+        // gardait « Texte nettoyé | Mot à mot » flottant au-dessus d'un message
+        // qui ne les concerne pas — et surtout elle continuait de pousser la
+        // carte vers le bas pendant que `cardAlone` la retenait par le bas :
+        // coincée entre les deux, elle se réduisait à un liseré.
+        modeControl.isHidden = true
+        cardBelowMode?.isActive = false
+        cardAtTop?.isActive = true
         statusLabel.isHidden = false
         statusLabel.stringValue = "Transcription…"
         panel.setContentSize(NSSize(width: Self.cardWidth,
@@ -253,6 +268,14 @@ final class RecordingOverlay {
         textRow?.isHidden = true
         tabsBelowCard?.isActive = false
         cardAlone?.isActive = true
+        // La rangée du mode disparaît avec le reste. Laissée en place, elle
+        // gardait « Texte nettoyé | Mot à mot » flottant au-dessus d'un message
+        // qui ne les concerne pas — et surtout elle continuait de pousser la
+        // carte vers le bas pendant que `cardAlone` la retenait par le bas :
+        // coincée entre les deux, elle se réduisait à un liseré.
+        modeControl.isHidden = true
+        cardBelowMode?.isActive = false
+        cardAtTop?.isActive = true
         statusLabel.isHidden = false
         statusLabel.stringValue = message
 
@@ -349,8 +372,19 @@ final class RecordingOverlay {
         // Trois pastilles au plus. La liste et l'ordre viennent du statut, donc
         // de l'ordre de déclaration des langues : elles ne se réordonnent pas
         // en pleine dictée sous les doigts de quelqu'un qui vise.
-        let switchable = Array(status.switchableLanguages.prefix(3))
-        let canSwitch = !status.modesAvailable && switchable.count > 1
+        // Trois au plus, et la langue en cours toujours parmi elles : au-delà,
+        // les pastilles mangent la barre, mais en cacher la langue active
+        // reviendrait à ne plus dire dans quelle langue on parle.
+        var switchable = Array(status.switchableLanguages.prefix(3))
+        if !switchable.contains(where: { $0.code == status.languageCode }),
+           let current = status.switchableLanguages.first(where: {
+               $0.code == status.languageCode
+           }) {
+            switchable = [current] + switchable.dropLast()
+        }
+        // Sous CrisperWhisper aussi : la requête lui transmet la langue, il n'y
+        // a donc aucune raison de retirer la bascule quand il écrit.
+        let canSwitch = switchable.count > 1
         if canSwitch, switchable.map(\.code) != languageCodes {
             languageCodes = switchable.map(\.code)
             languageControl.setLabels(switchable.map(\.badge))
@@ -364,6 +398,7 @@ final class RecordingOverlay {
         // place et le contrôle survivant se retrouve décalé d'une demi-
         // entretoise. On refait la rangée avec les seuls contrôles visibles.
         layoutTabs(showMode: status.modesAvailable, switchable: canSwitch)
+        layoutMode(showMode: status.modesAvailable)
 
         targetControl.setLabel(Self.noteLabel(for: status), at: 1)
         targetControl.select(status.target.isLocked ? 1 : 0)
@@ -515,6 +550,9 @@ final class RecordingOverlay {
         guard let panel else { return }
         var height = Self.controlRowHeight + Self.tabGap
             + Self.padding + Self.rowHeight + Self.padding
+        if status.modesAvailable {
+            height += Self.controlRowHeight + Self.tabGap
+        }
         if status.previewEnabled {
             height += Self.rowSpacing + CGFloat(previewLineCount) * Self.previewLineHeight
         }
@@ -635,6 +673,21 @@ final class RecordingOverlay {
         // onglets ce qu'on en fait. Posés au-dessus, ils s'interposaient entre
         // le regard et le texte reconnu, qui est la seule chose qu'on lit
         // vraiment pendant qu'on parle.
+        // Le mode de rendu passe **au-dessus**, à droite. Il n'appartient qu'à
+        // CrisperWhisper : le laisser en bas obligeait la rangée du bas à se
+        // réorganiser selon le moteur, et la destination changeait de place
+        // d'une dictée à l'autre. En haut, il apparaît et disparaît sans rien
+        // déplacer de ce qui reste.
+        root.addSubview(modeControl)
+        NSLayoutConstraint.activate([
+            modeControl.topAnchor.constraint(equalTo: root.topAnchor),
+            modeControl.trailingAnchor.constraint(equalTo: root.trailingAnchor,
+                                                  constant: -6),
+        ])
+        cardBelowMode = card.topAnchor.constraint(equalTo: modeControl.bottomAnchor,
+                                                  constant: Self.tabGap)
+        cardAtTop = card.topAnchor.constraint(equalTo: root.topAnchor)
+
         tabsBelowCard = tabs.topAnchor.constraint(equalTo: card.bottomAnchor,
                                                   constant: Self.tabGap)
         cardAlone = card.bottomAnchor.constraint(equalTo: root.bottomAnchor)
@@ -650,7 +703,6 @@ final class RecordingOverlay {
 
             card.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             card.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            card.topAnchor.constraint(equalTo: root.topAnchor),
 
             inner.leadingAnchor.constraint(equalTo: card.leadingAnchor,
                                            constant: Self.padding + 4),
@@ -699,9 +751,23 @@ final class RecordingOverlay {
             row.removeArrangedSubview(view)
             view.removeFromSuperview()
         }
-        let left: NSView = switchable && !showMode ? languageControl : languageBadge
-        fill(row, with: showMode ? [modeControl, languageBadge, targetControl]
-                                 : [left, targetControl])
+        // Les langues à gauche, la destination à droite. Toujours, quel que
+        // soit le moteur : CrisperWhisper reçoit lui aussi la langue de la
+        // requête, il n'y avait donc aucune raison de lui retirer la bascule.
+        let left: NSView = switchable ? languageControl : languageBadge
+        fill(row, with: [left, targetControl])
+
+    }
+
+    /// La rangée du mode, montrée ou cachée à **chaque** mise à jour.
+    ///
+    /// Hors de `layoutTabs`, qui sort tôt quand la composition de la rangée du
+    /// bas n'a pas bougé : la rangée du haut ne serait alors jamais rétablie
+    /// après une transcription ou un échec, qui la cachent tous deux.
+    private func layoutMode(showMode: Bool) {
+        modeControl.isHidden = !showMode
+        cardBelowMode?.isActive = showMode
+        cardAtTop?.isActive = !showMode
     }
 
     private struct Layout: Equatable {
@@ -841,6 +907,8 @@ final class RecordingOverlay {
         panel = nil
         tabsBelowCard = nil
         cardAlone = nil
+        cardBelowMode = nil
+        cardAtTop = nil
         container = nil
         recordingRow = nil
         textRow = nil
