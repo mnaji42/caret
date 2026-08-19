@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controller: DictationController!
     private let preferences = PreferencesWindowController()
     private let onboarding = OnboardingWindowController()
+    private let engineNotice = EngineStartupNoticeController()
     private let uninstaller = UninstallWindowController.shared
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -36,6 +37,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // local ne tourne que s'il écrit ou s'il est coché dans une collecte
         // active. Réconcilié au lancement, puis à chaque changement.
         EngineService.reconcile(needed: prefs.needsLocalEngine)
+        // Le service met jusqu'à une minute à lire ses poids, pendant lesquelles
+        // la dictée part sur macOS sans que rien ne le dise.
+        engineNotice.openSettings = { [weak self] in self?.openPreferences() }
+        engineNotice.showIfNeeded()
 
         // Déclencheur principal : Option pressée seule.
         modifierKey = ModifierKeyMonitor(

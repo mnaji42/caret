@@ -48,6 +48,8 @@ struct CrisperEngineCard: View, ValidatingComponent {
     /// aucun bouton de retrait — on ne propose pas de désinstaller ce qu'on
     /// vient d'installer.
     var isOnboarding = false
+    /// Prévient la carte parente que le service vient d'être arrêté d'ici.
+    var onStopped: () -> Void = {}
 
     @State private var prefs = Preferences.shared
     @State private var bootstrap = EngineBootstrap.shared
@@ -748,6 +750,7 @@ struct CrisperEngineCard: View, ValidatingComponent {
     private func stop() {
         EngineService.reconcile(needed: false)
         prefs.finalEngine = .apple
+        onStopped()
         LanguageSwitchCoordinator.shared.announce(
             "Service arrêté — \(draftModel.residentMemory) libérés. "
             + "macOS écrit désormais ; \(draftModel.catalogueName) reste sur "

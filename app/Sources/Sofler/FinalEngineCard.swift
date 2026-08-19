@@ -29,6 +29,18 @@ struct FinalEngineCard: View, ValidatingComponent {
     @State private var safety = EngineSafetyManager.shared
     /// Ce que l'utilisateur vient de désigner, prêt ou non.
     @State private var draft: Preferences.FinalEngineChoice?
+
+    /// Ce qu'on continue d'afficher alors que le réglage a déjà changé.
+    ///
+    /// Arrêter le service fait passer le moteur sur macOS — c'est le sens du
+    /// geste, et le back en tient compte immédiatement. Mais faire sauter la
+    /// sélection d'une ligne à l'autre sous les doigts de quelqu'un qui n'a pas
+    /// cliqué sur macOS est déroutant : il a demandé à libérer de la mémoire,
+    /// pas à changer de moteur. La ligne reste donc où elle était, le message
+    /// de confirmation explique ce qui a changé, et l'affichage se remet
+    /// d'aplomb à la prochaine ouverture — c'est un état de vue, pas un
+    /// réglage, et il disparaît avec elle.
+    @State private var pinned: Preferences.FinalEngineChoice?
     @State private var commitTick = 0
 
     // MARK: - Validité
@@ -43,9 +55,10 @@ struct FinalEngineCard: View, ValidatingComponent {
         }
     }
 
-    /// Ce qui est affiché comme sélectionné : le brouillon s'il y en a un.
+    /// Ce qui est affiché comme sélectionné : le brouillon, puis l'épinglage,
+    /// puis le réglage.
     private var shown: Preferences.FinalEngineChoice {
-        draft ?? prefs.finalEngine
+        draft ?? pinned ?? prefs.finalEngine
     }
 
     var body: some View {
@@ -110,6 +123,12 @@ struct FinalEngineCard: View, ValidatingComponent {
         awaitingCommit || prefs.finalEngine == .crisperWhisper
     }
 
+    /// Un clic sur une ligne lève l'épinglage : là, c'est un vrai choix.
+    private func choose(_ choice: Preferences.FinalEngineChoice) {
+        pinned = nil
+        draft = choice
+    }
+
     private func commitIfReady() {
         guard let draft, draft != prefs.finalEngine else { return }
         let target: EngineChoice = draft == .crisperWhisper
@@ -130,7 +149,7 @@ struct FinalEngineCard: View, ValidatingComponent {
                    subtitle: subtitle(for: choice),
                    selected: selected,
                    recommended: showsRecommendation && isRecommended(choice),
-                   action: { draft = choice }) {
+                   action: { choose(choice) }) {
             if pending {
                 Note("Ce choix sera enregistré dès que le moteur sera prêt. "
                      + "En attendant, Sofler dicte toujours avec "
@@ -140,7 +159,8 @@ struct FinalEngineCard: View, ValidatingComponent {
             case .apple:
                 AppleEngineCard(isSubCard: true, target: .final)
             case .crisperWhisper:
-                CrisperEngineCard(isSubCard: true, isOnboarding: isOnboarding)
+                CrisperEngineCard(isSubCard: true, isOnboarding: isOnboarding,
+                                  onStopped: { pinned = .crisperWhisper })
             }
         }
     }
