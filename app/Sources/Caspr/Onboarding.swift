@@ -227,6 +227,21 @@ private struct OnboardingView: View {
 
     private var welcomeStep: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Le logo, ici et nulle part ailleurs. C'est le seul écran où l'on
+            // fait connaissance ; le répéter dans chaque fenêtre le viderait de
+            // son sens et volerait la place de ce qu'on y règle.
+            if let logo = Bundle.main.url(forResource: "caspr-logo-stacked",
+                                          withExtension: "svg",
+                                          subdirectory: "icons"),
+               let image = NSImage(contentsOf: logo) {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 96)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.bottom, 20)
+            }
+
             SectionLabel("Le principe en trois points", followsHeader: true)
 
             Card {

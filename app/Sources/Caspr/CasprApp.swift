@@ -311,21 +311,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let (image, description): (NSImage?, String) = switch state {
         case .idle:
-            controller.target.isLocked
-                ? (MenuBarIcon.image(.idle),
-                   "Caspr — écrit dans \(controller.target.displayName)")
-                : (MenuBarIcon.image(.idle), "Caspr — prêt")
+            // Une mise à jour en attente se voit depuis la barre, sans ouvrir
+            // quoi que ce soit — c'est l'endroit où le regard passe déjà.
+            if UpdateChecker.shared.newer != nil {
+                (MenuBarIcon.image(.update), "Caspr — mise à jour disponible")
+            } else if controller.target.isLocked {
+                (MenuBarIcon.image(.idle),
+                 "Caspr — écrit dans \(controller.target.displayName)")
+            } else {
+                (MenuBarIcon.image(.idle), "Caspr — prêt")
+            }
         case .recording:
             (MenuBarIcon.image(.listening), "Caspr — enregistrement")
         case .processing:
             (MenuBarIcon.image(.processing), "Caspr — transcription")
-        // Le seul état qui garde un symbole système. Le triangle d'alerte se
-        // lit sans rien avoir appris, là où un caret en détresse ne voudrait
-        // rien dire — et l'erreur est le moment où l'on a le moins envie de
-        // déchiffrer une icône.
+        // Le fantôme reste, la bulle porte un point d'exclamation rouge : on
+        // reconnaît l'application avant de lire son état, ce qu'un triangle
+        // d'alerte système ne permettait pas.
         case .failed:
-            (NSImage(systemSymbolName: "exclamationmark.triangle",
-                     accessibilityDescription: nil), "Caspr — erreur")
+            (MenuBarIcon.image(.error), "Caspr — erreur")
         }
 
         image?.isTemplate = true

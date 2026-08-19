@@ -28,14 +28,18 @@ enum MenuBarIcon {
     /// bulle apparaît en bas à droite, et c'est son contenu qui porte l'état —
     /// cinq barres pour l'écoute, trois points pour le traitement. L'œil
     /// reconnaît l'application d'abord, son état ensuite.
+    /// La forme dit *quoi*, la couleur dit *si c'est grave* — cyan pour ce qui
+    /// est normal ou souhaitable, rouge pour ce qui demande une intervention.
     enum State {
-        case idle, listening, processing
+        case idle, listening, processing, error, update
 
         var fileName: String {
             switch self {
             case .idle: "caspr-ghost"
             case .listening: "caspr-ghost-listening"
             case .processing: "caspr-ghost-processing"
+            case .error: "caspr-ghost-error"
+            case .update: "caspr-ghost-update"
             }
         }
     }
