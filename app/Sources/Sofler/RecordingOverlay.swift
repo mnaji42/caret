@@ -607,8 +607,10 @@ final class RecordingOverlay {
 
         NSLayoutConstraint.activate([
             tabs.bottomAnchor.constraint(equalTo: root.bottomAnchor),
-            tabs.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            tabs.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            // `padding: 0 6px` : les groupes affleurent la carte sans la
+            // dépasser, leur ombre portée comprise.
+            tabs.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 6),
+            tabs.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -6),
             tabs.heightAnchor.constraint(equalToConstant: Self.controlRowHeight),
 
             card.leadingAnchor.constraint(equalTo: root.leadingAnchor),
@@ -638,19 +640,6 @@ final class RecordingOverlay {
         return panel
     }
 
-    /// Rangée centrée, tous les espaces égaux — bords compris.
-    ///
-    /// C'est le `space-evenly` de flexbox, et non `space-around` : ce dernier
-    /// donne des bords valant la moitié de l'intervalle central, ce qui se
-    /// voit tout de suite à l'œil comme un déséquilibre. `NSStackView` ne sait
-    /// faire ni l'un ni l'autre — ses distributions ne répartissent l'espace
-    /// qu'*entre* les vues, jamais aux extrémités — d'où des entretoises dont
-    /// on contraint toutes les largeurs à être identiques.
-    /// Recompose la rangée d'onglets pour les contrôles réellement affichés.
-    ///
-    /// Appelée à chaque mise à jour, mais ne fait rien tant que la composition
-    /// ne change pas : reconstruire des contraintes vingt fois par seconde
-    /// pendant une dictée serait absurde.
     /// La rangée sous la barre, telle que la dessine le prototype.
     ///
     /// - Sous CrisperWhisper : le mode de rendu à gauche, la langue **au
@@ -662,6 +651,10 @@ final class RecordingOverlay {
     ///   simplement dans quelle langue on parle.
     ///
     /// La destination reste à droite dans les trois cas.
+    ///
+    /// Appelée à chaque mise à jour, mais ne fait rien tant que la composition
+    /// ne change pas : reconstruire des contraintes vingt fois par seconde
+    /// pendant une dictée serait absurde.
     private func layoutTabs(showMode: Bool, switchable: Bool) {
         let wanted = Layout(showMode: showMode, switchable: switchable)
         guard wanted != tabsLayout || textRow == nil else { return }
@@ -681,6 +674,13 @@ final class RecordingOverlay {
         var switchable: Bool
     }
 
+    /// Rangée `space-between` : les groupes sont plaqués aux bords.
+    ///
+    /// C'était `space-evenly`, entretoises de bord comprises, ce qui ramenait
+    /// les deux groupes vers le centre — ils flottaient au milieu de la barre
+    /// au lieu d'en tenir les extrémités, et l'ensemble ne ressemblait plus à
+    /// la maquette. Le prototype pose `justify-content: space-between` : rien
+    /// aux bords, tout l'espace entre les groupes.
     private func makeSpacedRow(_ views: [NSView]) -> NSStackView {
         let row = makeRow([])
         row.spacing = 0
@@ -688,16 +688,21 @@ final class RecordingOverlay {
         return row
     }
 
-    /// Pose les contrôles et les entretoises qui les séparent.
+    /// Pose les contrôles, et une entretoise **entre** chacun — aucune au bord.
     private func fill(_ row: NSStackView, with views: [NSView]) {
-        let spacers = (0...views.count).map { _ in NSView() }
+        guard !views.isEmpty else { return }
+        var spacers: [NSView] = []
         for (index, view) in views.enumerated() {
-            row.addArrangedSubview(spacers[index])
+            if index > 0 {
+                let spacer = NSView()
+                spacer.setContentHuggingPriority(.defaultLow - 1, for: .horizontal)
+                spacers.append(spacer)
+                row.addArrangedSubview(spacer)
+            }
             row.addArrangedSubview(view)
-            spacers[index].setContentHuggingPriority(.defaultLow - 1, for: .horizontal)
         }
-        row.addArrangedSubview(spacers[views.count])
-        spacers[views.count].setContentHuggingPriority(.defaultLow - 1, for: .horizontal)
+        // Trois contrôles sous CrisperWhisper : les deux intervalles doivent
+        // rester égaux, sinon la pastille de langue n'est pas au centre.
         for spacer in spacers.dropFirst() {
             spacer.widthAnchor.constraint(equalTo: spacers[0].widthAnchor).isActive = true
         }
