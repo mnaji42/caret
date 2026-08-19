@@ -75,6 +75,10 @@ cp "$BINARY" "$STAGE/Contents/MacOS/$APP_NAME"
 # $STAGE, que l'on vient d'effacer, pour survivre d'un build à l'autre.
 "$ROOT/scripts/make-icon.sh"
 cp "$APP_DIR/build/$APP_NAME.icns" "$STAGE/Contents/Resources/$APP_NAME.icns"
+# Le catalogue des langues voyage en données, pas en code : il se tient à
+# jour sans recompiler.
+cp "$APP_DIR/Sources/Sofler/Resources/languages.json" \
+   "$STAGE/Contents/Resources/languages.json"
 
 # Le moteur Python voyage dans le bundle. Son code pèse quelques centaines de
 # kilo-octets — trois dixièmes de pour cent de l'application — et l'embarquer

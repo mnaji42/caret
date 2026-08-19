@@ -32,6 +32,13 @@ struct Language: Identifiable, Hashable, Sendable {
     /// Région, dans sa propre langue — « France », « 日本 ».
     let region: String
     let flag: String
+    /// Le nom en français — « anglais », « allemand ».
+    ///
+    /// Le catalogue nomme chaque langue dans **sa propre** langue, ce qui est
+    /// juste : c'est ainsi qu'on la reconnaît. Mais l'interface est en
+    /// français, et taper « anglais » ne trouvait rien — il fallait deviner
+    /// « English ». Ce nom-ci ne s'affiche pas ; il sert à chercher.
+    let frenchName: String
     /// Poids **estimé** du modèle Apple Intelligence, en octets.
     ///
     /// Estimé, et il faut le dire à l'écran. Apple n'expose le poids d'un actif
@@ -104,47 +111,77 @@ extension Language {
     ///
     /// Une langue absente d'ici reste utilisable : `named(_:)` fabrique une
     /// entrée depuis `Locale` plutôt que de la faire disparaître de l'interface.
-    static let catalog: [Language] = [
-        Language(code: "fr-FR", name: "Français", region: "France", flag: "🇫🇷", estimatedModelBytes: 65_000_000),
-        Language(code: "fr-CA", name: "Français", region: "Canada", flag: "🇨🇦", estimatedModelBytes: 64_000_000),
-        Language(code: "fr-CH", name: "Français", region: "Suisse", flag: "🇨🇭", estimatedModelBytes: 62_000_000),
-        Language(code: "fr-BE", name: "Français", region: "Belgique", flag: "🇧🇪", estimatedModelBytes: 62_000_000),
-        Language(code: "en-US", name: "English", region: "United States", flag: "🇺🇸", estimatedModelBytes: 58_000_000),
-        Language(code: "en-GB", name: "English", region: "United Kingdom", flag: "🇬🇧", estimatedModelBytes: 57_000_000),
-        Language(code: "en-CA", name: "English", region: "Canada", flag: "🇨🇦", estimatedModelBytes: 56_000_000),
-        Language(code: "en-AU", name: "English", region: "Australia", flag: "🇦🇺", estimatedModelBytes: 56_000_000),
-        Language(code: "en-IN", name: "English", region: "India", flag: "🇮🇳", estimatedModelBytes: 55_000_000),
-        Language(code: "es-ES", name: "Español", region: "España", flag: "🇪🇸", estimatedModelBytes: 62_000_000),
-        Language(code: "es-MX", name: "Español", region: "México", flag: "🇲🇽", estimatedModelBytes: 61_000_000),
-        Language(code: "es-US", name: "Español", region: "Estados Unidos", flag: "🇺🇸", estimatedModelBytes: 60_000_000),
-        Language(code: "de-DE", name: "Deutsch", region: "Deutschland", flag: "🇩🇪", estimatedModelBytes: 68_000_000),
-        Language(code: "de-AT", name: "Deutsch", region: "Österreich", flag: "🇦🇹", estimatedModelBytes: 66_000_000),
-        Language(code: "de-CH", name: "Deutsch", region: "Schweiz", flag: "🇨🇭", estimatedModelBytes: 65_000_000),
-        Language(code: "it-IT", name: "Italiano", region: "Italia", flag: "🇮🇹", estimatedModelBytes: 59_000_000),
-        Language(code: "pt-BR", name: "Português", region: "Brasil", flag: "🇧🇷", estimatedModelBytes: 63_000_000),
-        Language(code: "pt-PT", name: "Português", region: "Portugal", flag: "🇵🇹", estimatedModelBytes: 61_000_000),
-        Language(code: "nl-NL", name: "Nederlands", region: "Nederland", flag: "🇳🇱", estimatedModelBytes: 58_000_000),
-        Language(code: "nl-BE", name: "Vlaams", region: "België", flag: "🇧🇪", estimatedModelBytes: 57_000_000),
-        Language(code: "sv-SE", name: "Svenska", region: "Sverige", flag: "🇸🇪", estimatedModelBytes: 56_000_000),
-        Language(code: "nb-NO", name: "Norsk", region: "Norge", flag: "🇳🇴", estimatedModelBytes: 55_000_000),
-        Language(code: "da-DK", name: "Dansk", region: "Danmark", flag: "🇩🇰", estimatedModelBytes: 55_000_000),
-        Language(code: "fi-FI", name: "Suomi", region: "Suomi", flag: "🇫🇮", estimatedModelBytes: 58_000_000),
-        Language(code: "pl-PL", name: "Polski", region: "Polska", flag: "🇵🇱", estimatedModelBytes: 62_000_000),
-        Language(code: "tr-TR", name: "Türkçe", region: "Türkiye", flag: "🇹🇷", estimatedModelBytes: 61_000_000),
-        Language(code: "uk-UA", name: "Українська", region: "Україна", flag: "🇺🇦", estimatedModelBytes: 65_000_000),
-        Language(code: "ru-RU", name: "Русский", region: "Россия", flag: "🇷🇺", estimatedModelBytes: 74_000_000),
-        Language(code: "ja-JP", name: "日本語", region: "日本", flag: "🇯🇵", estimatedModelBytes: 72_000_000),
-        Language(code: "ko-KR", name: "한국어", region: "대한민국", flag: "🇰🇷", estimatedModelBytes: 70_000_000),
-        Language(code: "zh-CN", name: "简体中文", region: "中国大陆", flag: "🇨🇳", estimatedModelBytes: 80_000_000),
-        Language(code: "zh-TW", name: "繁體中文", region: "台灣", flag: "🇹🇼", estimatedModelBytes: 78_000_000),
-        Language(code: "zh-HK", name: "廣東話", region: "香港", flag: "🇭🇰", estimatedModelBytes: 76_000_000),
-        Language(code: "ar-SA", name: "العربية", region: "المملكة العربية السعودية", flag: "🇸🇦", estimatedModelBytes: 67_000_000),
-        Language(code: "he-IL", name: "עברית", region: "ישראל", flag: "🇮🇱", estimatedModelBytes: 60_000_000),
-        Language(code: "hi-IN", name: "हिन्दी", region: "भारत", flag: "🇮🇳", estimatedModelBytes: 69_000_000),
-        Language(code: "th-TH", name: "ไทย", region: "ประเทศไทย", flag: "🇹🇭", estimatedModelBytes: 66_000_000),
-        Language(code: "vi-VN", name: "Tiếng Việt", region: "Việt Nam", flag: "🇻🇳", estimatedModelBytes: 63_000_000),
-        Language(code: "id-ID", name: "Bahasa Indonesia", region: "Indonesia", flag: "🇮🇩", estimatedModelBytes: 56_000_000),
-    ]
+    /// Le catalogue, lu dans `languages.json`.
+    ///
+    /// Sorti du code pour être tenu à jour sans recompiler : ajouter une langue
+    /// ou corriger un poids estimé est une modification de données, pas de
+    /// programme.
+    ///
+    /// **Ce qui n'y figure pas, délibérément** : les locales d'Apple
+    /// Intelligence et celles de la Dictée de macOS. Elles dépendent de la
+    /// machine et de la version du système — 30 et 63 sur ce Mac — et une liste
+    /// figée mentirait au premier utilisateur dont le Mac diffère. Elles sont
+    /// demandées au système à l'exécution. `crisperWhisperBases`, en revanche,
+    /// dépend des poids du modèle : sa place est bien dans le fichier.
+    static let catalog: [Language] = Catalogue.loaded.languages
+
+    /// Les langues que les poids de CrisperWhisper savent transcrire.
+    static var crisperWhisperBases: Set<String> { Catalogue.loaded.crisperBases }
+
+    /// Le fichier, lu une fois.
+    struct Catalogue {
+        let languages: [Language]
+        let crisperBases: Set<String>
+
+        static let loaded = Catalogue.read()
+
+        private struct Document: Decodable {
+            struct Row: Decodable {
+                let code: String
+                let name: String
+                let region: String
+                let flag: String
+                let frenchName: String
+                let estimatedModelMegabytes: Int64
+                let rank: Int
+            }
+            let crisperWhisperBases: [String]
+            let languages: [Row]
+        }
+
+        private static func read() -> Catalogue {
+            guard let url = Bundle.main.url(forResource: "languages",
+                                            withExtension: "json"),
+                  let data = try? Data(contentsOf: url),
+                  let doc = try? JSONDecoder().decode(Document.self, from: data)
+            else {
+                // Un repli minimal plutôt qu'une application sans langue. Il
+                // signale l'anomalie sans empêcher de dicter : c'est une erreur
+                // d'empaquetage, pas une raison de refuser de démarrer.
+                Log.error("languages.json introuvable ou illisible — "
+                          + "catalogue réduit au français et à l'anglais")
+                return Catalogue(
+                    languages: [
+                        Language(code: "fr-FR", name: "Français", region: "France",
+                                 flag: "🇫🇷", frenchName: "français",
+                                 estimatedModelBytes: 65_000_000),
+                        Language(code: "en-US", name: "English",
+                                 region: "United States", flag: "🇺🇸",
+                                 frenchName: "anglais",
+                                 estimatedModelBytes: 58_000_000),
+                    ],
+                    crisperBases: ["fr", "en"])
+            }
+            let rows = doc.languages.sorted { $0.rank < $1.rank }
+            return Catalogue(
+                languages: rows.map {
+                    Language(code: $0.code, name: $0.name, region: $0.region,
+                             flag: $0.flag, frenchName: $0.frenchName,
+                             estimatedModelBytes: $0.estimatedModelMegabytes * 1_000_000)
+                },
+                crisperBases: Set(doc.crisperWhisperBases))
+        }
+    }
 
     /// La langue de ce code, connue du catalogue ou déduite de `Locale`.
     ///
@@ -165,7 +202,8 @@ extension Language {
                         // Le globe plutôt qu'un drapeau deviné : une langue n'a
                         // pas de pays, et en choisir un est un tort qu'on fait
                         // à quelqu'un.
-                        flag: "🌐", estimatedModelBytes: 60_000_000)
+                        flag: "🌐", frenchName: display,
+                        estimatedModelBytes: 60_000_000)
     }
 
     /// La locale complète à retenir pour un code, court ou déjà complet.
@@ -205,6 +243,7 @@ extension Language {
         let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
         return catalog.filter {
             $0.name.range(of: needle, options: options) != nil
+                || $0.frenchName.range(of: needle, options: options) != nil
                 || $0.region.range(of: needle, options: options) != nil
                 || $0.code.range(of: needle, options: options) != nil
         }
@@ -220,10 +259,6 @@ extension Language {
     /// langue, et la liste ne dépend pas de la machine. Restreinte à ce qui a
     /// été constaté utilisable — Whisper en annonce 99, mais la queue de
     /// distribution donne des résultats qu'on ne veut proposer à personne.
-    static let crisperWhisperBases: Set<String> = [
-        "fr", "en", "es", "de", "it", "pt", "nl", "ja", "zh", "ru",
-        "ar", "ko", "pl", "sv", "tr", "uk", "hi",
-    ]
 
     /// CrisperWhisper sait-il travailler dans cette langue ?
     var isCoveredByCrisperWhisper: Bool {

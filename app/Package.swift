@@ -15,6 +15,11 @@ let package = Package(
             name: "Sofler",
             dependencies: ["SoflerCore"],
             path: "Sources/Sofler",
+            // Le catalogue des langues est copié dans le bundle par
+            // `install.sh`, à côté du moteur Python et de l'icône. Le déclarer
+            // en ressource SwiftPM le rangerait dans un bundle séparé qu'il
+            // faudrait copier en plus, pour le même résultat.
+            exclude: ["Resources"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(

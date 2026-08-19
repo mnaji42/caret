@@ -425,3 +425,213 @@ comportement d'avant.
    `language: "fr"` **et** `locale: "fr-FR"` sur la nouvelle ligne.
 4. **La barre d'enregistrement** dans ses trois états, pour confirmer que la
    largeur ne bouge plus.
+
+## Passe visuelle sur les six onglets de réglages — fd8de72
+
+Vérifiée écran par écran, pilotée par capture d'écran plutôt qu'à l'œil.
+
+**Corrigé**
+- Onglets : `Text` + `onTapGesture` → vrais `Button` (clavier + VoiceOver).
+- `PageHeader.Scale` : 18/14 pt en onglet, 24/20 pt en onboarding.
+- Marge de 12 pt portée par la carte, plus par le conteneur.
+- Zone de contenu remise à 26/30/24, soit 520 pt utiles.
+- `followsHeader` sur le premier libellé de section (Général + Dictée).
+- Aperçu en direct scindé en deux cartes.
+- Titre en double retiré du lexique.
+- Bouton primaire désactivé : estompé, plus repeint en gris.
+
+**Vérifié conforme, aucun changement**
+- « Retours Sonores » existait déjà (hors champ à la capture).
+- Zone de dépôt du fichier de notes toujours visible : c'est le seul chemin de
+  configuration, et la pastille « Fichier de notes » reste verrouillée sans
+  fichier (infobulle incluse).
+- Moteur IA, Historique, Collecte : conformes.
+
+**Écarts assumés vis-à-vis du prototype**
+- Icônes SF Symbols à la place des emoji dans la barre d'onglets et sur
+  « Gérer / Ajouter des langues… » (demande explicite).
+- Chevron rotatif au lieu du glyphe `▲`.
+- « Téléchargement de *Français*… » nomme la langue, là où le prototype reste
+  générique.
+
+**Reste à faire**
+- Passe équivalente sur l'onboarding.
+- Matrice des 4 bannières de `LanguageSwitchService` (« Fermer cette
+  notification »).
+- `LanguageSwitchCoordinator.audit()` écrit `prefs.appleTechnology` — à rendre
+  non mutant (constat S1).
+- `RecordingOverlay` : la pastille de langue est un sélecteur à gauche en
+  multilingue macOS, un simple indicateur au centre sous CrisperWhisper.
+- `UpdateNotificationModal`, `InstallPromptModal` : absents du Swift.
+- Rebranding Caspr.
+
+## Passe visuelle sur l'accueil — e64c5b8
+
+**Corrigé**
+- Titre de fenêtre figé sur « Bienvenue dans Sofler » à la reprise (bug de
+  capture : le rappel visait une variable affectée trop tard). `Step.resumed`.
+- Compteur d'étapes remonté dans la barre de titre : 48 pt de bande morte.
+- `PageHeader.Scale.summary` pour l'écran final (18 pt, 2 pt, 2 pt).
+- Premier libellé de section sans marge haute, comme dans les réglages.
+- Puces des astuces : emoji → symboles SF.
+- Noms d'accessibilité sur les deux boutons du pied de page.
+
+**Vérifié conforme, aucun changement**
+- Liste de langues coupée en bas : c'est `max-height: 125px`, l'affordance de
+  défilement du prototype.
+- Étapes 1 à 4 : marges et wording conformes.
+
+**Écart assumé**
+- Libellés de section à 16 pt partout, là où le prototype alterne 16 et 12.
+
+## Constat S1 clos + bannières de bascule — ea3d5d6
+
+**Corrigé**
+- `audit()` n'écrit plus `appleTechnology`. Redondant (`EngineSafetyManager`
+  replie déjà au moment de dicter) et destructeur (le choix était perdu sans
+  retour). Vérifié : plus aucune écriture automatique de la préférence.
+- Contrôle du modèle manquant mesuré sur la version *effective*.
+- Bandeau : titre du prototype, bouton de fermeture, action « Configurer dans
+  Moteur IA » enfin portée par un bouton (`selectSettingsTab`).
+- Récapitulatif de l'accueil : moteur effectif, plus la préférence.
+
+**Non vérifié visuellement**
+Le bandeau lui-même : le reproduire demanderait de changer la configuration de
+langues de la machine. Compilé et câblé, mais pas exercé à l'écran.
+
+**Arbitrage confirmé, aucun changement**
+Le prototype a deux réglages libres (`liveEngineTechnology`,
+`finalAppleTechnology`). Le Swift couple l'aperçu à la passe finale dès que
+macOS écrit, pour que l'aperçu soit une vraie préversion du texte inséré. Les
+quatre cas de bannières restent atteignables.
+
+**Reste à faire**
+- `RecordingOverlay` : pastille de langue (sélecteur à gauche en multilingue
+  macOS, indicateur au centre sous CrisperWhisper).
+- `UpdateNotificationModal`, `InstallPromptModal`.
+- Rebranding Caspr.
+
+## Reprise du prototype comme spécification — 0a7a15a, e9eda2c
+
+Relecture intégrale de `SoflerContext.jsx`, `LanguagePicker.jsx`,
+`AppleEngineCard.jsx`, `FinalEngineCard.jsx`, `LanguageSwitchService.js` et la
+section langue de `SettingsView.jsx`. Six divergences de **comportement**.
+
+**Corrigé**
+1. Aperçu et transcription : deux technologies indépendantes (`target`).
+   Seul point de contact restant : l'accueil pose la même des deux côtés tant
+   que celle de la transcription n'a jamais été choisie
+   (`finalTechnologyWasChosen`).
+2. `primaryLanguage` stockée à part de l'ordre de la liste. Plus de
+   permutation des pastilles. Migration : `languages[0]` repris tel quel.
+3. Bannière dérivée au lieu de stockée + sondage de l'inventaire au changement
+   de langue → elle apparaît immédiatement. Fermeture par identité suffixée de
+   la langue.
+4. Sélecteur de langue retiré de l'onglet Moteur IA.
+5. Ligne du haut : « Langue active : » à gauche, sélecteur à droite. Note
+   corrigée (« la première est celle avec laquelle Sofler dicte » était devenu
+   faux).
+6. `SpeechPreview.make` prend la technologie de l'aperçu, plus celle du moteur
+   d'écriture. Idem pour la permission de reconnaissance vocale.
+
+**Au passage**
+`PillPicker` : `Text` + `onTapGesture` → vrais boutons. Portait le choix de la
+langue, de la destination et de la version du moteur.
+
+**Vérifié à l'écran**
+- Bascule de langue sans permutation.
+- Aperçu sur « Dictée » et transcription sur « Apple Intelligence »
+  simultanément (clé `sofler.engine.live` posée puis retirée).
+- Rien n'utilise `languages[0]` hors de l'invariant interne ; le chemin de
+  dictée et l'aperçu passent par la langue principale.
+
+**Non exercé**
+- Le cas d'auto-alignement de l'accueil : la clé existe déjà sur cette machine,
+  donc la condition est fausse.
+- La bannière elle-même (demande une langue sans modèle installé).
+
+## Prise en charge des langues par Apple Intelligence — 12c1c10, 804827f
+
+**La cause racine**
+`SpeechTranscriber.supportedLocale(equivalentTo:)` n'est **pas** un test
+d'appartenance. Mesuré : rend `pl_PL`, `ru_RU`, `ar_SA`, `vi_VN` alors
+qu'aucune n'est dans `supportedLocales` (30 locales / 10 langues ici). Toute la
+chaîne s'y fiait.
+
+**Corrigé**
+- Appartenance testée sur `supportedLocales` elle-même.
+- `EngineChoice.isAvailable(for:)` consulte enfin la langue
+  (`Language.appleSupports`, mémorisée avec verrou car lue hors MainActor).
+- Identifiants normalisés (`fr_FR` → `fr-FR`) : la taille du modèle ne
+  s'affichait dans aucune ligne, et « indisponible ici » jamais.
+- Balayage des langues déclarées au démarrage.
+- `estimatedSizeLabel` : « 62 Mo », plus « 62 MB ».
+- Message de bascule aligné sur le prototype.
+- Lignes du catalogue : `onTapGesture` → vrais boutons.
+
+**Testé à l'écran**
+- Polonais secondaire → aucun téléchargement proposé, aucun changement de moteur.
+- Polonais principal → bannière immédiate, sans changer d'onglet.
+- Espagnol principal (pris en charge, non téléchargé) → bannière + bouton de
+  téléchargement.
+- Fermeture de la bannière.
+
+**Non reproductible ici**
+Repli propre vers Dictée : demande une langue qu'Apple Intelligence ignore mais
+que la Dictée a installée ; ce Mac n'a que en/fr côté Dictée.
+
+## Barre d'écoute : bascule de langue — 29ff06f
+
+L'indicateur devient un sélecteur. Mon objection (« redémarrer le recognizer en
+pleine dictée ») était fausse : l'audio est transcrit à la fin, la langue est
+lue à ce moment-là. Trois cas du prototype respectés. Vérifié à l'écran.
+
+**Reste à faire**
+- `UpdateNotificationModal`, `InstallPromptModal` : absents du Swift.
+- Rebranding Caspr (nom, dépôt, `.dmg`, icônes, site).
+
+## Moteurs, modèles et service local — 426e813 → c35bb79
+
+**Bugs corrigés**
+- `EngineService.isRunning` lançait un `launchctl` synchrone à chaque lecture
+  de `step`, plusieurs fois par rendu → fil principal noyé pendant le
+  démarrage. Mémoire d'une seconde.
+- La vue cessait de se redessiner : `phase` passait à `.done` sans que rien ne
+  suive. Les états viennent de fichiers, de launchd et d'un socket — rien
+  d'observable. Sondage à 2 Hz tant que l'état n'est pas stable.
+- `commitIfReady` ne se déclenchait qu'au clic : le choix de CrisperWhisper ne
+  s'enregistrait jamais, et au changement d'onglet macOS réapparaissait.
+- `effectiveEngine` repliait sur `isAvailable` (= « installé »), donc jamais
+  quand le service était arrêté : la dictée partait vers un socket fermé et
+  échouait sur « le modèle est en cours de chargement », ce qui était faux.
+- Le service survivait à la fermeture de l'application : 3 Go résidents
+  jusqu'au redémarrage de la machine.
+- Historique vide à l'ouverture (`entries` jamais chargé).
+- `AccentCard` sans marge basse.
+
+**Comportements posés**
+- `chosenCrisperModel` : mémoire du modèle retenu (téléchargé ou démarré au
+  moins une fois). Parcourir la grille ne retient rien.
+- Quatre sections dans la carte CrisperWhisper : explication, rendu, modèle
+  (grille **ou** modèle retenu + changer/supprimer), action.
+- Verrou sur les autres modèles pendant toute opération, partout.
+- « Libérer la mémoire » fait suivre le réglage sur macOS, avec confirmation ;
+  l'affichage reste épinglé sur CrisperWhisper jusqu'à la prochaine ouverture.
+- Fenêtre de démarrage quand CrisperWhisper charge encore au lancement.
+
+**Service central de compatibilité**
+`LanguageSwitchCoordinator` raisonne sur *qui écrit* et couvre les deux
+familles (CrisperWhisper : couverture, poids, service ; macOS : version,
+modèle). Dérivé, non mutant. Affiché par `EngineNoticeBanner` dans Général
+**et** Moteur IA.
+
+**Reste à faire**
+- Cartes de choix du moteur : `onTapGesture` → vrais boutons (clavier,
+  VoiceOver, automatisation).
+- `EngineBootstrap.obstacle` consulté seulement après le clic.
+- Aucune vérification d'espace disque avant 1,6–3 Go de téléchargement.
+- Couverture CrisperWhisper en dur dans `Language.swift` : à sortir en JSON.
+- Titre de l'onglet « Enregistrement & Dictée » → proposition « Dictée &
+  Aperçu ».
+- `UpdateNotificationModal`, `InstallPromptModal`.
+- Rebranding Caspr.

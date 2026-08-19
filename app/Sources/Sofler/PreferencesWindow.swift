@@ -96,9 +96,9 @@ struct PreferencesView: View {
                  "Langue de travail, destination du texte transcrit et "
                     + "intégration système.")
             case .recording:
-                ("Enregistrement & Dictée",
-                 "Configurez comment Sofler capte votre voix et affiche la "
-                    + "transcription en direct.")
+                ("Dictée & Barre flottante",
+                 "Comment vous appelez Sofler, ce que la barre affiche pendant "
+                    + "que vous parlez, et les sons qui l'accompagnent.")
             case .engine:
                 ("Moteur IA & Transcription Finale",
                  "Choisissez le moteur neuronal qui rédige le texte définitif "
