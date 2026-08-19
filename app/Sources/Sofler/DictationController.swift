@@ -153,6 +153,22 @@ final class DictationController {
             refreshOverlay()
             onStateChange?(state)
         }
+        // Changer de langue en pleine phrase est sans danger : l'audio est
+        // enregistré et transcrit **à la fin**, avec la langue en vigueur à ce
+        // moment-là. C'est donc le texte réellement inséré qui suit la
+        // bascule. Seul l'aperçu en direct doit repartir sur le nouveau
+        // moteur — son texte est jeté de toute façon, et son échec n'a jamais
+        // d'effet sur la dictée.
+        overlay.onSelectLanguage = { [weak self] code in
+            guard let self, Preferences.shared.primaryLanguage != code else { return }
+            Preferences.shared.primaryLanguage = code
+            if state == .recording, Preferences.shared.livePreviewEnabled {
+                stopPreview()
+                startPreview()
+            }
+            refreshOverlay()
+            onStateChange?(state)
+        }
         // La collecte se coupe depuis la barre, pas seulement depuis le menu :
         // c'est en dictant qu'on se rend compte qu'on ne veut pas archiver
         // ce qu'on est en train de dire.
@@ -181,7 +197,10 @@ final class DictationController {
             // la barre : depuis le multi-langues, dicter en français avec
             // l'anglais actif produit un texte incompréhensible qu'on met
             // longtemps à imputer à la bonne cause.
-            languageBadge: Preferences.shared.primary.shortBadge)
+            languageBadge: Preferences.shared.primary.shortBadge,
+            switchableLanguages: Preferences.shared.activeLanguages
+                .map { ($0.code, $0.shortBadge) },
+            languageCode: Preferences.shared.primaryLanguage)
     }
 
     private func refreshOverlay() {

@@ -19,6 +19,7 @@ final class PillSelector: NSView {
 
     private let accent: NSColor
     private var buttons: [SegmentButton] = []
+    private let stack = NSStackView()
     private(set) var selectedIndex = 0
 
     private static let height: CGFloat = 32
@@ -46,21 +47,13 @@ final class PillSelector: NSView {
         glass.translatesAutoresizingMaskIntoConstraints = false
         addSubview(glass)
 
-        let stack = NSStackView()
         stack.orientation = .horizontal
         stack.spacing = 2
         stack.alignment = .centerY
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
 
-        for (index, label) in labels.enumerated() {
-            let button = SegmentButton(title: label)
-            button.target = self
-            button.action = #selector(tapped(_:))
-            button.tag = index
-            buttons.append(button)
-            stack.addArrangedSubview(button)
-        }
+        rebuild(with: labels)
 
         NSLayoutConstraint.activate([
             heightAnchor.constraint(equalToConstant: Self.height),
@@ -74,6 +67,32 @@ final class PillSelector: NSView {
             stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.inset),
         ])
         select(0)
+    }
+
+    /// Remplace les segments.
+    ///
+    /// Les langues déclarées changent pendant que la barre existe — on en
+    /// ajoute une depuis les Réglages sans que la dictée s'arrête. Construire
+    /// les segments une fois pour toutes obligerait à jeter le contrôle entier
+    /// pour en changer un libellé.
+    func setLabels(_ labels: [String]) {
+        rebuild(with: labels)
+        select(min(selectedIndex, max(labels.count - 1, 0)))
+    }
+
+    private func rebuild(with labels: [String]) {
+        for button in buttons {
+            stack.removeArrangedSubview(button)
+            button.removeFromSuperview()
+        }
+        buttons = labels.enumerated().map { index, label in
+            let button = SegmentButton(title: label)
+            button.target = self
+            button.action = #selector(tapped(_:))
+            button.tag = index
+            stack.addArrangedSubview(button)
+            return button
+        }
     }
 
     required init?(coder: NSCoder) { fatalError("non utilisé") }

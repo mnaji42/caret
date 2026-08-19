@@ -48,18 +48,24 @@ final class RecordingOverlay {
         var corpusEnabled: Bool
         var corpusKeepsAudio: Bool
         /// La langue en cours, « 🇫🇷 FR ».
-        ///
-        /// **Un indicateur, pas un sélecteur**, et c'est un arbitrage. Les
-        /// documents proposaient d'en faire une pastille cliquable pour
-        /// basculer de langue en pleine dictée. Ça suppose de redémarrer le
-        /// recognizer système alors qu'il consomme déjà un flux audio — une
-        /// opération dont rien ne dit qu'elle est sans latence ni perte, et
-        /// dont l'échec se manifesterait par une transcription tronquée au
-        /// milieu d'une phrase. Tant que ce n'est pas mesuré, la pastille dit
-        /// ce qui écoute et ne prétend rien de plus : savoir dans quelle langue
-        /// on est en train de dicter est déjà l'essentiel de ce qu'on lui
-        /// demande.
         var languageBadge: String = ""
+
+        /// Les langues entre lesquelles basculer, « 🇫🇷 FR », « 🇬🇧 EN ».
+        ///
+        /// **Un sélecteur, et non un simple indicateur.** J'avais tranché
+        /// l'inverse en croyant que basculer en pleine dictée obligeait à
+        /// redémarrer le recognizer pendant qu'il consomme l'audio. C'est faux
+        /// ici : l'audio est enregistré et transcrit **à la fin**, et la langue
+        /// est lue à ce moment-là. Changer de langue en parlant s'applique donc
+        /// au texte réellement inséré, sans rien risquer. Seul l'aperçu en
+        /// direct redémarre, et son échec est déjà sans effet sur la dictée.
+        ///
+        /// Trois au plus, comme le prototype : au-delà, les pastilles mangent
+        /// la barre, et une barre d'écoute n'est pas un écran de réglages.
+        var switchableLanguages: [(code: String, badge: String)] = []
+
+        /// Le code de la langue en cours, pour savoir quelle pastille éclairer.
+        var languageCode: String = ""
     }
 
     private var panel: NSPanel?
@@ -79,6 +85,10 @@ final class RecordingOverlay {
         labels: ["Curseur", "Notes…"], accent: accent)
     private let micButton = FirstMouseButton()
     private let languageBadge = NSTextField(labelWithString: "")
+    /// Les pastilles de bascule, sous macOS multilingue.
+    private let languageControl = PillSelector(labels: [], accent: accent)
+    /// Les codes derrière les pastilles, dans le même ordre.
+    private var languageCodes: [String] = []
     private let corpusBadge = BadgeButton()
     private var container: NSStackView?
     private var recordingRow: NSStackView?
@@ -91,11 +101,12 @@ final class RecordingOverlay {
     private var cardAlone: NSLayoutConstraint?
     private var previewLineCount = 1
     /// Composition courante de la rangée d'onglets.
-    private var tabsShowMode: Bool?
+    private var tabsLayout: Layout?
 
     var levelProvider: (() -> Float)?
     var onSelectMode: ((TranscriptionMode) -> Void)?
     var onSelectTarget: ((Bool) -> Void)?
+    var onSelectLanguage: ((String) -> Void)?
 
     var onToggleCorpus: (() -> Void)?
     var onCancel: (() -> Void)?
@@ -326,10 +337,25 @@ final class RecordingOverlay {
 
         modeControl.select(TranscriptionMode.allCases.firstIndex(of: status.mode) ?? 0)
         languageBadge.stringValue = status.languageBadge
+
+        // Trois pastilles au plus. La liste et l'ordre viennent du statut, donc
+        // de l'ordre de déclaration des langues : elles ne se réordonnent pas
+        // en pleine dictée sous les doigts de quelqu'un qui vise.
+        let switchable = Array(status.switchableLanguages.prefix(3))
+        let canSwitch = !status.modesAvailable && switchable.count > 1
+        if canSwitch, switchable.map(\.code) != languageCodes {
+            languageCodes = switchable.map(\.code)
+            languageControl.setLabels(switchable.map(\.badge))
+        }
+        if canSwitch,
+           let index = languageCodes.firstIndex(of: status.languageCode) {
+            languageControl.select(index)
+        }
+
         // Masquer ne suffit pas à recentrer : les entretoises restent en
         // place et le contrôle survivant se retrouve décalé d'une demi-
         // entretoise. On refait la rangée avec les seuls contrôles visibles.
-        layoutTabs(showMode: status.modesAvailable)
+        layoutTabs(showMode: status.modesAvailable, switchable: canSwitch)
 
         targetControl.setLabel(Self.noteLabel(for: status), at: 1)
         targetControl.select(status.target.isLocked ? 1 : 0)
@@ -619,16 +645,34 @@ final class RecordingOverlay {
     /// Appelée à chaque mise à jour, mais ne fait rien tant que la composition
     /// ne change pas : reconstruire des contraintes vingt fois par seconde
     /// pendant une dictée serait absurde.
-    private func layoutTabs(showMode: Bool) {
-        guard showMode != tabsShowMode || textRow == nil else { return }
-        tabsShowMode = showMode
+    /// La rangée sous la barre, telle que la dessine le prototype.
+    ///
+    /// - Sous CrisperWhisper : le mode de rendu à gauche, la langue **au
+    ///   centre** et en simple indicateur — le moteur est multilingue par
+    ///   nature, il n'y a rien à lui basculer.
+    /// - Sous macOS avec plusieurs langues : les pastilles de bascule à
+    ///   gauche, rien au centre.
+    /// - Sous macOS avec une seule langue : l'indicateur à gauche, qui dit
+    ///   simplement dans quelle langue on parle.
+    ///
+    /// La destination reste à droite dans les trois cas.
+    private func layoutTabs(showMode: Bool, switchable: Bool) {
+        let wanted = Layout(showMode: showMode, switchable: switchable)
+        guard wanted != tabsLayout || textRow == nil else { return }
+        tabsLayout = wanted
         guard let row = textRow else { return }
         for view in row.arrangedSubviews {
             row.removeArrangedSubview(view)
             view.removeFromSuperview()
         }
+        let left: NSView = switchable && !showMode ? languageControl : languageBadge
         fill(row, with: showMode ? [modeControl, languageBadge, targetControl]
-                                 : [languageBadge, targetControl])
+                                 : [left, targetControl])
+    }
+
+    private struct Layout: Equatable {
+        var showMode: Bool
+        var switchable: Bool
     }
 
     private func makeSpacedRow(_ views: [NSView]) -> NSStackView {
@@ -731,6 +775,11 @@ final class RecordingOverlay {
         targetControl.onSelect = { [weak self] index in
             self?.onSelectTarget?(index == 1)
         }
+        languageControl.onSelect = { [weak self] index in
+            guard let codes = self?.languageCodes, codes.indices.contains(index)
+            else { return }
+            self?.onSelectLanguage?(codes[index])
+        }
     }
 
     /// Jette le panneau après un changement d'écrans, et le remonte aussitôt
@@ -751,7 +800,7 @@ final class RecordingOverlay {
         textRow = nil
         card = nil
         cardSheen = nil
-        tabsShowMode = nil
+        tabsLayout = nil
         NSLog("sofler: écrans modifiés — panneau reconstruit")
 
         guard wasRecording else { return }
