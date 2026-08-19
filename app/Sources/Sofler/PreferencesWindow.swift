@@ -615,6 +615,17 @@ private struct HistoryTab: View {
                 history.isEnabled = on
                 entries = history.entries
             }
+            // Lu à l'ouverture, sinon jamais. Les trois états partaient de
+            // valeurs par défaut et n'étaient repris de l'historique qu'au
+            // basculement d'un réglage : la page s'ouvrait donc sur « Aucune
+            // transcription » alors que le menu de la barre en listait cinq,
+            // et le nombre d'entrées conservées affichait le défaut plutôt que
+            // le réglage en vigueur.
+            .onAppear {
+                enabled = history.isEnabled
+                limit = history.limit
+                entries = history.entries
+            }
 
         if enabled {
             AccentCard {
@@ -767,6 +778,9 @@ struct AccentCard<Content: View>: View {
                     .overlay(RoundedRectangle(cornerRadius: Style.cardRadius,
                                               style: .continuous)
                         .strokeBorder(Style.accentBorder, lineWidth: 1)))
+            // La même marge basse que `Card` — elle manquait ici, et le texte
+            // qui suit la carte s'y collait.
+            .padding(.bottom, 12)
     }
 }
 

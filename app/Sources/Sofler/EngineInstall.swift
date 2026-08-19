@@ -192,6 +192,7 @@ enum EngineInstall {
 
         if selectedModel == model {
             _ = launchctl(["bootout", "gui/\(getuid())/\(EngineService.label)"])
+            EngineService.forgetRunningState()
             if Preferences.shared.engine == .crisperWhisper {
                 Preferences.shared.engine = .apple
             }

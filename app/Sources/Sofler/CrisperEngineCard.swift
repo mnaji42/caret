@@ -259,6 +259,11 @@ struct CrisperEngineCard: View, ValidatingComponent {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
+            // Tout se grise pendant une opération. Changer de modèle ou
+            // supprimer des poids au milieu d'un téléchargement ou d'un
+            // chargement en mémoire laisse le service et le disque dans un
+            // état que rien ne décrit — mieux vaut rendre le geste impossible
+            // que d'avoir à le rattraper.
             VStack(alignment: .trailing, spacing: 4) {
                 Button("Changer de modèle…") { catalogueExpanded = true }
                     .buttonStyle(SoflerSecondaryButtonStyle())
@@ -268,6 +273,8 @@ struct CrisperEngineCard: View, ValidatingComponent {
                 .help("Retire les \(draftModel.downloadSize) du disque et oublie "
                       + "ce choix : la grille des quatre modèles revient.")
             }
+            .disabled(installing)
+            .opacity(installing ? 0.4 : 1)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -672,6 +679,8 @@ struct CrisperEngineCard: View, ValidatingComponent {
             Button("Arrêter (Libérer RAM)") { stop() }
                 .buttonStyle(SoflerSecondaryButtonStyle())
                 .help("Arrêter le service pour libérer la mémoire")
+                .disabled(installing)
+                .opacity(installing ? 0.4 : 1)
         }
     }
 

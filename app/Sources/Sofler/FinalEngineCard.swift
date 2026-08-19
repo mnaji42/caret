@@ -29,6 +29,7 @@ struct FinalEngineCard: View, ValidatingComponent {
     @State private var safety = EngineSafetyManager.shared
     /// Ce que l'utilisateur vient de désigner, prêt ou non.
     @State private var draft: Preferences.FinalEngineChoice?
+    @State private var commitTick = 0
 
     // MARK: - Validité
 
@@ -74,6 +75,28 @@ struct FinalEngineCard: View, ValidatingComponent {
         .onChange(of: shown) { _, _ in commitIfReady() }
         .onChange(of: safety.isFallingBack) { _, _ in commitIfReady() }
         .task(id: shown) { commitIfReady() }
+        // Et tant que le brouillon attend, on redemande.
+        //
+        // Les trois déclencheurs ci-dessus ne se produisent qu'au clic. Or ce
+        // qu'on attend — un service qui finit de charger 3 Go — n'émet aucune
+        // notification : ni fichier observé, ni objet observable. Le brouillon
+        // ne s'enregistrait donc jamais tout seul. Conséquence visible : après
+        // avoir démarré CrisperWhisper, changer d'onglet et revenir affichait
+        // « macOS (Natif) » sélectionné, parce que la vue recréée repart du
+        // réglage — resté sur macOS — et non du brouillon, perdu avec elle.
+        .task(id: awaitingCommit ? commitTick : -1) {
+            guard awaitingCommit else { return }
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            commitIfReady()
+            commitTick &+= 1
+        }
+    }
+
+    /// Un choix attend d'être enregistré, faute d'un moteur encore prêt.
+    private var awaitingCommit: Bool {
+        guard let draft else { return false }
+        return draft != prefs.finalEngine
     }
 
     private func commitIfReady() {

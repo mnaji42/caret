@@ -290,6 +290,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         modifierKey?.stop()
         hotkey?.unregister()
         historyHotkey?.unregister()
+        // Le service local ne survit pas à l'application.
+        //
+        // Il tourne sous launchd, avec `RunAtLoad` et `KeepAlive` : quitter
+        // Sofler le laissait donc en place avec ses trois gigaoctets de poids
+        // en mémoire, jusqu'au redémarrage de la machine. Personne ne pouvait
+        // le deviner, et rien dans l'interface ne le montrait — l'application
+        // était fermée. C'est aussi exactement ce que le reste du code promet
+        // de ne pas faire : « un modèle de 3 Go ne reste pas chargé au cas
+        // où ». Il repart au prochain lancement si le moteur en a besoin.
+        EngineService.reconcile(needed: false)
     }
 
     // MARK: - Barre de menus
