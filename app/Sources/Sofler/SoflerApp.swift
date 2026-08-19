@@ -17,6 +17,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let uninstaller = UninstallWindowController.shared
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Tout premier geste, avant la moindre lecture de réglage ou de
+        // fichier : ce qui suit suppose que les données sont à leur place.
+        Rebranding.migrateIfNeeded()
         LanguageSwitchCoordinator.shared.probeSelectedLanguages()
         let engine = SocketSpeechEngine()
         controller = DictationController(engine: engine)
