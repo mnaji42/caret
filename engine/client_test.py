@@ -14,7 +14,7 @@ from pathlib import Path
 
 import soundfile as sf
 
-from sofler_engine import protocol
+from caspr_engine import protocol
 
 
 def main() -> int:
@@ -31,7 +31,7 @@ def main() -> int:
         sock.connect(str(args.socket))
     except (FileNotFoundError, ConnectionRefusedError):
         print(f"service injoignable sur {args.socket}\n"
-              f"démarrer : uv run python -m sofler_engine.server", file=sys.stderr)
+              f"démarrer : uv run python -m caspr_engine.server", file=sys.stderr)
         return 1
 
     with sock:

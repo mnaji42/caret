@@ -34,7 +34,7 @@ EXPECTED = {
 def engine():
     if not SAMPLES.exists():
         pytest.skip("enregistrements absents (données personnelles)")
-    from sofler_engine.crisper import CrisperWhisperEngine
+    from caspr_engine.crisper import CrisperWhisperEngine
     instance = CrisperWhisperEngine()
     instance.load()
     return instance
@@ -99,6 +99,6 @@ def test_long_audio_is_not_truncated(engine):
 def test_lexicon_stays_short():
     """Mesuré : au-delà d'une vingtaine de termes, le modèle perd des
     virgules. Ce test empêche la liste de regonfler par ajouts successifs."""
-    from sofler_engine.crisper import DEFAULT_LEXICON
+    from caspr_engine.crisper import DEFAULT_LEXICON
     assert len(DEFAULT_LEXICON) <= 22, (
         f"{len(DEFAULT_LEXICON)} termes — retirer avant d'ajouter")

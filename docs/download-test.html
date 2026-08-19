@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sofler — page de test du téléchargement</title>
+<title>Caspr — page de test du téléchargement</title>
 <!--
   Page de vérification, pas la landing page.
 
   Elle sert à éprouver la chaîne complète une fois un tag poussé : la release
-  existe-t-elle, l'asset s'appelle-t-il bien Sofler.dmg, le lien « latest »
+  existe-t-elle, l'asset s'appelle-t-il bien Caspr.dmg, le lien « latest »
   résout-il ? Elle interroge pour cela la même API que l'application, ce qui
   vérifie au passage que le dépôt est public — si l'API répond 404 ici, elle
   répondra 404 depuis l'app.
@@ -77,7 +77,7 @@
 <main>
   <span class="badge">Page de test</span>
 
-  <h1>Sofler</h1>
+  <h1>Caspr</h1>
   <p class="tagline">
     Dictée locale pour développeurs. Vous parlez, le texte atterrit là où votre
     curseur clignote. Tout reste sur votre Mac.
@@ -86,7 +86,7 @@
   <!-- Actif d'emblée, sur l'URL stable : le bouton ne dépend d'aucune
        requête. Voir le script en bas de page. -->
   <a class="btn" id="download"
-     href="https://github.com/mnaji42/sofler/releases/latest/download/Sofler.dmg">
+     href="https://github.com/mnaji42/caspr/releases/latest/download/Caspr.dmg">
     Télécharger pour macOS
   </a>
   <p class="status" id="status">Dernière version · macOS 14 ou plus récent</p>
@@ -94,7 +94,7 @@
   <div class="card">
     <h2>Au premier lancement</h2>
     <ol>
-      <li>Glissez Sofler dans le dossier Applications.</li>
+      <li>Glissez Caspr dans le dossier Applications.</li>
       <li>macOS refuse : l'app n'est pas notarisée.</li>
       <li>Réglages Système › Confidentialité et sécurité › <b>Ouvrir quand même</b>.</li>
       <li>Une fenêtre d'accueil s'occupe du reste.</li>
@@ -106,7 +106,7 @@
     <ol>
       <li>Le dépôt est public et son API répond.</li>
       <li>Une release existe et porte un tag.</li>
-      <li>L'asset s'appelle bien <code>Sofler.dmg</code>.</li>
+      <li>L'asset s'appelle bien <code>Caspr.dmg</code>.</li>
     </ol>
   </div>
 </main>
@@ -123,7 +123,7 @@
   // pendant que le fichier, lui, était parfaitement téléchargeable.
   //
   // L'action principale ne dépend donc plus d'une requête secondaire.
-  // `releases/latest/download/Sofler.dmg` est une redirection permanente que
+  // `releases/latest/download/Caspr.dmg` est une redirection permanente que
   // GitHub sert sans passer par l'API : elle pointe toujours sur la dernière
   // publication. Ce qui suit n'ajoute que du détail — version, poids, nombre
   // de téléchargements — et son échec ne coûte plus que ce détail.
@@ -132,7 +132,7 @@
   // compte les téléchargements par asset, et chaque version a le sien. Publier
   // une 0.1.4 remettait le compteur à zéro, comme si personne n'avait jamais
   // rien pris. Or quelqu'un resté en 0.1.2 est bien un utilisateur.
-  fetch("https://api.github.com/repos/mnaji42/sofler/releases")
+  fetch("https://api.github.com/repos/mnaji42/caspr/releases")
     .then(function (r) {
       if (!r.ok) throw new Error("indisponible");
       return r.json();
@@ -146,7 +146,7 @@
         }, 0);
       }, 0);
       var dmg = (release.assets || []).filter(function (a) {
-        return a.name === "Sofler.dmg";
+        return a.name === "Caspr.dmg";
       })[0];
       if (!dmg) return;
       document.getElementById("status").textContent =

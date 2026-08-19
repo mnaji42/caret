@@ -1,4 +1,4 @@
-# Sofler V2 — mettre un cerveau derrière la transcription
+# Caspr V2 — mettre un cerveau derrière la transcription
 
 > **Statut du document.** Plan de travail, pas une spécification. Rien ici
 > n'est à coder tout de suite : la V1 doit d'abord exister et être utilisée par
@@ -27,7 +27,7 @@ personnes, avec ce qu'elles auraient voulu voir écrit.**
 
 ## 1. La thèse
 
-Aujourd'hui Sofler fait `parole → texte`. Un seul modèle porte toute la charge :
+Aujourd'hui Caspr fait `parole → texte`. Un seul modèle porte toute la charge :
 entendre les sons, et deviner l'orthographe voulue. C'est beaucoup demander à
 une seule étape, et ça se voit dans les compromis actuels :
 
@@ -88,7 +88,7 @@ Vérifié en ligne. La note de départ (`notes/macos27.md`, issue de ChatGPT)
 | Multimodal (images en entrée) | ✅ | Prompts texte + image |
 | Outils Vision appelables par le modèle | ✅ | OCR, lecture de codes-barres, en local |
 | Dynamic Profiles | ✅ | Changer modèle, outils et instructions au cours d'une même session |
-| **SDK Python** | ✅ | **Absent de la note. Le moteur de Sofler est en Python.** |
+| **SDK Python** | ✅ | **Absent de la note. Le moteur de Caspr est en Python.** |
 | **Outil en ligne de commande `fm`** | ✅ | **Absent de la note. `fm chat` ouvre une session interactive ; scriptable en shell.** |
 | Core AI | ✅ | Exécution de modèles on-device, compilation anticipée, contrôle mémoire, zéro-copie |
 | Evaluations | ✅ | Éprouver systématiquement un comportement d'IA, au-delà des tests unitaires |
@@ -113,7 +113,7 @@ besoin de mon propre modèle » est donc **vraie à moitié** :
 - ❌ Mais **ce n'est pas le modèle de 1 200 milliards de paramètres**. Celui-là
   est dans le nuage — le nuage privé d'Apple, isolé de Google, mais du nuage.
 
-Pour Sofler, ce n'est pas une mauvaise nouvelle. Nettoyer une phrase qu'on
+Pour Caspr, ce n'est pas une mauvaise nouvelle. Nettoyer une phrase qu'on
 vient de dire est une tâche **bornée** : elle ne demande pas un modèle
 frontière. Il est très possible que le petit modèle local suffise. C'est
 précisément ce qu'il faut mesurer avant toute décision d'architecture.
@@ -122,7 +122,7 @@ précisément ce qu'il faut mesurer avant toute décision d'architecture.
 
 ## 3. Ce que ça impose à la promesse de confidentialité
 
-Sofler dit « rien ne sort de votre Mac », et cette phrase n'a aujourd'hui
+Caspr dit « rien ne sort de votre Mac », et cette phrase n'a aujourd'hui
 **aucune exception**. C'est un actif : elle est facile à vérifier et il n'y a
 rien à nuancer. Toute la V2 doit être conçue pour ne pas l'abîmer.
 
@@ -130,7 +130,7 @@ Trois niveaux, à présenter comme tels :
 
 ```
 ┌─ Niveau 1 ── aucun modèle de langage ─────────────────────────┐
-│  Ce que fait Sofler aujourd'hui. La transcription, point.     │
+│  Ce que fait Caspr aujourd'hui. La transcription, point.     │
 │  Promesse intacte. Doit rester le défaut.                     │
 └───────────────────────────────────────────────────────────────┘
 ┌─ Niveau 2 ── modèle local ────────────────────────────────────┐
@@ -249,7 +249,7 @@ Si la réponse est non, on aura économisé un an d'attente.
 
 ### Le corpus est déjà l'actif décisif
 
-`~/Library/Application Support/Sofler/corpus` — de l'audio réel, avec les
+`~/Library/Application Support/Caspr/corpus` — de l'audio réel, avec les
 transcriptions de plusieurs moteurs, et la mention de quel moteur a produit
 quoi. C'est très exactement le jeu de données qu'il faut. Il manque une seule
 colonne :
@@ -337,7 +337,7 @@ y compris au framework Evaluations quand il arrivera.
    sert à rien ici. À mesurer en premier, avant toute architecture.
 2. **Que fait-il du franglais ?** « Tu as oublié les dependencies dans le
    useEffect » — un modèle qui « corrige » vers le français pur détruirait
-   exactement ce que Sofler protège.
+   exactement ce que Caspr protège.
 3. **La latence est-elle compatible avec la dictée ?** Le texte apparaît quand
    on a fini de parler ; c'est le total qui compte.
 4. **Que se passe-t-il quand Apple met son modèle à jour ?** Comment détecter

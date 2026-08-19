@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Remet Sofler dans l'état d'une première installation, pour éprouver l'accueil.
+# Remet Caspr dans l'état d'une première installation, pour éprouver l'accueil.
 #
 #   ./scripts/reset-state.sh          réglages, accueil, autorisations
 #   ./scripts/reset-state.sh --all    + corpus, modèle, service, application
@@ -10,14 +10,14 @@
 # se refont en une minute, le corpus non.
 #
 # Ce que fait la réinitialisation par défaut, et qui suffit à revoir l'accueil
-# exactement comme le verrait quelqu'un qui installe Sofler pour la première
+# exactement comme le verrait quelqu'un qui installe Caspr pour la première
 # fois :
 #   - efface les réglages et l'historique (UserDefaults)
 #   - révoque le micro et l'accessibilité (TCC), donc l'accueil les redemande
 set -euo pipefail
 
-BUNDLE_ID="fr.lyriastudio.sofler"
-SUPPORT="$HOME/Library/Application Support/Sofler"
+BUNDLE_ID="fr.lyriastudio.caspr"
+SUPPORT="$HOME/Library/Application Support/Caspr"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 ALL=0
@@ -28,11 +28,11 @@ case "${1:-}" in
 esac
 
 # --- Arrêter l'application ------------------------------------------------
-# Sofler réécrit ses réglages en quittant : les effacer pendant qu'il tourne
+# Caspr réécrit ses réglages en quittant : les effacer pendant qu'il tourne
 # les verrait réapparaître à la seconde suivante.
-if pgrep -x Sofler >/dev/null 2>&1; then
-    echo "▸ arrêt de Sofler"
-    osascript -e 'quit app "Sofler"' 2>/dev/null || pkill -x Sofler || true
+if pgrep -x Caspr >/dev/null 2>&1; then
+    echo "▸ arrêt de Caspr"
+    osascript -e 'quit app "Caspr"' 2>/dev/null || pkill -x Caspr || true
     sleep 1
 fi
 
@@ -40,7 +40,7 @@ fi
 # Sauvegarde d'abord. Les réglages ne valent pas le corpus, mais le lexique se
 # construit terme par terme sur des semaines d'usage, et `defaults delete` ne
 # laisse rien derrière lui. La leçon a été apprise en le perdant une fois.
-BACKUP_DIR="$HOME/Library/Application Support/Sofler/backups"
+BACKUP_DIR="$HOME/Library/Application Support/Caspr/backups"
 if defaults read "$BUNDLE_ID" >/dev/null 2>&1; then
     mkdir -p "$BACKUP_DIR"
     BACKUP="$BACKUP_DIR/prefs-$(date +%Y-%m-%dT%H-%M-%S).plist"
@@ -71,7 +71,7 @@ if [ "$ALL" -eq 0 ]; then
   Réinitialisé. Le corpus est intact :
     $SUPPORT/corpus  ($(du -sh "$SUPPORT" 2>/dev/null | cut -f1 || echo "absent"))
 
-  Relancez Sofler : l'accueil s'ouvrira comme au premier jour.
+  Relancez Caspr : l'accueil s'ouvrira comme au premier jour.
 
   Pour tout supprimer, corpus compris : ./scripts/reset-state.sh --all
 EOF
@@ -83,8 +83,8 @@ MODEL="$HOME/.cache/huggingface/hub/models--nyralabs--CrisperWhisper2.0_turbo"
 
 echo
 echo "  ⚠ --all va supprimer définitivement :"
-for path in "$SUPPORT" "$HOME/Library/Logs/Sofler" "$HOME/Library/Caches/sofler" \
-            "$MODEL" "/Applications/Sofler.app"; do
+for path in "$SUPPORT" "$HOME/Library/Logs/Caspr" "$HOME/Library/Caches/caspr" \
+            "$MODEL" "/Applications/Caspr.app"; do
     if [ -e "$path" ]; then
         printf "      %-58s %s\n" "$path" "$(du -sh "$path" 2>/dev/null | cut -f1)"
     fi
@@ -102,14 +102,14 @@ echo "▸ suppression des données"
 # Chemins littéraux, jamais construits par expansion : une variable vide dans
 # un rm -rf effacerait la racine.
 rm -rf "$SUPPORT"
-rm -rf "$HOME/Library/Logs/Sofler"
-rm -rf "$HOME/Library/Caches/sofler"
-# Seulement le modèle de Sofler. ~/.cache/huggingface est partagé avec tout
+rm -rf "$HOME/Library/Logs/Caspr"
+rm -rf "$HOME/Library/Caches/caspr"
+# Seulement le modèle de Caspr. ~/.cache/huggingface est partagé avec tout
 # autre projet qui utilise la bibliothèque : l'effacer en entier ferait
 # retélécharger des gigaoctets qui ne nous appartiennent pas.
 rm -rf "$MODEL"
-rm -rf "/Applications/Sofler.app"
+rm -rf "/Applications/Caspr.app"
 
 echo
-echo "  Tout est supprimé. Il ne reste de Sofler que le dépôt."
+echo "  Tout est supprimé. Il ne reste de Caspr que le dépôt."
 echo "  Pour repartir de zéro : ./scripts/install.sh"

@@ -8,8 +8,8 @@ DirectoryIndex index.html
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
-  # Redirection 301 from sofler.lyriastudio.fr to caspr.lyriastudio.fr
-  RewriteCond %{HTTP_HOST} ^sofler\.lyriastudio\.fr$ [NC]
+  # Redirection 301 from caspr.lyriastudio.fr to caspr.lyriastudio.fr
+  RewriteCond %{HTTP_HOST} ^caspr\.lyriastudio\.fr$ [NC]
   RewriteRule ^(.*)$ https://caspr.lyriastudio.fr/$1 [R=301,L]
 </IfModule>
 

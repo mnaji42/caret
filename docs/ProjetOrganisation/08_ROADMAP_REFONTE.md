@@ -32,7 +32,7 @@
 
 ## 2. Audit initial — ce qui est conservé tel quel
 
-Le code de `app/Sources/Sofler/` (≈ 12 100 lignes) n'est pas un brouillon : c'est
+Le code de `app/Sources/Caspr/` (≈ 12 100 lignes) n'est pas un brouillon : c'est
 un dépôt de **décisions déjà payées**, dont la plupart sont documentées en
 commentaire avec le symptôme qui les a provoquées. La refonte capitalise dessus.
 
@@ -55,7 +55,7 @@ Intouchable sans raison mesurée :
   **correctif**, pas un oubli. Voir §3.1.
 * **`AppDelegate.warnIfNotInstalled()`** — le piège du double-clic depuis l'image
   disque, diagnostiqué à travers quatre pannes distinctes.
-* **`SoflerSwitch`** — interrupteur dessiné à la main parce que `Toggle(.switch)`
+* **`CasprSwitch`** — interrupteur dessiné à la main parce que `Toggle(.switch)`
   se désature quand la fenêtre perd le focus, et qu'un réglage activé se lisait
   alors comme désactivé sur le verre sombre.
 
@@ -70,7 +70,7 @@ progression fluide 0–100 % »* pour le téléchargement `SpeechTranscriber`.
 
 `SpeechAssets.swift` documente précisément le contraire, et c'est mesuré :
 observer `request.progress` **fait échouer le téléchargement** avec
-`Cannot check the download status, fr.lyriastudio.sofler is not subscribed to
+`Cannot check the download status, fr.lyriastudio.caspr is not subscribed to
 transcription.fr`. L'erreur est apparue au commit qui a introduit le guetteur.
 Deux correctifs ont été livrés à l'aveugle avant qu'on lise le message.
 
@@ -94,7 +94,7 @@ mais `CorpusEntry.language` **continue d'écrire le code court** (`fr`, `en`), e
 un champ **`locale: String?`** optionnel est ajouté pour la locale complète.
 Additif, rétrocompatible, et l'historique reste d'un seul tenant.
 
-Migration de la clé `sofler.language` (`"fr"` → `"fr-FR"`) : faite une fois au
+Migration de la clé `caspr.language` (`"fr"` → `"fr-FR"`) : faite une fois au
 démarrage, dans `Preferences.init`, sur le modèle de la migration `triggerEnabled
 → triggerKind` déjà présente.
 
@@ -102,13 +102,13 @@ démarrage, dans `Preferences.init`, sur le modèle de la migration `triggerEnab
 
 Le tableau `@AppStorage` de `01` nomme `selectedLanguages`, `triggerMode`,
 `finalTranscriptionEngine`, `dictationDestination`, `hasCompletedOnboarding`.
-Les clés réelles — et celles de `06` — sont `sofler.languages.selected`,
-`sofler.trigger.kind`, `sofler.engine`, `sofler.onboarded`.
+Les clés réelles — et celles de `06` — sont `caspr.languages.selected`,
+`caspr.trigger.kind`, `caspr.engine`, `caspr.onboarded`.
 
 **Arbitrage :** `06` fait foi. Et surtout : **aucun `@AppStorage` dans les vues.**
 Tout passe par `Preferences.shared` (`@Observable`), parce que les `didSet`
 portent des effets de bord indispensables — `EngineService.reconcile(needed:)` et
-le `NotificationCenter.post(.soflerTriggerChanged)` qui reconstruit le tap clavier.
+le `NotificationCenter.post(.casprTriggerChanged)` qui reconstruit le tap clavier.
 Un `@AppStorage` écrivant la même clé les court-circuiterait en silence.
 
 ### 3.4 ❌ `launchAtLogin` ne doit pas être une préférence stockée
@@ -135,8 +135,8 @@ libellés seuls. Si la mesure réelle déborde, `Enregistrement` devient `Dicté
 ### 3.6 ❌ Le chemin du socket est faux dans la doc
 
 `03_REGLES_SYSTEME` §4 annonce `/tmp/engine.sock` dans le schéma et
-`/tmp/sofler-engine.sock` quatre lignes plus bas. Le chemin réel est
-`~/Library/Caches/sofler/engine.sock` (`SocketSpeechEngine.defaultSocketPath`).
+`/tmp/caspr-engine.sock` quatre lignes plus bas. Le chemin réel est
+`~/Library/Caches/caspr/engine.sock` (`SocketSpeechEngine.defaultSocketPath`).
 
 **Arbitrage :** on garde le chemin réel — `/tmp` est partagé entre utilisateurs et
 n'a aucune raison d'accueillir un socket applicatif. La doc sera corrigée.
@@ -213,7 +213,7 @@ rouvrir l'onboarding. Détourner ce clic empêche notamment de **quitter**
 l'application.
 
 **Arbitrage :** le menu s'ouvre toujours, mais réduit à deux lignes tant que
-l'étape 3 n'est pas validée : `Terminer la configuration…` et `Quitter Sofler`.
+l'étape 3 n'est pas validée : `Terminer la configuration…` et `Quitter Caspr`.
 L'interception vaut pour ⌘, et pour le déclencheur de dictée, pas pour le menu.
 
 ### 3.14 ℹ️ `07_IDEES_FUTURES_ENREGISTREMENT.md` — rien n'en sera codé
@@ -226,7 +226,7 @@ Isolement de la voix, ducking audio : hors périmètre, conformément à la cons
 
 ### Bloc 0 — Socle (le seul bloc à risque sur les données)
 
-* `SoflerTheme.swift` : tokens de `05_DESIGN_SYSTEM` (accent `#00e5cc`, cartes,
+* `CasprTheme.swift` : tokens de `05_DESIGN_SYSTEM` (accent `#00e5cc`, cartes,
   typographie, rayons), en remplacement/extension de `Style`.
 * Géométrie unifiée 580 × 700 pt, non redimensionnable, hauteur écrêtée à
   `visibleFrame.height - marge` pour les écrans courts.
@@ -280,7 +280,7 @@ Habillage seul. `Uninstall.swift` : zéro modification.
 
 L'arbitrage §3.2 — garder `fr` dans le corpus — avait été pris pour préserver la
 continuité de l'archive. En câblant le socle, on a trouvé une **seconde raison,
-indépendante et plus contraignante** : `engine/sofler_engine/prompt.py` compose
+indépendante et plus contraignante** : `engine/caspr_engine/prompt.py` compose
 le jeton Whisper `<|{language}|>` pour imposer la langue au décodeur.
 `<|fr-FR|>` n'existe pas dans le vocabulaire du modèle ;
 `convert_tokens_to_ids` rendrait le jeton inconnu et le préfixe de décodage
@@ -294,10 +294,10 @@ au milieu d'une collecte dont le seul objet est de mesurer la qualité.
 de macOS sont fournis par région), et la conversion vers le code court se fait à
 **un seul endroit**, la frontière du socket, avec la raison écrite sur place.
 
-### 5.2 Le schéma du corpus est monté dans `SoflerCore`
+### 5.2 Le schéma du corpus est monté dans `CasprCore`
 
 `CorpusEntry` et `CorpusTranscription` ont quitté `Corpus.swift` pour
-`Sources/SoflerCore/CorpusEntry.swift`. Motif : `SoflerCore` est la cible sans
+`Sources/CasprCore/CorpusEntry.swift`. Motif : `CasprCore` est la cible sans
 dépendance système, donc la seule **testable** — et la règle de
 rétrocompatibilité du corpus (tout champ ajouté doit être optionnel, sinon
 `keyNotFound` rend illisible l'historique entier) ne valait jusqu'ici que par un
@@ -365,7 +365,7 @@ diverger, et il n'y a rien à synchroniser.
 | 2026-08-18 | 3 | Réglages à six onglets sans icônes (mesure : ~598 pt avec, pour 520 pt utiles). Menu épuré, ligne de destination conservée. `FeatureSwitch` supprimé, 3 sites convertis. |
 | 2026-08-18 | 2 | Onboarding refondu en 5 étapes assemblant les composants. `SetupRecoveryGuard`, étape persistée. `PermissionsChecklist` supprimée (`PermissionsView` 321 → 149 lignes). |
 | 2026-08-18 | 1 | 11 composants livrés, chacun avec son `validate()` et son `#Preview`. `PreferencesWindow` 647 → 429 lignes, `TranscriptionSettings` 224 → 25. `swift test` : **49 tests, 7 suites**. |
-| 2026-08-18 | 0 | Socle livré. `Language` (39 locales), `Preferences` multi-langues + migration `fr`→`fr-FR`, découplage `finalEngine`/`appleTechnology`/`liveEngineTechnology`, `EngineSafetyManager`, `LanguageSwitchCoordinator`, schéma corpus dans `SoflerCore` + `locale`/`appVersion`, tokens de design, géométrie 580×700 écrêtée. |
+| 2026-08-18 | 0 | Socle livré. `Language` (39 locales), `Preferences` multi-langues + migration `fr`→`fr-FR`, découplage `finalEngine`/`appleTechnology`/`liveEngineTechnology`, `EngineSafetyManager`, `LanguageSwitchCoordinator`, schéma corpus dans `CasprCore` + `locale`/`appVersion`, tokens de design, géométrie 580×700 écrêtée. |
 
 ### Vérifications du Bloc 0
 
@@ -379,7 +379,7 @@ diverger, et il n'y a rien à synchroniser.
 * Migration vérifiée sur cette machine : région `FR` détectée, `fr` → `fr-FR`,
   `fr-CA` préservé tel quel, langue hors catalogue affichée via `Locale` au lieu
   de disparaître de l'interface.
-* Réglages réels relus : `sofler.lexicon.useDefault = true` est **explicitement
+* Réglages réels relus : `caspr.lexicon.useDefault = true` est **explicitement
   stocké**, donc préservé — le nouveau défaut à liste vide ne vaut que pour les
   installations neuves, comme arbitré.
 
@@ -403,15 +403,15 @@ builds SwiftUI passent sans garantir qu'une mise en page tienne à l'écran.
 Compile depuis la copie de travail, signe avec le certificat de développement
 **stable** de `dev-cert.sh` — donc l'autorisation d'accessibilité survit aux
 réinstallations, contrairement aux releases signées ad hoc — installe dans
-`/Applications/Sofler.app` et relance.
+`/Applications/Caspr.app` et relance.
 
 ### Ce que le premier lancement va faire
 
-La migration écrit `sofler.languages.selected = ["fr-FR"]`, `sofler.engine.final`,
-`sofler.engine.apple`, `sofler.engine.live`, `sofler.engine.lastValid`,
-`sofler.dictation.destination` et `sofler.schema.migrated`.
+La migration écrit `caspr.languages.selected = ["fr-FR"]`, `caspr.engine.final`,
+`caspr.engine.apple`, `caspr.engine.live`, `caspr.engine.lastValid`,
+`caspr.dictation.destination` et `caspr.schema.migrated`.
 
-Elle **ne supprime rien** : `sofler.language` et `sofler.engine` restent en
+Elle **ne supprime rien** : `caspr.language` et `caspr.engine` restent en
 place. Revenir à un build antérieur relit les anciennes clés et retrouve le
 comportement d'avant.
 
@@ -468,7 +468,7 @@ Vérifiée écran par écran, pilotée par capture d'écran plutôt qu'à l'œil
 ## Passe visuelle sur l'accueil — e64c5b8
 
 **Corrigé**
-- Titre de fenêtre figé sur « Bienvenue dans Sofler » à la reprise (bug de
+- Titre de fenêtre figé sur « Bienvenue dans Caspr » à la reprise (bug de
   capture : le rappel visait une variable affectée trop tard). `Step.resumed`.
 - Compteur d'étapes remonté dans la barre de titre : 48 pt de bande morte.
 - `PageHeader.Scale.summary` pour l'écran final (18 pt, 2 pt, 2 pt).
@@ -513,7 +513,7 @@ quatre cas de bannières restent atteignables.
 
 ## Reprise du prototype comme spécification — 0a7a15a, e9eda2c
 
-Relecture intégrale de `SoflerContext.jsx`, `LanguagePicker.jsx`,
+Relecture intégrale de `CasprContext.jsx`, `LanguagePicker.jsx`,
 `AppleEngineCard.jsx`, `FinalEngineCard.jsx`, `LanguageSwitchService.js` et la
 section langue de `SettingsView.jsx`. Six divergences de **comportement**.
 
@@ -529,7 +529,7 @@ section langue de `SettingsView.jsx`. Six divergences de **comportement**.
    la langue.
 4. Sélecteur de langue retiré de l'onglet Moteur IA.
 5. Ligne du haut : « Langue active : » à gauche, sélecteur à droite. Note
-   corrigée (« la première est celle avec laquelle Sofler dicte » était devenu
+   corrigée (« la première est celle avec laquelle Caspr dicte » était devenu
    faux).
 6. `SpeechPreview.make` prend la technologie de l'aperçu, plus celle du moteur
    d'écriture. Idem pour la permission de reconnaissance vocale.
@@ -541,7 +541,7 @@ langue, de la destination et de la version du moteur.
 **Vérifié à l'écran**
 - Bascule de langue sans permutation.
 - Aperçu sur « Dictée » et transcription sur « Apple Intelligence »
-  simultanément (clé `sofler.engine.live` posée puis retirée).
+  simultanément (clé `caspr.engine.live` posée puis retirée).
 - Rien n'utilise `languages[0]` hors de l'invariant interne ; le chemin de
   dictée et l'aperçu passent par la langue principale.
 

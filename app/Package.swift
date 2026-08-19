@@ -2,19 +2,19 @@
 import PackageDescription
 
 let package = Package(
-    name: "Sofler",
+    name: "Caspr",
     platforms: [.macOS(.v14)],
     targets: [
         // Logique pure, sans dépendance système, donc testable.
         .target(
-            name: "SoflerCore",
-            path: "Sources/SoflerCore",
+            name: "CasprCore",
+            path: "Sources/CasprCore",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .executableTarget(
-            name: "Sofler",
-            dependencies: ["SoflerCore"],
-            path: "Sources/Sofler",
+            name: "Caspr",
+            dependencies: ["CasprCore"],
+            path: "Sources/Caspr",
             // Le catalogue des langues est copié dans le bundle par
             // `install.sh`, à côté du moteur Python et de l'icône. Le déclarer
             // en ressource SwiftPM le rangerait dans un bundle séparé qu'il
@@ -23,9 +23,9 @@ let package = Package(
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(
-            name: "SoflerCoreTests",
-            dependencies: ["SoflerCore"],
-            path: "Tests/SoflerCoreTests",
+            name: "CasprCoreTests",
+            dependencies: ["CasprCore"],
+            path: "Tests/CasprCoreTests",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
     ]

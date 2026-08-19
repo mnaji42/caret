@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compile Sofler et l'installe dans /Applications.
+# Compile Caspr et l'installe dans /Applications.
 #
 # /Applications est l'emplacement canonique, y compris en développement :
 # c'est là que macOS s'attend à trouver une app dans le sélecteur des
@@ -13,8 +13,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_DIR="$ROOT/app"
-BUNDLE_ID="fr.lyriastudio.sofler"
-APP_NAME="Sofler"
+BUNDLE_ID="fr.lyriastudio.caspr"
+APP_NAME="Caspr"
 INSTALL_PATH="/Applications/$APP_NAME.app"
 
 # VERSION, BUILD, DESCRIBE, IS_RELEASE — dérivés du tag git, jamais recopiés
@@ -32,7 +32,7 @@ for arg in "$@"; do
 done
 
 # --- 1. certificat stable ------------------------------------------------
-# SOFLER_SIGN_IDENTITY laisse un appelant imposer une identité déjà présente
+# CASPR_SIGN_IDENTITY laisse un appelant imposer une identité déjà présente
 # dans un trousseau — c'est ce que fait la CI, qui importe le certificat de
 # distribution dans un trousseau temporaire. Sans cette porte, install.sh
 # créerait un certificat dans le trousseau de session, qui n'existe pas sur un
@@ -47,11 +47,11 @@ done
 # c'est-à-dire les runners d'intégration continue. Sans lui, dev-cert.sh y
 # lançait un `security import` qui attendait indéfiniment une saisie que
 # personne ne peut donner : le build ne plantait pas, il pendait.
-if [ "${SOFLER_SIGN_IDENTITY:-}" = "-" ]; then
+if [ "${CASPR_SIGN_IDENTITY:-}" = "-" ]; then
     CERT_HASH="-"
     echo "▸ signature ad hoc (aucun certificat fourni)"
-elif [ -n "${SOFLER_SIGN_IDENTITY:-}" ]; then
-    CERT_HASH="$SOFLER_SIGN_IDENTITY"
+elif [ -n "${CASPR_SIGN_IDENTITY:-}" ]; then
+    CERT_HASH="$CASPR_SIGN_IDENTITY"
 else
     CERT_HASH="$("$ROOT/scripts/dev-cert.sh" | tail -1)"
 fi
@@ -77,7 +77,7 @@ cp "$BINARY" "$STAGE/Contents/MacOS/$APP_NAME"
 cp "$APP_DIR/build/$APP_NAME.icns" "$STAGE/Contents/Resources/$APP_NAME.icns"
 # Le catalogue des langues voyage en données, pas en code : il se tient à
 # jour sans recompiler.
-cp "$APP_DIR/Sources/Sofler/Resources/languages.json" \
+cp "$APP_DIR/Sources/Caspr/Resources/languages.json" \
    "$STAGE/Contents/Resources/languages.json"
 
 # Le moteur Python voyage dans le bundle. Son code pèse quelques centaines de
@@ -92,7 +92,7 @@ cp "$APP_DIR/Sources/Sofler/Resources/languages.json" \
 echo "▸ moteur Python"
 ENGINE_OUT="$STAGE/Contents/Resources/engine"
 mkdir -p "$ENGINE_OUT"
-cp -R "$ROOT/engine/sofler_engine" "$ENGINE_OUT/"
+cp -R "$ROOT/engine/caspr_engine" "$ENGINE_OUT/"
 cp "$ROOT/engine/pyproject.toml" "$ROOT/engine/uv.lock" "$ENGINE_OUT/"
 # Les caches de bytecode suivraient la copie et invalideraient la signature au
 # premier lancement, puisque Python les réécrit là où il les trouve.
@@ -124,19 +124,19 @@ cat > "$STAGE/Contents/Info.plist" <<PLIST
     <!-- Diagnostic : distingue le bundle d'une release d'un build local, que
          CFBundleShortVersionString seul confond. Lu par les Réglages, et par
          la vérification de mise à jour qui se tait sur un build de dev. -->
-    <key>SoflerGitDescribe</key>          <string>$DESCRIBE</string>
-    <key>SoflerIsRelease</key>            <$([ "$IS_RELEASE" = 1 ] && echo true || echo false)/>
+    <key>CasprGitDescribe</key>          <string>$DESCRIBE</string>
+    <key>CasprIsRelease</key>            <$([ "$IS_RELEASE" = 1 ] && echo true || echo false)/>
     <!-- Barre de menus seule : pas d'icône au Dock, jamais de vol de focus,
          ce qui est indispensable puisque le texte doit atterrir dans l'app
          que l'utilisateur a devant lui. -->
     <key>LSUIElement</key>                <true/>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Sofler transcrit votre voix en texte. L'audio est traité sur votre Mac et n'est jamais envoyé ailleurs.</string>
+    <string>Caspr transcrit votre voix en texte. L'audio est traité sur votre Mac et n'est jamais envoyé ailleurs.</string>
     <!-- Uniquement pour l'aperçu en direct affiché dans la barre pendant la
          dictée, qui passe par le moteur de reconnaissance de macOS. La
          transcription réelle, elle, ne l'utilise pas. -->
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Sofler affiche pendant la dictée un aperçu de ce qu'il entend, reconnu sur votre Mac. Rien n'est envoyé ailleurs.</string>
+    <string>Caspr affiche pendant la dictée un aperçu de ce qu'il entend, reconnu sur votre Mac. Rien n'est envoyé ailleurs.</string>
 </dict>
 </plist>
 PLIST
@@ -147,7 +147,7 @@ echo "▸ signature (certificat $CERT_HASH)"
 # sans qu'aucun dialogue n'apparaisse.
 codesign --force --sign "$CERT_HASH" --identifier "$BUNDLE_ID" \
          --options runtime --timestamp=none \
-         --entitlements "$APP_DIR/Sofler.entitlements" "$STAGE" 2>/dev/null
+         --entitlements "$APP_DIR/Caspr.entitlements" "$STAGE" 2>/dev/null
 
 if ! codesign -d --entitlements - "$STAGE" 2>/dev/null | grep -q "audio-input"; then
     echo "  ✗ entitlement micro absent — le micro serait muet" >&2
@@ -190,7 +190,7 @@ cat <<EOF
   installé : $INSTALL_PATH
 
   Si l'accessibilité n'est pas encore accordée :
-    Réglages Système › Confidentialité et sécurité › Accessibilité → ajouter Sofler
+    Réglages Système › Confidentialité et sécurité › Accessibilité → ajouter Caspr
 
   Grâce au certificat stable, cette autorisation persiste d'un build à l'autre.
   Elle n'est à refaire que si le certificat change (cf. scripts/dev-cert.sh).

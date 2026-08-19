@@ -16,7 +16,7 @@ import threading
 import numpy as np
 import pytest
 
-from sofler_engine import protocol
+from caspr_engine import protocol
 
 
 def test_pcm_roundtrip_preserves_signal():

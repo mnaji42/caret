@@ -1,4 +1,4 @@
-# Sofler — Next step after initial CrisperWhisper tests
+# Caspr — Next step after initial CrisperWhisper tests
 
 We need to continue the POC based on your latest findings and the real voice samples I have now added.
 
@@ -745,7 +745,7 @@ Only after the engine is proven:
 
 The project should remain:
 
-**Sofler**
+**Caspr**
 
 > Local dictation that speaks developer.
 

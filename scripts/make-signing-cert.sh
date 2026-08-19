@@ -11,7 +11,7 @@
 # révoque l'accessibilité : **tous les utilisateurs doivent tout ré-accorder à
 # chaque mise à jour.** Avec un certificat stable, elle devient
 #
-#     designated => identifier "fr.lyriastudio.sofler" and certificate leaf = H"…"
+#     designated => identifier "fr.lyriastudio.caspr" and certificate leaf = H"…"
 #
 # qui ne dépend plus du binaire. Les autorisations survivent aux mises à jour.
 #
@@ -23,7 +23,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CERT_NAME="Sofler Distribution"
+CERT_NAME="Caspr Distribution"
 KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 OUT="$ROOT/dist/signing"
 
@@ -102,6 +102,6 @@ cat <<EOF
       rm -rf dist/signing
 
   ⚠ Ne perdez pas ce certificat. Le remplacer un jour par un autre ferait
-    sauter l'accessibilité chez tous ceux qui ont déjà installé Sofler. Une
+    sauter l'accessibilité chez tous ceux qui ont déjà installé Caspr. Une
     sauvegarde du .p12 dans un gestionnaire de mots de passe est raisonnable.
 EOF

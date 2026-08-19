@@ -1,9 +1,9 @@
-# Sofler
+# Caspr
 
 > **Local dictation that speaks developer.**
 > Press a key. Talk. Press it again. Your words land at the caret — `useEffect` spelled `useEffect`.
 
-Sofler is a macOS dictation tool for Apple Silicon that handles how developers
+Caspr is a macOS dictation tool for Apple Silicon that handles how developers
 actually speak: French and English in the same sentence, technical vocabulary,
 hesitations. Everything runs on-device. No account, no cloud, no telemetry.
 
@@ -29,7 +29,7 @@ In French mode, English technical terms get phonetically absorbed:
 | `dependencies` | *« dépendances »* |
 | `React` | *« react »* (lowercase) |
 
-Sofler fixes this with **vocabulary conditioning** — a trained mechanism in
+Caspr fixes this with **vocabulary conditioning** — a trained mechanism in
 CrisperWhisper 2.0 that biases decoding toward a supplied lexicon.
 
 Measured on real French/English developer speech:
@@ -100,7 +100,7 @@ audio, with byte-identical transcriptions. Two findings account for the gap:
 
 **1. The reference pipeline costs more than the model.** Raw compute measured
 at ~0,80 s where the package took ~2,30 s — roughly **1,5 s of pipeline
-overhead** per transcription. Sofler calls mel → encoder → greedy decode
+overhead** per transcription. Caspr calls mel → encoder → greedy decode
 directly.
 
 **2. Whisper always encodes 30 seconds.** Encoder cost is independent of what
@@ -117,7 +117,7 @@ short dictation. Shrinking the window to 15 s cuts encoder time ~45% with
 Below 15 s the model leaves its training distribution and output becomes
 unpredictable — one clip stayed intact down to 4 s while another degraded at
 10 s (*« Tu as oublié »* → *« State a oublié »*). **15 s is the safe floor**,
-and Sofler does not go under it.
+and Caspr does not go under it.
 
 ### Verbatim vs Intended
 
@@ -148,7 +148,7 @@ touching the app:
 
 ```
 ┌──────────────────────────┐
-│  Sofler.app  (Swift)      │
+│  Caspr.app  (Swift)      │
 │  hotkey → capture →      │
 │  inject at caret         │
 └───────────┬──────────────┘
@@ -163,15 +163,15 @@ touching the app:
 ```
 
 ```
-sofler/
+caspr/
 ├── engine/          Python transcription service (current backend)
-│   └── sofler_engine/
+│   └── caspr_engine/
 │       ├── crisper.py    inference: mel → encoder → greedy decode
 │       ├── prompt.py     CrisperWhisper decoder prompt construction
 │       ├── protocol.py   the app ↔ engine contract
 │       └── server.py     persistent unix-socket service
 ├── app/             Swift menu-bar app (builds to app/build/, gitignored)
-│   └── Sources/Sofler/
+│   └── Sources/Caspr/
 │       ├── DictationController.swift  the capture → transcribe → insert cycle
 │       ├── RecordingOverlay.swift     the floating bar
 │       ├── LivePreview.swift          macOS SpeechAnalyzer, streaming preview
@@ -179,7 +179,7 @@ sofler/
 │       └── DictationTarget.swift      caret, or a file detected via AX
 ├── scripts/
 │   ├── dev-cert.sh      local signing certificate, so TCC grants persist
-│   ├── install.sh       build → sign → /Applications/Sofler.app
+│   ├── install.sh       build → sign → /Applications/Caspr.app
 │   └── package-dmg.sh   .dmg with the Applications shortcut
 └── poc/             benchmarks and experiments behind the numbers above
 ```
@@ -226,19 +226,19 @@ writes `useEffect`, and it is opt-in.
 
 ### From the release (recommended)
 
-1. Download **[Sofler.dmg](https://github.com/mnaji42/sofler/releases/latest/download/Sofler.dmg)**
+1. Download **[Caspr.dmg](https://github.com/mnaji42/caspr/releases/latest/download/Caspr.dmg)**
    from the latest release.
-2. Open it and drag Sofler to Applications.
+2. Open it and drag Caspr to Applications.
 3. Launch it. **macOS will refuse the first time** — see just below.
 4. A welcome window walks through the microphone, Accessibility, and the
    choice of engine.
 
 #### Why macOS refuses, and what to do
 
-Sofler is **not notarized**. Notarization requires a paid Apple Developer
+Caspr is **not notarized**. Notarization requires a paid Apple Developer
 account, which this project does not have yet. So on first launch macOS says:
 
-> « Apple n'a pas pu vérifier que « Sofler » ne contient pas de logiciel
+> « Apple n'a pas pu vérifier que « Caspr » ne contient pas de logiciel
 > malveillant. »
 
 This is Gatekeeper doing its job: it cannot verify software it has never seen.
@@ -250,7 +250,7 @@ To open it anyway:
 
 1. Click **Terminer** on the dialog.
 2. Go to  **Réglages Système › Confidentialité et sécurité**.
-3. Scroll to the bottom: *« Sofler » a été bloqué…* → **Ouvrir quand même**.
+3. Scroll to the bottom: *« Caspr » a été bloqué…* → **Ouvrir quand même**.
 4. Confirm, and authenticate.
 
 Since macOS 15, Control-clicking the app no longer bypasses this — System
@@ -259,7 +259,7 @@ Settings is the only route.
 The one-line equivalent, if you prefer the terminal:
 
 ```bash
-xattr -d com.apple.quarantine /Applications/Sofler.app
+xattr -d com.apple.quarantine /Applications/Caspr.app
 ```
 
 That strips the quarantine flag so macOS stops asking. It is the same decision
@@ -268,7 +268,7 @@ exists for a reason, so run it only on software you meant to install.
 
 #### Updating
 
-**Sofler makes no network request at all unless you ask it to.** Out of the
+**Caspr makes no network request at all unless you ask it to.** Out of the
 box it never contacts anything — the statement "nothing leaves your Mac" has
 no exception to declare, which is the point.
 
@@ -279,7 +279,7 @@ Settings › Général › Version offers two ways to learn about a new version:
   day and reports in the menu bar menu.
 
 Either way the request is a GET on GitHub's public API, sending nothing but an
-IP address, and Sofler never installs anything by itself: you download the new
+IP address, and Caspr never installs anything by itself: you download the new
 DMG and drag it over the old app.
 
 ---
@@ -290,16 +290,16 @@ DMG and drag it over the old app.
 
 Only needed for CrisperWhisper. With the built-in macOS engine, skip to step 2.
 
-If you installed Sofler from the DMG and only want to add CrisperWhisper, this
+If you installed Caspr from the DMG and only want to add CrisperWhisper, this
 is the one command — and the only time the Terminal is involved:
 
 ```bash
-git clone --depth 1 https://github.com/mnaji42/sofler.git ~/.sofler && ~/.sofler/scripts/setup-engine.sh
+git clone --depth 1 https://github.com/mnaji42/caspr.git ~/.caspr && ~/.caspr/scripts/setup-engine.sh
 ```
 
 It checks for Apple Silicon and `uv`, installs the Python dependencies, shows
 the model licence before downloading anything, and writes a descriptor at
-`~/Library/Application Support/Sofler/engine.json`. **That descriptor is what
+`~/Library/Application Support/Caspr/engine.json`. **That descriptor is what
 frees you from the Terminal afterwards**: the app reads it and can then write
 the launch agent, start and stop the service, and switch models on its own.
 Pass `--model small|medium|turbo|large` to pick different weights.
@@ -313,7 +313,7 @@ cd engine && uv venv --python 3.12 && uv pip install -e . && cd ..
 
 This registers the engine as a launch agent, so it starts with your session
 and restarts if it dies. The model loads once (~8 s) and stays warm; each
-dictation pays inference only. Logs land in `~/Library/Logs/Sofler/engine.log`.
+dictation pays inference only. Logs land in `~/Library/Logs/Caspr/engine.log`.
 
 To remove it: `./scripts/install-service.sh --uninstall`
 
@@ -323,8 +323,8 @@ To remove it: `./scripts/install-service.sh --uninstall`
 ./scripts/install.sh
 ```
 
-This builds, signs, installs to `/Applications/Sofler.app`, and launches it.
-Sofler appears in the menu bar — no Dock icon, no window. Build artifacts stay
+This builds, signs, installs to `/Applications/Caspr.app`, and launches it.
+Caspr appears in the menu bar — no Dock icon, no window. Build artifacts stay
 in `app/build/`, never in the repo.
 
 ### 3. Grant two permissions
@@ -347,7 +347,7 @@ you would re-tick the checkbox after every single build.
 requirement becomes:
 
 ```
-identifier "fr.lyriastudio.sofler" and certificate leaf = H"d25baa4b…"
+identifier "fr.lyriastudio.caspr" and certificate leaf = H"d25baa4b…"
 ```
 
 It depends on the certificate, not the binary. Verified: two builds with
@@ -388,8 +388,8 @@ It also needs no Input Monitoring permission, going through Carbon's
 
 ## Uninstalling
 
-Menu bar → **Désinstaller Sofler…**, which opens a window listing everything
-Sofler put on the machine, with what each thing weighs, and a checkbox for
+Menu bar → **Désinstaller Caspr…**, which opens a window listing everything
+Caspr put on the machine, with what each thing weighs, and a checkbox for
 each. The app itself always goes; the rest is a choice.
 
 **Nothing is deleted outright — everything goes to the Trash.** That is the
@@ -405,17 +405,17 @@ ticked.
 | Item | Where | Ticked by default |
 |---|---|---|
 | The app | wherever it was installed — read from the bundle, not hardcoded | always |
-| Settings and history | `~/Library/Preferences/fr.lyriastudio.sofler.plist` | yes |
+| Settings and history | `~/Library/Preferences/fr.lyriastudio.caspr.plist` | yes |
 | Microphone, Accessibility | TCC, via `tccutil` | yes |
-| Engine launch agent | `~/Library/LaunchAgents/fr.lyriastudio.sofler.engine.plist` | yes |
-| Logs and socket | `~/Library/Logs/Sofler`, `~/Library/Caches/sofler` | yes |
-| **Dictation corpus** | `~/Library/Application Support/Sofler` | **no** |
+| Engine launch agent | `~/Library/LaunchAgents/fr.lyriastudio.caspr.engine.plist` | yes |
+| Logs and socket | `~/Library/Logs/Caspr`, `~/Library/Caches/caspr` | yes |
+| **Dictation corpus** | `~/Library/Application Support/Caspr` | **no** |
 | **CrisperWhisper weights** | `~/.cache/huggingface/hub/models--nyralabs--*` | **no** |
 
 The login item is removed unconditionally — left behind, macOS would try to
 launch a deleted application at every login and complain that it is missing.
 
-Your **note file is never touched**. Sofler wrote into it; it is your document,
+Your **note file is never touched**. Caspr wrote into it; it is your document,
 not part of the installation. Nor is the rest of the Hugging Face cache, which
 is shared with any other project using the library.
 
@@ -437,8 +437,8 @@ corpus** — the one irreplaceable thing on the machine.
 |---|---|---|
 | Settings, history | `UserDefaults` | yes |
 | Microphone, Accessibility | TCC | yes |
-| **Dictation corpus** | `~/Library/Application Support/Sofler/corpus` | **no** |
-| Engine logs | `~/Library/Logs/Sofler` | no |
+| **Dictation corpus** | `~/Library/Application Support/Caspr/corpus` | **no** |
+| Engine logs | `~/Library/Logs/Caspr` | no |
 | Model weights | `~/.cache/huggingface/hub/models--nyralabs--*` | no |
 
 `./scripts/reset-state.sh --all` removes everything above, plus the launch
@@ -461,13 +461,13 @@ derives `CFBundleShortVersionString` from the latest tag, `CFBundleVersion`
 from the commit count, and records whether the build sits exactly on a tag.
 
 ```bash
-git tag -a v0.2.0 -m "Sofler 0.2.0" && git push origin v0.2.0
+git tag -a v0.2.0 -m "Caspr 0.2.0" && git push origin v0.2.0
 ```
 
 That triggers [`.github/workflows/release.yml`](.github/workflows/release.yml),
 which builds, signs, packages, verifies the microphone entitlement, and
-attaches `Sofler.dmg` to the release. The asset name never changes, so
-`releases/latest/download/Sofler.dmg` is a permanent link.
+attaches `Caspr.dmg` to the release. The asset name never changes, so
+`releases/latest/download/Caspr.dmg` is a permanent link.
 
 To build the same package locally:
 
@@ -513,11 +513,11 @@ variables → Actions:
 The requirement then becomes identity-based and survives rebuilds:
 
 ```
-designated => identifier "fr.lyriastudio.sofler" and certificate leaf = H"…"
+designated => identifier "fr.lyriastudio.caspr" and certificate leaf = H"…"
 ```
 
 Keep that certificate. Replacing it later breaks Accessibility for everyone
-who already installed Sofler.
+who already installed Caspr.
 
 This is **not** notarization. Gatekeeper will still refuse the first launch
 and send people through System Settings; that is a separate problem and it
@@ -556,7 +556,7 @@ habit of switching languages mid-sentence.
 
 So the app can archive what you dictate. Turn on *Collect dictations* in
 Settings, and each dictation appends one JSON line to
-`~/Library/Application Support/Sofler/corpus/sessions.jsonl`:
+`~/Library/Application Support/Caspr/corpus/sessions.jsonl`:
 
 ```json
 {"id": "2026-08-15T13-21-40", "durationSeconds": 80.8, "language": "fr",
@@ -611,7 +611,7 @@ The engine sits behind a unix socket with a small documented protocol, so the
 corpus is directly usable to:
 
 - **swap the engine** — anything that reads PCM and returns text can replace
-  `sofler_engine`, and the corpus tells you immediately whether it is better
+  `caspr_engine`, and the corpus tells you immediately whether it is better
   *on your voice*;
 - **compare a remote model** against the local one on identical audio, and
   measure what the round trip actually buys;
@@ -786,12 +786,12 @@ re-attempted:
 
 ## Licensing — read this before using the models
 
-Sofler's own code and CrisperWhisper's inference code are MIT. **The model
+Caspr's own code and CrisperWhisper's inference code are MIT. **The model
 weights are not.**
 
 | Component | License |
 |---|---|
-| Sofler source code | MIT |
+| Caspr source code | MIT |
 | CrisperWhisper inference code | MIT |
 | **CrisperWhisper 2.0 weights** | **Nyra Health Non-Commercial Research** |
 
@@ -800,7 +800,7 @@ requires a licence from [Nyra Health](https://nyra-labs.com/crisperwhisper).
 Under a strict reading, dictating work email may itself count as commercial
 use.
 
-Consequently Sofler **does not bundle or silently download the weights**. The
+Consequently Caspr **does not bundle or silently download the weights**. The
 licence is shown before any download, and the choice is yours. A
 commercially-unencumbered engine is on the roadmap so the app is usable
 regardless.
@@ -821,12 +821,12 @@ This is a summary, not legal advice. Read
 
 macOS attaches a TCC grant to the application's **code signature**, not to its
 path. Change the signature and the old grant survives, matching nothing that
-runs. System Settings keeps showing Sofler ticked while Sofler reports no
+runs. System Settings keeps showing Caspr ticked while Caspr reports no
 access, and unticking then reticking changes nothing — the checkbox drives a
 stale record.
 
 Measured on a machine where this had built up: `tccutil reset Accessibility
-fr.lyriastudio.sofler` reported success **five times**, one grant per signature
+fr.lyriastudio.caspr` reported success **five times**, one grant per signature
 the app had carried across versions.
 
 This is not hypothetical for users. CI builds signed ad-hoc get a fresh

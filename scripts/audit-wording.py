@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PROTO = ROOT / "docs/ProjetOrganisation/prototype-react/src"
-SWIFT = ROOT / "app/Sources/Sofler"
+SWIFT = ROOT / "app/Sources/Caspr"
 
 # Les écrans déjà repris. Le reste viendra avec eux.
 PORTED = {

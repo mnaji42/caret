@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installe le moteur comme service de session, démarré à l'ouverture de session.
 #
-# Sans ça, Sofler est inutilisable après un redémarrage tant qu'on n'a pas
+# Sans ça, Caspr est inutilisable après un redémarrage tant qu'on n'a pas
 # ouvert un terminal pour relancer le moteur à la main — ce qui disqualifie
 # l'outil pour un usage quotidien.
 #
@@ -10,9 +10,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LABEL="fr.lyriastudio.sofler.engine"
+LABEL="fr.lyriastudio.caspr.engine"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-LOG_DIR="$HOME/Library/Logs/Sofler"
+LOG_DIR="$HOME/Library/Logs/Caspr"
 
 if [ "${1:-}" = "--uninstall" ]; then
     launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
@@ -34,7 +34,7 @@ mkdir -p "$(dirname "$PLIST")" "$LOG_DIR"
 # retomberait dans le Terminal. Écrit ici aussi, et pas seulement par
 # setup-engine.sh, pour que les installations faites depuis les sources soient
 # reconnues sans rien réinstaller.
-SUPPORT="$HOME/Library/Application Support/Sofler"
+SUPPORT="$HOME/Library/Application Support/Caspr"
 mkdir -p "$SUPPORT"
 cat > "$SUPPORT/engine.json" <<JSON
 {
@@ -61,7 +61,7 @@ cat > "$PLIST" <<PLIST_EOF
         <string>$ROOT/engine</string>
         <string>python</string>
         <string>-m</string>
-        <string>sofler_engine.server</string>
+        <string>caspr_engine.server</string>
     </array>
 
     <key>WorkingDirectory</key>
@@ -99,7 +99,7 @@ echo "  journal : $LOG_DIR/engine.log"
 echo
 printf "  chargement du modèle "
 for _ in $(seq 1 60); do
-    if [ -S "$HOME/Library/Caches/sofler/engine.sock" ]; then
+    if [ -S "$HOME/Library/Caches/caspr/engine.sock" ]; then
         echo "— prêt"
         exit 0
     fi

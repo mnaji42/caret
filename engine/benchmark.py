@@ -56,7 +56,7 @@ def rss_gb() -> float:
 
 
 def measure(label: str) -> dict:
-    from sofler_engine.crisper import CrisperWhisperEngine
+    from caspr_engine.crisper import CrisperWhisperEngine
 
     engine = CrisperWhisperEngine()
     load_s = engine.load()

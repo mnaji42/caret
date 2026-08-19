@@ -9,8 +9,8 @@ audible rejeté parce que le seuil frôlait les valeurs réelles.
 import numpy as np
 import pytest
 
-from sofler_engine.crisper import CrisperWhisperEngine as Engine
-from sofler_engine.crisper import SPEECH_MODULATION_DB
+from caspr_engine.crisper import CrisperWhisperEngine as Engine
+from caspr_engine.crisper import SPEECH_MODULATION_DB
 
 SAMPLE_RATE = 16_000
 

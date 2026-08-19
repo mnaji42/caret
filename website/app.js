@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // TODO: Once Claude renames the DMG in the build pipeline, change DMG_ASSET_NAME to "Caspr.dmg"
   const GITHUB_REPO = "mnaji42/caspr";
-  const DMG_ASSET_NAME = "Sofler.dmg";             // ← change to "Caspr.dmg" after Swift migration
+  const DMG_ASSET_NAME = "Caspr.dmg";             // ← change to "Caspr.dmg" after Swift migration
   const DOWNLOAD_URL = `https://github.com/${GITHUB_REPO}/releases/latest/download/${DMG_ASSET_NAME}`;
 
   fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases`)

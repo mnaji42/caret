@@ -8,9 +8,9 @@ quand la moitié des échantillons disparaissait sur un enregistrement de 157 s.
 import numpy as np
 import pytest
 
-from sofler_engine.crisper import (MAX_WINDOW_S, MIN_PAUSE_S, MIN_SEGMENT_S,
+from caspr_engine.crisper import (MAX_WINDOW_S, MIN_PAUSE_S, MIN_SEGMENT_S,
                                   MIN_WINDOW_S, SAMPLE_RATE)
-from sofler_engine.crisper import CrisperWhisperEngine as Engine
+from caspr_engine.crisper import CrisperWhisperEngine as Engine
 
 
 def speech_block(rng, seconds, amplitude=0.15):

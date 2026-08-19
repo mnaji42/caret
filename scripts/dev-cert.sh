@@ -9,7 +9,7 @@
 #
 # Signé avec un certificat, l'exigence devient :
 #
-#     identifier "fr.lyriastudio.sofler" and certificate leaf = H"<empreinte>"
+#     identifier "fr.lyriastudio.caspr" and certificate leaf = H"<empreinte>"
 #
 # Elle ne dépend plus du binaire : on recompile autant qu'on veut, les
 # autorisations tiennent.
@@ -18,7 +18,7 @@
 # ne remplace pas un certificat Apple Developer pour la distribution.
 set -euo pipefail
 
-CERT_NAME="Sofler Development"
+CERT_NAME="Caspr Development"
 KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 
 existing_hash() {
@@ -48,11 +48,11 @@ openssl req -x509 -newkey rsa:2048 \
 openssl pkcs12 -export \
     -inkey "$TMP/key.pem" -in "$TMP/cert.pem" -out "$TMP/cert.p12" \
     -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES -macalg sha1 \
-    -passout pass:sofler -name "$CERT_NAME" 2>/dev/null
+    -passout pass:caspr -name "$CERT_NAME" 2>/dev/null
 
 # -T /usr/bin/codesign autorise codesign à utiliser la clé sans redemander
 # l'accès au trousseau à chaque signature.
-security import "$TMP/cert.p12" -k "$KEYCHAIN" -T /usr/bin/codesign -P sofler >/dev/null
+security import "$TMP/cert.p12" -k "$KEYCHAIN" -T /usr/bin/codesign -P caspr >/dev/null
 
 HASH="$(existing_hash)"
 if [ -z "$HASH" ]; then

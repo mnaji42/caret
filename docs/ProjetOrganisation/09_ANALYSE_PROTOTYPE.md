@@ -173,7 +173,7 @@ tiennent parce que la police est à 11,5 px et le padding à 8 px, pas 12.
 | onglet | titre | sous-titre |
 | :-- | :-- | :-- |
 | Général | Réglages Généraux | Langue de travail, destination du texte transcrit et intégration système. |
-| Enregistrement | Enregistrement & Dictée | Configurez comment Sofler capte votre voix et affiche la transcription en direct. |
+| Enregistrement | Enregistrement & Dictée | Configurez comment Caspr capte votre voix et affiche la transcription en direct. |
 | Moteur IA | Moteur IA & Transcription Finale | Choisissez le moteur neuronal qui rédige le texte définitif de votre dictée vocale. |
 | Lexique | Lexique & Mots Métier | Personnalisez le dictionnaire local pour garantir l'orthographe exacte de vos termes clés. |
 | Historique | Historique des Dictées | Retrouvez et copiez vos dernières transcriptions locales en un clic. |
@@ -252,7 +252,7 @@ doit devenir une pure évaluation.**
 * Champ + bouton `+ Ajouter` (désactivé si vide), validation `Entrée` ou `,`,
   collage de listes séparées par virgules/retours.
 * Tags **rectangulaires** (rayon 6 px, pas des pilules), `✕` rouge au survol.
-* État vide : `Aucun terme personnalisé. Sofler transcrit en français courant
+* État vide : `Aucun terme personnalisé. Caspr transcrit en français courant
   sans conditionnement.` + `+ Insérer des exemples (Développement Web)`.
 * Pied : compteur, avertissement ambre si > 25, `Tout effacer` rouge.
 * Liste d'exemples du prototype : `useEffect, useState, React, Next.js,
@@ -373,7 +373,7 @@ Ordre du prototype : `settings`, `permissions`, `service`, `engine`, `logs`,
 
 Deux garanties affichées en pied, à conserver mot pour mot :
 * « **Votre fichier de notes.** S'il en existe un, c'est votre document :
-  Sofler y écrivait, il ne lui appartient pas. »
+  Caspr y écrivait, il ne lui appartient pas. »
 * « **Tout part à la corbeille**, jamais en suppression définitive. Vous gardez
   la main jusqu'à ce que vous la vidiez. »
 
@@ -383,12 +383,12 @@ Deux garanties affichées en pied, à conserver mot pour mot :
 
 ### `UpdateCard`
 
-* En-tête : `Sofler v0.8.0` + badge `✓ À jour` (accent) **ou**
+* En-tête : `Caspr v0.8.0` + badge `✓ À jour` (accent) **ou**
   `Mise à jour disponible` (ambre `#fef08a`).
 * `Dernière vérification : {âge} · Release officielle`.
 * Bouton `⟳ Vérifier maintenant` : **rayon 7 px, pas une pilule**, texte
   turquoise sur `accent-dim`, bordure `rgba(0,229,204,0.4)`, halo.
-* Encart de mise à jour ambré : `🎉 Sofler v0.9.0 est disponible (24.8 Mo)` +
+* Encart de mise à jour ambré : `🎉 Caspr v0.9.0 est disponible (24.8 Mo)` +
   `Publiée le {date}`, **liste des nouveautés** dans une boîte sombre interne,
   puis `Mettre à jour vers vX` (accent) + `Ignorer cette version` (discret) +
   `Voir sur GitHub ↗` aligné à droite.
@@ -401,7 +401,7 @@ Deux garanties affichées en pied, à conserver mot pour mot :
 Dialogue au lancement, avec trois issues qui **mémorisent** le choix :
 * `Mettre à jour maintenant` → installation in-app avec progression.
 * `Plus tard` → ferme ; le rappel reste dans le menu et les Réglages.
-* `Ignorer cette version` → `sofler.update.ignoredVersion = version`.
+* `Ignorer cette version` → `caspr.update.ignoredVersion = version`.
 
 `UpdateChecker` sait déjà trouver la version ; il manque la persistance de
 `ignoredVersion` et `lastPostponedDate`, et la fenêtre elle-même.
@@ -410,7 +410,7 @@ Dialogue au lancement, avec trois issues qui **mémorisent** le choix :
 
 ## 14. `InstallPromptModal` — remplace un `NSAlert`
 
-Le message « Sofler tourne depuis l'image disque » est aujourd'hui un `NSAlert`
+Le message « Caspr tourne depuis l'image disque » est aujourd'hui un `NSAlert`
 système. Le prototype en fait une vraie fenêtre : 360 px, rayon 22 px, dégradé,
 icône d'application 68 px, titre `Caspr n'est pas encore installé`, deux
 paragraphes, puis deux boutons empilés pleine largeur — `Installer et ouvrir`
@@ -430,7 +430,7 @@ change.
 | :-- | :-- | :-- |
 | P1 | `DestinationCard` | `launchAtLogin` déclaré et jamais utilisé — code mort. Confirme que doc 01 a raison contre doc 02 §6. |
 | P2 | `SettingsView` | Les six onglets à `flex: 1` dans 548 px donnent 91 px chacun ; `🎙️ Enregistrement` en demande ~117 px avec `nowrap`. Débordement probable à vérifier. |
-| P3 | `InstallPromptModal` | Mélange `Caspr` (titre) et `Sofler` (corps) — rebranding partiel. |
+| P3 | `InstallPromptModal` | Mélange `Caspr` (titre) et `Caspr` (corps) — rebranding partiel. |
 | P4 | `CollectView` | Masque Apple Intelligence si `isLegacyOrIntel`. Une ligne absente ne se distingue pas d'une ligne qu'on n'a pas trouvée. |
 | P5 | `AppleEngineCard` | Barre 0-100 % sur le téléchargement des modèles — techniquement impossible (cf. §3). |
 | P6 | `HistoryView`/`VocabularyView` | `+ Restaurer des exemples` est une commodité de maquette, à ne pas porter. |

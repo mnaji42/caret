@@ -9,8 +9,8 @@ import time
 from pathlib import Path
 import numpy as np, soundfile as sf, torch
 import coremltools as ct
-from sofler_engine.crisper import CrisperWhisperEngine, SAMPLE_RATE, MEL_FRAMES_PER_S
-from sofler_engine import prompt as prompt_mod
+from caspr_engine.crisper import CrisperWhisperEngine, SAMPLE_RATE, MEL_FRAMES_PER_S
+from caspr_engine import prompt as prompt_mod
 
 WINDOW_S, FRAMES = 15, 1500
 
@@ -38,7 +38,7 @@ def transcribe(audio, language, backend):
     torch.mps.synchronize()
     enc_ms = (time.perf_counter() - t0) * 1000
 
-    from sofler_engine.crisper import DEFAULT_LEXICON
+    from caspr_engine.crisper import DEFAULT_LEXICON
     ids = prompt_mod.build(engine._processor.tokenizer, mode="intended",
                            language=language, hotwords=DEFAULT_LEXICON)
     toks = engine._decode(enc, ids, 256)

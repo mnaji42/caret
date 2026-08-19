@@ -15,8 +15,8 @@ sans bruit, puisque la machine de développement ne la met jamais en défaut.
 
 import torch
 
-from sofler_engine import crisper
-from sofler_engine.crisper import CrisperWhisperEngine, default_dtype, resolve_device
+from caspr_engine import crisper
+from caspr_engine.crisper import CrisperWhisperEngine, default_dtype, resolve_device
 
 
 def _metal(monkeypatch, *, present: bool):

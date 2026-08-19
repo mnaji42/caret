@@ -2,7 +2,7 @@
 # Installe le moteur CrisperWhisper, et rien d'autre.
 #
 # Distinct de setup.sh, qui compile aussi l'application et suppose Xcode. Ici
-# on part du principe que Sofler est déjà installé — téléchargé depuis le .dmg
+# on part du principe que Caspr est déjà installé — téléchargé depuis le .dmg
 # — et qu'il ne manque que le moteur Python.
 #
 # C'est le seul passage obligé par le Terminal, et il n'a lieu qu'une fois.
@@ -15,7 +15,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SUPPORT="$HOME/Library/Application Support/Sofler"
+SUPPORT="$HOME/Library/Application Support/Caspr"
 DESCRIPTOR="$SUPPORT/engine.json"
 MODEL="turbo"
 
@@ -114,7 +114,7 @@ cat <<'DONE'
 
   Le moteur est installé.
 
-  Retournez dans Sofler : l'accueil et les réglages détectent maintenant
+  Retournez dans Caspr : l'accueil et les réglages détectent maintenant
   CrisperWhisper, et un bouton suffit à démarrer le service, l'arrêter ou
   changer de modèle. Vous n'aurez plus besoin du Terminal.
 

@@ -1,6 +1,6 @@
 """Prompt décodeur, garde-fou anti-boucle et nettoyage de sortie.
 
-Le prompt porte tout ce qui distingue Sofler : mode verbatim/intended et
+Le prompt porte tout ce qui distingue Caspr : mode verbatim/intended et
 conditionnement par vocabulaire. Une erreur d'ordre ou un token manquant ne
 provoque aucune panne — la transcription sort simplement sans ces
 fonctionnalités, ce qui est le pire mode d'échec.
@@ -8,8 +8,8 @@ fonctionnalités, ce qui est le pire mode d'échec.
 
 import pytest
 
-from sofler_engine import prompt as prompt_mod
-from sofler_engine.crisper import (DEFAULT_LEXICON, LOOP_WINDOW_TOKENS,
+from caspr_engine import prompt as prompt_mod
+from caspr_engine.crisper import (DEFAULT_LEXICON, LOOP_WINDOW_TOKENS,
                                   MAX_NGRAM_REPEATS,
                                   CrisperWhisperEngine as Engine)
 

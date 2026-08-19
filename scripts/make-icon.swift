@@ -1,4 +1,4 @@
-// Dessine l'icône de Sofler et écrit un .iconset prêt pour iconutil.
+// Dessine l'icône de Caspr et écrit un .iconset prêt pour iconutil.
 //
 // L'icône est du code plutôt qu'un fichier binaire déposé dans le dépôt : un
 // .icns ne se relit pas, ne se diffe pas, et se perd le jour où on veut
@@ -16,7 +16,7 @@ import Foundation
 // Un caret — la barre d'insertion du texte — traversé d'ondes sonores. Pas un
 // microphone : c'est le symbole de la dictée d'Apple, et une app qui demande
 // l'accès au micro et à l'accessibilité a tout intérêt à ne pas être prise
-// pour un composant du système. Le caret dit ce que fait Sofler et que ne
+// pour un composant du système. Le caret dit ce que fait Caspr et que ne
 // fait pas la dictée d'Apple : le texte atterrit là où le curseur se trouve
 // déjà, dans l'application qu'on a devant soi.
 

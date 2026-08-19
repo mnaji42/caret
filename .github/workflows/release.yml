@@ -79,7 +79,7 @@ jobs:
             echo "identity=-" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          keychain="$RUNNER_TEMP/sofler.keychain-db"
+          keychain="$RUNNER_TEMP/caspr.keychain-db"
           password="$(uuidgen)"
           security create-keychain -p "$password" "$keychain"
           security set-keychain-settings -lut 900 "$keychain"
@@ -120,37 +120,37 @@ jobs:
 
       - name: Construire le DMG
         env:
-          SOFLER_SIGN_IDENTITY: ${{ steps.signing.outputs.identity }}
+          CASPR_SIGN_IDENTITY: ${{ steps.signing.outputs.identity }}
         run: ./scripts/package-dmg.sh
 
       - name: Vérifier le paquet
         run: |
-          hdiutil attach dist/Sofler.dmg -mountpoint /tmp/sofler -nobrowse -quiet
-          codesign --verify --deep --strict /tmp/sofler/Sofler.app
-          codesign -d -r- /tmp/sofler/Sofler.app 2>&1 | grep -F "designated =>"
+          hdiutil attach dist/Caspr.dmg -mountpoint /tmp/caspr -nobrowse -quiet
+          codesign --verify --deep --strict /tmp/caspr/Caspr.app
+          codesign -d -r- /tmp/caspr/Caspr.app 2>&1 | grep -F "designated =>"
           # L'entitlement micro est la panne la plus sournoise du projet :
           # absent, le runtime durci refuse le micro sans aucun dialogue, et
           # l'application paraît simplement muette.
-          codesign -d --entitlements - /tmp/sofler/Sofler.app 2>/dev/null \
+          codesign -d --entitlements - /tmp/caspr/Caspr.app 2>/dev/null \
               | grep -q "audio-input" \
               || { echo "::error::entitlement micro absent"; exit 1; }
           # Le moteur Python voyage dans le bundle depuis la 0.2.0. Sans lui,
           # le bouton « Installer CrisperWhisper » n'a rien à installer — et
           # comme le reste de l'application fonctionne parfaitement, l'absence
           # ne se découvrirait que chez quelqu'un qui essaie ce moteur-là.
-          engine="/tmp/sofler/Sofler.app/Contents/Resources/engine"
-          for required in pyproject.toml sofler_engine/server.py \
-                          sofler_engine/protocol.py sofler_engine/crisper.py; do
+          engine="/tmp/caspr/Caspr.app/Contents/Resources/engine"
+          for required in pyproject.toml caspr_engine/server.py \
+                          caspr_engine/protocol.py caspr_engine/crisper.py; do
               [ -f "$engine/$required" ] \
                   || { echo "::error::moteur Python incomplet dans le bundle : $required manque"; exit 1; }
           done
           echo "moteur Python présent ($(du -sh "$engine" | cut -f1))"
-          hdiutil detach /tmp/sofler -quiet
+          hdiutil detach /tmp/caspr -quiet
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Sofler.dmg
-          path: dist/Sofler.dmg
+          name: Caspr.dmg
+          path: dist/Caspr.dmg
 
       - name: Publier la release
         if: startsWith(github.ref, 'refs/tags/')
@@ -161,10 +161,10 @@ jobs:
           # serait une dépendance de plus dans la chaîne qui signe le binaire
           # que des gens vont installer.
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" dist/Sofler.dmg --clobber
+            gh release upload "$GITHUB_REF_NAME" dist/Caspr.dmg --clobber
           else
             gh release create "$GITHUB_REF_NAME" \
-              --title "Sofler $GITHUB_REF_NAME" \
+              --title "Caspr $GITHUB_REF_NAME" \
               --generate-notes \
-              dist/Sofler.dmg
+              dist/Caspr.dmg
           fi

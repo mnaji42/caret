@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Fabrique le .dmg de distribution : Sofler.app, seule dans la fenêtre.
+# Fabrique le .dmg de distribution : Caspr.app, seule dans la fenêtre.
 # Une seule icône, donc un seul geste possible : double-cliquer.
 #
-# Le fichier s'appelle toujours Sofler.dmg, sans numéro de version. C'est ce
+# Le fichier s'appelle toujours Caspr.dmg, sans numéro de version. C'est ce
 # qui rend l'URL de téléchargement stable — la landing page pointe une fois
-# sur .../releases/latest/download/Sofler.dmg et n'est plus jamais à modifier.
+# sur .../releases/latest/download/Caspr.dmg et n'est plus jamais à modifier.
 # La version reste lisible : elle nomme le volume monté, et elle est dans le
 # bundle.
 #
@@ -15,7 +15,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_NAME="Sofler"
+APP_NAME="Caspr"
 . "$ROOT/scripts/version.sh"
 DMG="$ROOT/dist/$APP_NAME.dmg"
 
