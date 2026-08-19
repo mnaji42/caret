@@ -117,31 +117,38 @@ private struct UninstallView: View {
 
             SectionLabel("à retirer aussi")
             Card {
-                ForEach(scope.items) { item in
-                    let present = Uninstall.isPresent(item)
+                // Seulement ce qui est réellement là. Les absents étaient
+                // listés puis grisés : on proposait de retirer un modèle jamais
+                // téléchargé, un corpus jamais écrit. Une case morte n'informe
+                // pas — elle fait douter de ce qu'on a installé, à l'instant
+                // précis où l'on veut être sûr de ce qu'on efface.
+                let present = scope.items.filter(Uninstall.isPresent)
+                ForEach(present) { item in
                     VStack(alignment: .leading, spacing: 3) {
                         OptionCheck(title: item.label, isOn: Binding(
                             get: { selected.contains(item) },
                             set: { on in
                                 if on { selected.insert(item) } else { selected.remove(item) }
                             }))
-                        .disabled(!present)
 
-                        HStack(spacing: 6) {
-                            Text(Uninstall.detail(for: item))
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(present ? Color.secondary : Color.secondary.opacity(0.5))
-                        }
-                        .padding(.leading, 20)
+                        Text(Uninstall.detail(for: item))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, 20)
 
                         Note(item.explanation, warning: item.irreversible && selected.contains(item))
                             .padding(.leading, 20)
                     }
-                    .opacity(present ? 1 : 0.45)
 
-                    if item != scope.items.last {
+                    if item != present.last {
                         Divider().opacity(0.25)
                     }
+                }
+
+                // Tout est déjà parti, ou rien n'a jamais été installé.
+                if present.isEmpty {
+                    Note("Rien d'autre à retirer : ni modèle téléchargé, ni "
+                         + "corpus, ni environnement Python sur cette machine.")
                 }
             }
 
@@ -211,7 +218,7 @@ private struct UninstallView: View {
                     // archivé » et « ceci part » ne sont pas le même registre,
                     // et c'est le seul bouton de l'application dont l'effet ne
                     // se défait pas.
-                    .tint(Style.danger)
+                    .tint(Style.dangerSurface)
             } else {
                 // Quitter n'a de sens que si l'application vient de partir.
                 Button(scope.removesApp ? "Quitter Sofler" : "Fermer") {

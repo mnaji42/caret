@@ -33,7 +33,16 @@ enum Style {
     /// « ceci est archivé » et « attention » ne disent pas la même chose et ne
     /// doivent pas se confondre d'un coup d'œil.
     static let warning = Color(hex: 0xF59E0B)
+    /// Le rouge du **texte** — `--danger`. Clair, pour rester lisible sur le
+    /// fond sombre.
     static let danger = Color(hex: 0xF87171)
+
+    /// Le rouge des **surfaces** : bouton plein, fond et bordure d'alerte.
+    ///
+    /// Le prototype emploie deux rouges et c'est délibéré : `#f87171` pour
+    /// écrire, `#ef4444` pour remplir. Remplir avec celui du texte donnait un
+    /// bouton rose, qui n'a pas la gravité d'une désinstallation.
+    static let dangerSurface = Color(hex: 0xEF4444)
 
     static let textPrimary = Color(hex: 0xF8FAFC)
     static let textSecondary = Color(hex: 0x94A3B8)
