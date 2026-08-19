@@ -157,7 +157,14 @@ final class RecordingOverlay {
     /// change, et la hauteur suit le nombre de lignes que l'aperçu occupe
     /// réellement — réserver trois lignes en permanence laissait un vide sous
     /// le texte les trois quarts du temps.
-    private static let cardWidth: CGFloat = 440
+    /// 520 pt, là où le prototype en pose 440.
+    ///
+    /// Le seul écart de dimension assumé avec la maquette : à 440, l'aperçu du
+    /// texte reconnu tient trois ou quatre mots par ligne et se replie sans
+    /// arrêt pendant qu'on parle. La barre est le seul endroit où l'on relit ce
+    /// qu'on vient de dire ; lui donner une ligne utile compte plus que le
+    /// nombre exact.
+    private static let cardWidth: CGFloat = 520
     /// Borne de sécurité avant mesure : trois lignes n'en contiendront jamais
     /// autant, et mesurer la dictée entière à chaque mot serait inutile.
     private static let previewCharacters = 400

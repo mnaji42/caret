@@ -164,6 +164,11 @@ final class EngineBootstrap {
             return
         }
 
+        // Le choix est retenu ici, et pas plus tôt : c'est l'instant où l'on
+        // engage un téléchargement de plusieurs gigaoctets. Parcourir la
+        // grille avant n'a rien décidé.
+        Preferences.shared.chosenCrisperModel = model
+
         do {
             let uv = try await resolveTool()
             try await prepareSource()
@@ -186,6 +191,37 @@ final class EngineBootstrap {
             phase = .idle
         } catch {
             Log.error("engine: \(error.localizedDescription)")
+            phase = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Redémarre le service, sans rien réinstaller.
+    ///
+    /// Tout est déjà sur le disque — les poids, l'environnement, le
+    /// descripteur — et il ne reste qu'à charger le modèle en mémoire.
+    ///
+    /// La carte appelait `EngineInstall.installService` directement. Ça
+    /// marchait : le service démarrait vraiment, journal à l'appui. Mais rien
+    /// ne touchait `phase`, donc l'interface restait sur « au repos » et le
+    /// bouton paraissait mort — on cliquait, le modèle se chargeait en mémoire
+    /// pendant une minute, et l'écran n'en disait rien. Passer par ici donne
+    /// les deux choses qui manquaient : l'état pendant le chargement, et
+    /// l'attente que le socket réponde avant d'annoncer « Prêt ».
+    func startService(model: CrisperWhisperModel) async {
+        guard !isBusy else { return }
+        Preferences.shared.chosenCrisperModel = model
+        phase = .startingService(0)
+        guard EngineInstall.installService(model: model) else {
+            phase = .failed("Le service n'a pas pu être lancé. "
+                            + "Le journal du moteur en dit la raison : "
+                            + "~/Library/Logs/Sofler/engine.log")
+            return
+        }
+        do {
+            try await waitUntilAnswering()
+            phase = .done
+            Log.info("engine: service démarré (\(model.rawValue))")
+        } catch {
             phase = .failed(error.localizedDescription)
         }
     }

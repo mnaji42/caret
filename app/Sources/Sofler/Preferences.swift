@@ -50,6 +50,7 @@ final class Preferences {
         static let lastValidEngine = "sofler.engine.lastValid"
         static let habits = "sofler.habits"
         static let crisperLicence = "sofler.crisper.licence"
+        static let crisperChosenModel = "sofler.crisper.model.chosen"
         /// Marque qu'une installation antérieure au multi-langues a été
         /// reprise. Sert à ne pas changer sous les pieds de quelqu'un des
         /// défauts qui n'ont bougé que pour les installations neuves.
@@ -349,6 +350,27 @@ final class Preferences {
                 selectedLanguages.append(newValue)
                 primaryLanguage = newValue
             }
+        }
+    }
+
+    /// Le modèle CrisperWhisper que l'utilisateur a **réellement retenu**.
+    ///
+    /// `nil` tant qu'il n'en a choisi aucun. Parcourir la grille pendant
+    /// l'accueil — cliquer sur Small, puis Large, pour lire ce qu'ils font — ne
+    /// retient rien : il faut avoir au moins **lancé un téléchargement** ou
+    /// **démarré le service**. C'est ce qui distingue regarder de choisir.
+    ///
+    /// Sert à ne pas reposer la question. Sans cette mémoire, la carte
+    /// redéployait ses quatre modèles dès que le service était arrêté, ce qui
+    /// pousse à retélécharger des gigaoctets déjà sur le disque pour une
+    /// décision déjà prise. Avec elle, revenir coûte deux clics : l'état, et
+    /// « Changer de modèle… » si l'on veut vraiment en changer.
+    ///
+    /// Distinct du modèle du descripteur, qui vaut `.turbo` par défaut et ne
+    /// dit donc pas si quelqu'un l'a voulu.
+    var chosenCrisperModel: CrisperWhisperModel? {
+        didSet {
+            defaults.set(chosenCrisperModel?.rawValue, forKey: Key.crisperChosenModel)
         }
     }
 
@@ -724,6 +746,8 @@ final class Preferences {
             ?? (resolvedFinal == .crisperWhisper ? .crisperWhisper : resolvedApple)
 
         crisperLicenceAccepted = defaults.bool(forKey: Key.crisperLicence)
+        chosenCrisperModel = defaults.string(forKey: Key.crisperChosenModel)
+            .flatMap(CrisperWhisperModel.init(rawValue:))
         habits = defaults.data(forKey: Key.habits)
             .flatMap { try? JSONDecoder().decode(UsageHabits.self, from: $0) }
             ?? UsageHabits()

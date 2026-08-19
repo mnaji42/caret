@@ -54,7 +54,8 @@ struct CrisperEngineCard: View, ValidatingComponent {
     @State private var catalogueExpanded = false
     /// Le modèle que l'utilisateur regarde, qui n'est pas forcément celui qui
     /// est installé — c'est tout l'intérêt du catalogue.
-    @State private var draftModel = EngineInstall.selectedModel
+    @State private var draftModel = Preferences.shared.chosenCrisperModel
+        ?? EngineInstall.selectedModel
 
     // MARK: - Validité
 
@@ -83,9 +84,30 @@ struct CrisperEngineCard: View, ValidatingComponent {
         return nil
     }
 
+    /// Le modèle que l'utilisateur a retenu, s'il est encore utilisable.
+    ///
+    /// « Retenu » veut dire téléchargé ou démarré au moins une fois, pas
+    /// simplement regardé. `nil` aussi quand ses poids ont été retirés depuis :
+    /// il n'y a alors plus de décision à rappeler, et la grille reprend sa
+    /// place.
+    private var chosenModel: CrisperWhisperModel? {
+        guard EngineInstall.isAvailable,
+              let chosen = prefs.chosenCrisperModel,
+              chosen.isDownloaded
+        else { return nil }
+        return chosen
+    }
+
     /// La vue compacte, ou le catalogue.
+    ///
+    /// Se décidait sur `step == .ready` : arrêter le service redéployait les
+    /// quatre modèles et la licence, comme au premier jour. C'est une erreur
+    /// d'UX — elle pousse à retélécharger des gigaoctets déjà sur le disque
+    /// pour une décision déjà prise. Ce qui compte n'est pas que le service
+    /// tourne à cet instant, c'est qu'un modèle ait été choisi : le relancer
+    /// est alors un bouton, pas un catalogue.
     private var showsCompact: Bool {
-        !isOnboarding && !catalogueExpanded && step == .ready && !installing
+        !catalogueExpanded && !installing && chosenModel != nil
     }
 
     var body: some View {
@@ -98,7 +120,9 @@ struct CrisperEngineCard: View, ValidatingComponent {
         }
         // Le modèle peut changer depuis ailleurs — un retrait dans une autre
         // carte, un descripteur réécrit par le service.
-        .onAppear { draftModel = EngineInstall.selectedModel }
+        .onAppear {
+            draftModel = prefs.chosenCrisperModel ?? EngineInstall.selectedModel
+        }
     }
 
     @ViewBuilder
@@ -163,23 +187,31 @@ struct CrisperEngineCard: View, ValidatingComponent {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 8) {
                     Circle()
-                        .fill(Style.accent)
+                        .fill(serviceIsUp ? Style.accent : Style.textTertiary)
                         .frame(width: 8, height: 8)
-                        .shadow(color: Style.accent, radius: 3)
-                    Text("Prêt")
+                        .shadow(color: serviceIsUp ? Style.accent : .clear, radius: 3)
+                    Text(compactTitle)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white)
                     Text("· Modèle \(draftModel.catalogueName)")
                         .font(.system(size: 13))
                         .foregroundStyle(Style.textSecondary)
                 }
-                Text("\(draftModel.residentMemory) alloués en mémoire vive · Service actif")
+                Text(compactDetail)
                     .font(.system(size: 11.5))
                     .foregroundStyle(Style.textTertiary)
                     .padding(.leading, 16)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
             VStack(alignment: .trailing, spacing: 4) {
+                // Le service arrêté se relance d'ici : c'est la seule chose
+                // qui manque, et redéployer le catalogue pour l'obtenir
+                // reviendrait à reposer une question déjà tranchée.
+                if step == .serviceStopped || step == .serviceMissing {
+                    Button("Démarrer le service") { start() }
+                        .buttonStyle(SoflerPrimaryButtonStyle())
+                }
                 Button("Changer de modèle…") { catalogueExpanded = true }
                     .buttonStyle(SoflerSecondaryButtonStyle())
                 DestructiveLink("Supprimer ce modèle (\(draftModel.downloadSize))") {
@@ -196,6 +228,29 @@ struct CrisperEngineCard: View, ValidatingComponent {
                 .fill(Color.white.opacity(0.025))
                 .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)))
+    }
+
+    private var serviceIsUp: Bool { step == .ready }
+
+    private var compactTitle: String {
+        switch step {
+        case .ready: "Prêt"
+        case .serviceStarting: "Démarrage…"
+        default: "Au repos"
+        }
+    }
+
+    private var compactDetail: String {
+        switch step {
+        case .ready:
+            "\(draftModel.residentMemory) alloués en mémoire vive · Service actif"
+        case .serviceStarting:
+            "Chargement de \(draftModel.catalogueName) en mémoire — la première "
+                + "fois peut prendre une minute."
+        default:
+            "Tout est téléchargé sur votre Mac. Démarrez le service pour charger "
+                + "le modèle en mémoire vive (\(draftModel.residentMemory))."
+        }
     }
 
     // MARK: - Catalogue
@@ -591,11 +646,26 @@ struct CrisperEngineCard: View, ValidatingComponent {
     /// Installé, il n'y a rien à télécharger : on recharge simplement le
     /// service dessus. Absent, on ne fait que déplacer le brouillon — le
     /// téléchargement reste un geste explicite.
+    /// Regarder un modèle, et parfois le prendre.
+    ///
+    /// Cliquer sur une tuile ne fait qu'afficher ce modèle : on parcourt la
+    /// grille pour lire ce que chacun fait, et rien n'est décidé. Il n'y a
+    /// engagement que si ses poids sont déjà là — le service bascule alors
+    /// dessus, ce qui est un vrai choix, et il est retenu comme tel.
+    ///
+    /// Le basculement passe par la machine à états : appeler `installService`
+    /// directement démarrait bien le service, mais sans rien afficher pendant
+    /// la minute de chargement.
     private func select(_ model: CrisperWhisperModel) {
         draftModel = model
         guard model.isDownloaded, EngineInstall.isAvailable else { return }
-        EngineInstall.installService(model: model)
-        EngineSafetyManager.shared.confirmWorking(.crisperWhisper)
+        Task {
+            await bootstrap.startService(model: model)
+            if EngineInstall.step(for: model) == .ready {
+                EngineSafetyManager.shared.confirmWorking(.crisperWhisper)
+                catalogueExpanded = false
+            }
+        }
     }
 
     private func install() {
@@ -611,7 +681,7 @@ struct CrisperEngineCard: View, ValidatingComponent {
     }
 
     private func start() {
-        EngineInstall.installService(model: draftModel)
+        Task { await bootstrap.startService(model: draftModel) }
     }
 
     private func stop() {
@@ -620,6 +690,9 @@ struct CrisperEngineCard: View, ValidatingComponent {
 
     private func remove(_ model: CrisperWhisperModel) {
         EngineInstall.remove(model: model)
+        // Retirer les poids annule le choix : il n'y a plus de décision à
+        // rappeler, et la grille reprend sa place d'elle-même.
+        if prefs.chosenCrisperModel == model { prefs.chosenCrisperModel = nil }
         // Retirer le modèle qui écrivait laisse la dictée sans moteur : le
         // repli s'en occupe, mais il faut qu'il soit réévalué tout de suite.
         draftModel = EngineInstall.selectedModel
