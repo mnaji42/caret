@@ -230,6 +230,11 @@ private struct OnboardingView: View {
             // Le logo, ici et nulle part ailleurs. C'est le seul écran où l'on
             // fait connaissance ; le répéter dans chaque fenêtre le viderait de
             // son sens et volerait la place de ce qu'on y règle.
+            //
+            // Aligné à droite plutôt que centré : le titre et son introduction
+            // occupent la gauche, et le logo comble la respiration qu'ils
+            // laissent. Centré, il coupait la page en deux et repoussait tout
+            // le contenu vers le bas.
             if let logo = Bundle.main.url(forResource: "caspr-logo-stacked",
                                           withExtension: "svg",
                                           subdirectory: "icons"),
@@ -237,9 +242,9 @@ private struct OnboardingView: View {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFit()
-                    .frame(height: 96)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.bottom, 20)
+                    .frame(height: 78)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.bottom, 16)
             }
 
             SectionLabel("Le principe en trois points", followsHeader: true)

@@ -35,11 +35,11 @@ enum MenuBarIcon {
 
         var fileName: String {
             switch self {
-            case .idle: "caspr-ghost"
-            case .listening: "caspr-ghost-listening"
-            case .processing: "caspr-ghost-processing"
-            case .error: "caspr-ghost-error"
-            case .update: "caspr-ghost-update"
+            case .idle: "menu-caspr-ghost"
+            case .listening: "menu-caspr-ghost-listening"
+            case .processing: "menu-caspr-ghost-processing"
+            case .error: "menu-caspr-ghost-error"
+            case .update: "menu-caspr-ghost-update"
             }
         }
     }
@@ -51,6 +51,12 @@ enum MenuBarIcon {
               let image = NSImage(contentsOf: url)
         else { return nil }
         image.size = size
+        // Les variantes `menu-` : un seul tracé, yeux, bouche et intérieur de
+        // bulle en **trous**. macOS ne regarde que l'alpha d'un gabarit, si
+        // bien qu'une forme opaque sombre y devient de la même couleur que le
+        // reste : les dessins d'origine s'aplatissaient en une silhouette
+        // muette, où les cinq états se ressemblaient tous.
+        //
         // **Gabarit**, y compris pour les états colorés : la barre de menus est
         // claire en thème clair, et un fantôme blanc y serait invisible. macOS
         // reteint alors le dessin dans la couleur du texte, ce qui garde la

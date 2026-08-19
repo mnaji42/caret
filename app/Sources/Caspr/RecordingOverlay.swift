@@ -201,6 +201,16 @@ final class RecordingOverlay {
         let panel = self.panel ?? makePanel()
         self.panel = panel
 
+        // Appuyer sur la touche de dictée l'emporte sur tout le reste.
+        //
+        // Un message d'échec programme sa propre fermeture cinq secondes plus
+        // tard. Reparler dans cet intervalle laissait ce minuteur courir : il
+        // se déclenchait en pleine phrase et faisait disparaître la barre sous
+        // les yeux de quelqu'un qui était en train de dicter. Le geste dit
+        // « je continue » ; ce qui précédait n'a plus à être lu.
+        dismissal?.cancel()
+        dismissal = nil
+
         startedAt = Date()
         stopProcessingGlow()
         statusLabel.isHidden = true
