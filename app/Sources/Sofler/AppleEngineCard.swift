@@ -238,18 +238,12 @@ struct AppleEngineCard: View, ValidatingComponent {
     /// C'était « toutes celles qui ne sont pas prêtes », ce qui englobait
     /// celles qu'Apple Intelligence ne propose pas : la carte offrait de
     /// télécharger un modèle qui n'existe pas, et le bouton ne pouvait
-    /// qu'échouer. Une langue non proposée n'est pas en attente, elle est hors
-    /// de portée — elle se dit, elle ne se propose pas.
+    /// qu'échouer. Une langue non proposée n'est pas en attente : elle sort
+    /// simplement de la liste. Rien à annoncer tant qu'elle n'est pas la
+    /// langue principale — et si elle le devient, c'est le bandeau de la carte
+    /// de langue qui le dit, pas celle-ci.
     private var missing: [Language] {
         prefs.activeLanguages.filter { assets.state(of: $0.code) == .missing }
-    }
-
-    /// Celles qu'Apple Intelligence ne propose pas ici.
-    private var unsupported: [Language] {
-        prefs.activeLanguages.filter {
-            if case .unsupported = assets.state(of: $0.code) { return true }
-            return false
-        }
     }
 
     /// Celles dont le modèle est en place.
@@ -274,18 +268,6 @@ struct AppleEngineCard: View, ValidatingComponent {
                 } else {
                     primaryNeeded
                 }
-            }
-
-            // Dites plutôt que tues. Une langue déclarée qu'Apple Intelligence
-            // ne propose pas disparaissait sans un mot de cette carte : on
-            // pouvait croire son modèle installé. La dire ici évite d'aller la
-            // chercher dans une liste où elle n'apparaîtra jamais.
-            if !unsupported.isEmpty {
-                Note("\(unsupported.map(\.name).joined(separator: ", ")) — "
-                     + "Apple Intelligence ne propose pas "
-                     + "\(unsupported.count > 1 ? "ces langues" : "cette langue") "
-                     + "sur ce Mac. La Dictée de macOS prend le relais "
-                     + "lorsqu'\(unsupported.count > 1 ? "elles sont actives" : "elle est active").")
             }
         }
         // Chaque langue vérifiée une fois à l'affichage, et de nouveau quand la
