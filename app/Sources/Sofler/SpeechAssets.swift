@@ -76,6 +76,7 @@ final class SpeechAssets {
     /// Où en est cette langue, sans rien télécharger.
     func check(_ language: String) async {
         guard #available(macOS 26.0, *) else {
+            Language.recordAppleSupport(language, supported: false)
             states[language] = .unsupported("Le moteur intégré demande macOS 26.")
             return
         }
@@ -83,9 +84,12 @@ final class SpeechAssets {
         states[language] = .checking
 
         guard let locale = await Self.locale(for: language) else {
-            states[language] = .unsupported("macOS ne reconnaît pas cette langue.")
+            Language.recordAppleSupport(language, supported: false)
+            states[language] = .unsupported(
+                "Apple Intelligence ne propose pas cette langue sur ce Mac.")
             return
         }
+        Language.recordAppleSupport(language, supported: true)
         let installed = await SpeechTranscriber.installedLocales
         states[language] = installed.contains { $0.identifier == locale.identifier }
             ? .ready : .missing
@@ -223,9 +227,30 @@ final class SpeechAssets {
         if case .missing = state(of: language) { await install(language) }
     }
 
+    /// La locale d'Apple Intelligence correspondant à cette langue, **si elle
+    /// figure dans celles qu'il prend en charge**.
+    ///
+    /// ## Pourquoi pas `supportedLocale(equivalentTo:)`
+    ///
+    /// Son nom laisse croire à un test d'appartenance. Ce n'en est pas un :
+    /// mesuré sur cette machine, il rend `pl_PL`, `ru_RU`, `ar_SA` et `vi_VN`
+    /// alors qu'aucune des quatre n'est dans `supportedLocales`. Il normalise
+    /// un identifiant, il ne vérifie rien. S'y fier faisait déclarer toutes les
+    /// langues prises en charge, donc proposer le téléchargement d'un modèle
+    /// qui n'existe pas — le bouton ne pouvait qu'échouer.
+    ///
+    /// L'appartenance se teste donc sur `supportedLocales`, la liste elle-même.
+    /// La comparaison passe par une forme normalisée parce qu'Apple rend
+    /// `fr_FR` là où le catalogue écrit `fr-FR`.
     private static func locale(for language: String) async -> Locale? {
         guard #available(macOS 26.0, *) else { return nil }
-        return await SpeechTranscriber.supportedLocale(
-            equivalentTo: Locale(identifier: language))
+        let wanted = normalised(language)
+        return await SpeechTranscriber.supportedLocales.first {
+            normalised($0.identifier) == wanted
+        }
+    }
+
+    private static func normalised(_ identifier: String) -> String {
+        identifier.replacingOccurrences(of: "_", with: "-").lowercased()
     }
 }

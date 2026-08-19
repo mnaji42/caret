@@ -40,7 +40,7 @@ final class LanguageSwitchCoordinator {
         /// Aucune version de macOS ne fonctionne ici pour cette langue.
         case noSystemEngine(language: String, reason: String)
 
-        var message: String {
+        @MainActor var message: String {
             switch self {
             case .appleVersionSwitched(_, let to, let language):
                 let name = Language.named(language).displayName
@@ -49,9 +49,17 @@ final class LanguageSwitchCoordinator {
                     + "pour cette langue."
             case .modelMissing(let language):
                 let lang = Language.named(language)
-                return "Le modèle Apple Intelligence de \(lang.displayName) "
-                    + "n'est pas encore installé (environ "
-                    + "\(lang.estimatedSizeLabel))."
+                // Dit ce qui se passe **en attendant**, comme le prototype. Le
+                // titre annonce une bascule ; un message qui se contente de
+                // constater l'absence du modèle laisse croire que la dictée ne
+                // marche plus.
+                let touched = Preferences.shared.finalEngine == .crisperWhisper
+                    ? "L'aperçu en direct utilise"
+                    : "Vos dictées (aperçu en direct et transcription finale) utilisent"
+                return "Le modèle Apple Intelligence pour \(lang.displayName) "
+                    + "n'est pas encore téléchargé sur ce Mac (environ "
+                    + "\(lang.estimatedSizeLabel)). \(touched) la Dictée de "
+                    + "macOS en attendant."
             case .crisperUncovered(let language):
                 let name = Language.named(language).displayName
                 return "CrisperWhisper ne transcrit pas le \(name) : macOS "
@@ -173,6 +181,19 @@ final class LanguageSwitchCoordinator {
     func probePrimaryLanguage() {
         let language = Preferences.shared.primaryLanguage
         Task { await SpeechAssets.shared.check(language) }
+    }
+
+    /// Interroge le système sur **toutes** les langues déclarées.
+    ///
+    /// Lancé au démarrage. Sans ça, la prise en charge de chaque langue n'est
+    /// connue qu'après avoir ouvert l'écran qui la montre : la toute première
+    /// dictée après un lancement se ferait sur un « on ne sait pas encore »,
+    /// et c'est justement le moment où il vaut mieux savoir.
+    func probeSelectedLanguages() {
+        let languages = Preferences.shared.selectedLanguages
+        Task {
+            for language in languages { await SpeechAssets.shared.check(language) }
+        }
     }
 
     /// Réévalue l'état complet et replie ce qui doit l'être.

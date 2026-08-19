@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let uninstaller = UninstallWindowController.shared
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        LanguageSwitchCoordinator.shared.probeSelectedLanguages()
         let engine = SocketSpeechEngine()
         controller = DictationController(engine: engine)
         controller.onStateChange = { [weak self] state in

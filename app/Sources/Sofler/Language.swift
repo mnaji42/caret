@@ -71,8 +71,13 @@ struct Language: Identifiable, Hashable, Sendable {
     var shortBadge: String { "\(flag) \(base.uppercased())" }
 
     /// Poids arrondi, présenté comme l'approximation qu'il est.
+    /// « 62 Mo ». En français, parce que toute l'interface l'est.
+    ///
+    /// `ByteCountFormatter` suit la langue du **système**, pas celle de
+    /// l'application : sur un Mac en anglais il écrivait « 62 MB » au milieu
+    /// d'une phrase française.
     var estimatedSizeLabel: String {
-        ByteCountFormatter.string(fromByteCount: estimatedModelBytes, countStyle: .file)
+        "\(estimatedModelBytes / 1_000_000) Mo"
     }
 }
 
@@ -225,14 +230,54 @@ extension Language {
         Self.crisperWhisperBases.contains(base)
     }
 
+    // MARK: - Ce qu'Apple Intelligence propose, mémorisé
+
+    private static let appleSupportLock = NSLock()
+    nonisolated(unsafe) private static var appleSupport: [String: Bool] = [:]
+
+    /// Apple Intelligence propose-t-il cette langue **sur cette machine** ?
+    ///
+    /// `nil` tant que le système n'a pas répondu pour elle.
+    ///
+    /// La réponse vient de `SpeechTranscriber.supportedLocale(equivalentTo:)`,
+    /// qui est asynchrone, alors que `EngineChoice.isAvailable` ne l'est pas et
+    /// est appelée depuis le chemin de dictée comme depuis les vues. D'où cette
+    /// mémoire : le verrou est là parce qu'elle est écrite depuis l'acteur
+    /// principal et lue en dehors.
+    ///
+    /// Sans elle, `.apple` se disait disponible pour **n'importe quelle**
+    /// langue dès que la machine avait Apple Intelligence — le paramètre
+    /// `language` était ignoré. Deux conséquences : aucun repli vers la Dictée
+    /// quand la langue principale n'est pas prise en charge, et la carte
+    /// proposait de télécharger un modèle qui n'existe pas.
+    static func appleSupports(_ language: String) -> Bool? {
+        appleSupportLock.lock()
+        defer { appleSupportLock.unlock() }
+        return appleSupport[language]
+    }
+
+    /// Consigne ce que le système vient de répondre.
+    static func recordAppleSupport(_ language: String, supported: Bool) {
+        appleSupportLock.lock()
+        appleSupport[language] = supported
+        appleSupportLock.unlock()
+    }
+
     /// Les locales que la version **Apple Intelligence** propose ici.
     ///
     /// Demandé au système, jamais déduit d'un numéro de version : une machine
     /// virtuelle en macOS 26 rend une liste vide. Vide veut donc dire « ce
     /// moteur n'existe pas sur cette machine », pas « macOS est trop ancien ».
+    /// Rendues avec un tiret — `fr-FR` — comme le catalogue les écrit.
+    ///
+    /// Apple les rend avec un tiret bas (`fr_FR`). Non normalisées, elles ne
+    /// correspondaient à aucun code du catalogue : la taille du modèle ne
+    /// s'affichait jamais, et aucune langue n'était marquée « indisponible
+    /// ici », y compris celles qu'Apple Intelligence ne propose pas.
     static func systemSupportedLocales() async -> [String] {
         guard #available(macOS 26.0, *) else { return [] }
-        return await SpeechTranscriber.supportedLocales.map(\.identifier)
+        return await SpeechTranscriber.supportedLocales
+            .map { $0.identifier.replacingOccurrences(of: "_", with: "-") }
     }
 
     /// Les locales dont le modèle est **déjà sur le disque**.
@@ -242,6 +287,7 @@ extension Language {
     /// perdre du temps et de la confiance. Cf. `03_REGLES_SYSTEME_MACOS`.
     static func systemInstalledLocales() async -> [String] {
         guard #available(macOS 26.0, *) else { return [] }
-        return await SpeechTranscriber.installedLocales.map(\.identifier)
+        return await SpeechTranscriber.installedLocales
+            .map { $0.identifier.replacingOccurrences(of: "_", with: "-") }
     }
 }

@@ -79,8 +79,17 @@ enum EngineChoice: String, CaseIterable, Sendable, Codable {
     func isAvailable(for language: String) -> Bool {
         switch self {
         case .apple:
-            if #available(macOS 26.0, *) { return SpeechTranscriber.isAvailable }
-            return false
+            guard #available(macOS 26.0, *), SpeechTranscriber.isAvailable else {
+                return false
+            }
+            // `SpeechTranscriber.isAvailable` ne dit que « ce moteur existe sur
+            // cette machine » — il ne regarde pas la langue. Le rendre tel quel
+            // faisait passer le polonais pour pris en charge, donc pas de repli
+            // vers la Dictée et une proposition de téléchargement pour un
+            // modèle qui n'existe pas. Tant que le système n'a pas répondu pour
+            // cette langue, on ne la déclare pas indisponible : la réponse
+            // arrive en quelques millisecondes et les vues se redessinent.
+            return Language.appleSupports(language) != false
         case .appleLegacy:
             return LegacySpeechEngine.isAvailable(for: language)
         case .crisperWhisper:

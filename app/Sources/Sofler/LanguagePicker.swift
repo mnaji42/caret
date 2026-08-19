@@ -159,7 +159,23 @@ struct LanguagePicker: View, ValidatingComponent {
         let selected = prefs.selectedLanguages.contains(language.code)
         let usable = isUsable(language)
 
-        return HStack(spacing: 8) {
+        // Un vrai bouton : la ligne était un `HStack` avec un `onTapGesture`,
+        // donc on ne pouvait ni ajouter ni retirer une langue au clavier, et
+        // VoiceOver n'annonçait pas qu'il y avait quelque chose à activer.
+        return Button {
+            toggle(language)
+        } label: {
+            content(for: language, selected: selected, usable: usable)
+        }
+        .buttonStyle(.plain)
+        .help(usable ? "" : indisponibilityReason(language))
+        .accessibilityLabel("\(language.displayName)\(selected ? ", retenue" : "")")
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+
+    private func content(for language: Language,
+                         selected: Bool, usable: Bool) -> some View {
+        HStack(spacing: 8) {
             Text(language.flag).font(.system(size: 13))
             Text(language.name).font(.system(size: 12, weight: .medium))
             if !language.region.isEmpty {
@@ -193,10 +209,6 @@ struct LanguagePicker: View, ValidatingComponent {
         .background(
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(selected ? Style.accent.opacity(0.12) : .clear))
-        .onTapGesture { toggle(language) }
-        .help(usable ? "" : indisponibilityReason(language))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(language.displayName)\(selected ? ", retenue" : "")")
     }
 
     private func toggle(_ language: Language) {
