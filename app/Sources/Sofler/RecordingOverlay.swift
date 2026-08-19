@@ -97,7 +97,7 @@ final class RecordingOverlay {
     private var card: NSVisualEffectView?
     private var cardSheen: CAGradientLayer?
     private var processingGlow: CALayer?
-    private var cardBelowTabs: NSLayoutConstraint?
+    private var tabsBelowCard: NSLayoutConstraint?
     private var cardAlone: NSLayoutConstraint?
     private var previewLineCount = 1
     /// Composition courante de la rangée d'onglets.
@@ -189,7 +189,7 @@ final class RecordingOverlay {
         container?.isHidden = false
         textRow?.isHidden = false
         cardAlone?.isActive = false
-        cardBelowTabs?.isActive = true
+        tabsBelowCard?.isActive = true
         // Une ligne vide laisserait croire que l'aperçu est en panne le temps
         // que les premiers mots arrivent.
         setPreviewNotice(status.previewEnabled ? "en écoute…" : "")
@@ -212,7 +212,7 @@ final class RecordingOverlay {
         timer?.invalidate()
         container?.isHidden = true
         textRow?.isHidden = true
-        cardBelowTabs?.isActive = false
+        tabsBelowCard?.isActive = false
         cardAlone?.isActive = true
         statusLabel.isHidden = false
         statusLabel.stringValue = "Transcription…"
@@ -243,7 +243,7 @@ final class RecordingOverlay {
         stopProcessingGlow()
         container?.isHidden = true
         textRow?.isHidden = true
-        cardBelowTabs?.isActive = false
+        tabsBelowCard?.isActive = false
         cardAlone?.isActive = true
         statusLabel.isHidden = false
         statusLabel.stringValue = message
@@ -594,20 +594,25 @@ final class RecordingOverlay {
         // quand la vue qu'elle vise est cachée. Sans ça, l'état
         // « Transcription… » gardait la place des onglets et la carte se
         // retrouvait écrasée sur quelques pixels.
-        cardBelowTabs = card.topAnchor.constraint(equalTo: tabs.bottomAnchor,
+        // Les onglets sont l'**étage 2, sous la carte** — c'est la géométrie du
+        // prototype, et elle se tient : la carte porte ce qu'on écoute, les
+        // onglets ce qu'on en fait. Posés au-dessus, ils s'interposaient entre
+        // le regard et le texte reconnu, qui est la seule chose qu'on lit
+        // vraiment pendant qu'on parle.
+        tabsBelowCard = tabs.topAnchor.constraint(equalTo: card.bottomAnchor,
                                                   constant: Self.tabGap)
-        cardAlone = card.topAnchor.constraint(equalTo: root.topAnchor)
-        cardBelowTabs?.isActive = true
+        cardAlone = card.bottomAnchor.constraint(equalTo: root.bottomAnchor)
+        tabsBelowCard?.isActive = true
 
         NSLayoutConstraint.activate([
-            tabs.topAnchor.constraint(equalTo: root.topAnchor),
+            tabs.bottomAnchor.constraint(equalTo: root.bottomAnchor),
             tabs.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             tabs.trailingAnchor.constraint(equalTo: root.trailingAnchor),
             tabs.heightAnchor.constraint(equalToConstant: Self.controlRowHeight),
 
             card.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             card.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            card.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+            card.topAnchor.constraint(equalTo: root.topAnchor),
 
             inner.leadingAnchor.constraint(equalTo: card.leadingAnchor,
                                            constant: Self.padding + 4),
@@ -793,7 +798,7 @@ final class RecordingOverlay {
         stopProcessingGlow()
         panel?.orderOut(nil)
         panel = nil
-        cardBelowTabs = nil
+        tabsBelowCard = nil
         cardAlone = nil
         container = nil
         recordingRow = nil
