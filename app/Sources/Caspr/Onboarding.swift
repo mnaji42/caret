@@ -150,7 +150,14 @@ private struct OnboardingView: View {
 
     @State private var prefs = Preferences.shared
     @State private var step: Step
-    @State private var launchAtLogin = LoginItem.isEnabled
+    /// Coché d'avance pendant l'accueil.
+    ///
+    /// Caspr est une application d'arrière-plan : elle ne sert que si elle
+    /// est là quand on appuie sur la touche. La laisser décochée demandait de
+    /// la relancer à la main après chaque redémarrage, et l'oubli se
+    /// manifestait par une touche qui ne fait rien — le symptôme le plus
+    /// difficile à relier à sa cause. Décochable d'un clic, juste dessous.
+    @State private var launchAtLogin = LoginItem.isEnabled || !Preferences.shared.onboarded
 
     init(onFinish: @escaping () -> Void, onOpenSettings: @escaping () -> Void,
          onStepChange: @escaping (Step) -> Void) {
@@ -163,6 +170,21 @@ private struct OnboardingView: View {
         _step = State(initialValue: Step.resumed)
     }
 
+    /// Le logo, ici et nulle part ailleurs. C'est le seul écran où l'on fait
+    /// connaissance ; le répéter dans chaque fenêtre le viderait de son sens.
+    static var logo: AnyView? {
+        guard let url = Bundle.main.url(forResource: "caspr-logo-stacked",
+                                        withExtension: "svg",
+                                        subdirectory: "icons"),
+              let image = NSImage(contentsOf: url)
+        else { return nil }
+        return AnyView(
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(height: 64))
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ScrollView {
@@ -170,7 +192,8 @@ private struct OnboardingView: View {
                     if let header = step.header {
                         PageHeader(title: header.title,
                                    subtitle: header.subtitle,
-                                   scale: step == .completion ? .summary : .screen)
+                                   scale: step == .completion ? .summary : .screen,
+                                   accessory: step == .welcome ? Self.logo : nil)
                     }
                     content
                 }
@@ -227,26 +250,6 @@ private struct OnboardingView: View {
 
     private var welcomeStep: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Le logo, ici et nulle part ailleurs. C'est le seul écran où l'on
-            // fait connaissance ; le répéter dans chaque fenêtre le viderait de
-            // son sens et volerait la place de ce qu'on y règle.
-            //
-            // Aligné à droite plutôt que centré : le titre et son introduction
-            // occupent la gauche, et le logo comble la respiration qu'ils
-            // laissent. Centré, il coupait la page en deux et repoussait tout
-            // le contenu vers le bas.
-            if let logo = Bundle.main.url(forResource: "caspr-logo-stacked",
-                                          withExtension: "svg",
-                                          subdirectory: "icons"),
-               let image = NSImage(contentsOf: logo) {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 78)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(.bottom, 16)
-            }
-
             SectionLabel("Le principe en trois points", followsHeader: true)
 
             Card {

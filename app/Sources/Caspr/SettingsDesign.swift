@@ -293,8 +293,15 @@ struct PageHeader: View {
     let title: String
     var subtitle: String?
     var scale: Scale = .screen
+    /// Posé à droite, sur la même ligne que le titre et son introduction.
+    ///
+    /// Une image sous l'en-tête coupait la page en deux et repoussait le
+    /// contenu ; à côté, elle occupe la respiration que le texte laisse à sa
+    /// droite sans rien déplacer.
+    var accessory: AnyView?
 
     var body: some View {
+        HStack(alignment: .top, spacing: 16) {
         VStack(alignment: .leading, spacing: scale.titleGap) {
             Text(title)
                 .font(.system(size: scale.titleSize, weight: .bold))
@@ -309,6 +316,9 @@ struct PageHeader: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+
+        if let accessory { accessory }
+        }
         .padding(.bottom, scale.bottomMargin)
     }
 }
