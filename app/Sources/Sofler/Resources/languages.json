@@ -1,5 +1,5 @@
 {
-  "_lisezMoi": "Catalogue des langues proposées. Ce qui dépend de la machine — les locales d'Apple Intelligence et de la Dictée de macOS — est demandé au système à l'exécution et n'est jamais listé ici : les deux listes changent avec la version de macOS. `crisperWhisperBases` dépend des poids du modèle, donc de ce fichier. `rank` fixe l'ordre : les langues distinctes d'abord, les variantes régionales ensuite.",
+  "_lisezMoi": "Catalogue des langues proposées. Les locales d'Apple Intelligence et de la Dictée de macOS ne figurent pas ici : elles dépendent de la machine et de la version du système, et sont demandées au système à l'exécution. `crisperWhisperBases` dépend des poids du modèle, donc de ce fichier — la liste est volontairement restreinte à ce qui a été constaté utilisable, Whisper en annonçant 99 dont la queue de distribution donne des résultats qu'on ne veut proposer à personne. `rank` fixe l'ordre d'affichage : les langues distinctes d'abord, les variantes régionales ensuite.",
   "crisperWhisperBases": [
     "fr",
     "en",
@@ -17,23 +17,7 @@
     "sv",
     "tr",
     "uk",
-    "hi",
-    "da",
-    "fi",
-    "nb",
-    "cs",
-    "el",
-    "hu",
-    "ro",
-    "sk",
-    "hr",
-    "ms",
-    "ca",
-    "th",
-    "id",
-    "he",
-    "vi",
-    "yue"
+    "hi"
   ],
   "languages": [
     {
@@ -41,8 +25,8 @@
       "name": "Français",
       "region": "France",
       "flag": "🇫🇷",
-      "frenchName": "français",
       "estimatedModelMegabytes": 65,
+      "frenchName": "français",
       "rank": 0
     },
     {
@@ -50,8 +34,8 @@
       "name": "English",
       "region": "United States",
       "flag": "🇺🇸",
-      "frenchName": "anglais",
       "estimatedModelMegabytes": 58,
+      "frenchName": "anglais",
       "rank": 1
     },
     {
@@ -59,8 +43,8 @@
       "name": "Español",
       "region": "España",
       "flag": "🇪🇸",
-      "frenchName": "espagnol",
       "estimatedModelMegabytes": 62,
+      "frenchName": "espagnol",
       "rank": 2
     },
     {
@@ -68,8 +52,8 @@
       "name": "Deutsch",
       "region": "Deutschland",
       "flag": "🇩🇪",
-      "frenchName": "allemand",
       "estimatedModelMegabytes": 68,
+      "frenchName": "allemand",
       "rank": 3
     },
     {
@@ -77,8 +61,8 @@
       "name": "Italiano",
       "region": "Italia",
       "flag": "🇮🇹",
-      "frenchName": "italien",
       "estimatedModelMegabytes": 59,
+      "frenchName": "italien",
       "rank": 4
     },
     {
@@ -86,8 +70,8 @@
       "name": "Português",
       "region": "Portugal",
       "flag": "🇵🇹",
+      "estimatedModelMegabytes": 61,
       "frenchName": "portugais",
-      "estimatedModelMegabytes": 63,
       "rank": 5
     },
     {
@@ -95,8 +79,8 @@
       "name": "Nederlands",
       "region": "Nederland",
       "flag": "🇳🇱",
-      "frenchName": "néerlandais",
       "estimatedModelMegabytes": 58,
+      "frenchName": "néerlandais",
       "rank": 6
     },
     {
@@ -104,17 +88,17 @@
       "name": "Русский",
       "region": "Россия",
       "flag": "🇷🇺",
-      "frenchName": "russe",
       "estimatedModelMegabytes": 74,
+      "frenchName": "russe",
       "rank": 7
     },
     {
       "code": "zh-CN",
       "name": "简体中文",
-      "region": "中国",
+      "region": "中国大陆",
       "flag": "🇨🇳",
-      "frenchName": "chinois",
       "estimatedModelMegabytes": 80,
+      "frenchName": "chinois",
       "rank": 8
     },
     {
@@ -122,8 +106,8 @@
       "name": "日本語",
       "region": "日本",
       "flag": "🇯🇵",
-      "frenchName": "japonais",
       "estimatedModelMegabytes": 72,
+      "frenchName": "japonais",
       "rank": 9
     },
     {
@@ -131,17 +115,17 @@
       "name": "한국어",
       "region": "대한민국",
       "flag": "🇰🇷",
-      "frenchName": "coréen",
       "estimatedModelMegabytes": 70,
+      "frenchName": "coréen",
       "rank": 10
     },
     {
       "code": "ar-SA",
       "name": "العربية",
-      "region": "السعودية",
+      "region": "المملكة العربية السعودية",
       "flag": "🇸🇦",
-      "frenchName": "arabe",
       "estimatedModelMegabytes": 67,
+      "frenchName": "arabe",
       "rank": 11
     },
     {
@@ -149,8 +133,8 @@
       "name": "हिन्दी",
       "region": "भारत",
       "flag": "🇮🇳",
+      "estimatedModelMegabytes": 69,
       "frenchName": "hindi",
-      "estimatedModelMegabytes": 66,
       "rank": 12
     },
     {
@@ -158,8 +142,8 @@
       "name": "Polski",
       "region": "Polska",
       "flag": "🇵🇱",
-      "frenchName": "polonais",
       "estimatedModelMegabytes": 62,
+      "frenchName": "polonais",
       "rank": 13
     },
     {
@@ -167,8 +151,8 @@
       "name": "Türkçe",
       "region": "Türkiye",
       "flag": "🇹🇷",
-      "frenchName": "turc",
       "estimatedModelMegabytes": 61,
+      "frenchName": "turc",
       "rank": 14
     },
     {
@@ -176,8 +160,8 @@
       "name": "Svenska",
       "region": "Sverige",
       "flag": "🇸🇪",
+      "estimatedModelMegabytes": 56,
       "frenchName": "suédois",
-      "estimatedModelMegabytes": 57,
       "rank": 15
     },
     {
@@ -185,8 +169,8 @@
       "name": "Українська",
       "region": "Україна",
       "flag": "🇺🇦",
+      "estimatedModelMegabytes": 65,
       "frenchName": "ukrainien",
-      "estimatedModelMegabytes": 71,
       "rank": 16
     },
     {
@@ -194,8 +178,8 @@
       "name": "Tiếng Việt",
       "region": "Việt Nam",
       "flag": "🇻🇳",
+      "estimatedModelMegabytes": 63,
       "frenchName": "vietnamien",
-      "estimatedModelMegabytes": 64,
       "rank": 17
     },
     {
@@ -203,8 +187,8 @@
       "name": "ไทย",
       "region": "ประเทศไทย",
       "flag": "🇹🇭",
+      "estimatedModelMegabytes": 66,
       "frenchName": "thaï",
-      "estimatedModelMegabytes": 69,
       "rank": 18
     },
     {
@@ -212,8 +196,8 @@
       "name": "Bahasa Indonesia",
       "region": "Indonesia",
       "flag": "🇮🇩",
-      "frenchName": "indonésien",
       "estimatedModelMegabytes": 56,
+      "frenchName": "indonésien",
       "rank": 19
     },
     {
@@ -221,8 +205,8 @@
       "name": "Dansk",
       "region": "Danmark",
       "flag": "🇩🇰",
+      "estimatedModelMegabytes": 55,
       "frenchName": "danois",
-      "estimatedModelMegabytes": 56,
       "rank": 20
     },
     {
@@ -230,17 +214,17 @@
       "name": "Suomi",
       "region": "Suomi",
       "flag": "🇫🇮",
+      "estimatedModelMegabytes": 58,
       "frenchName": "finnois",
-      "estimatedModelMegabytes": 60,
       "rank": 21
     },
     {
       "code": "nb-NO",
-      "name": "Norsk bokmål",
+      "name": "Norsk",
       "region": "Norge",
       "flag": "🇳🇴",
+      "estimatedModelMegabytes": 55,
       "frenchName": "norvégien",
-      "estimatedModelMegabytes": 56,
       "rank": 22
     },
     {
@@ -248,8 +232,8 @@
       "name": "עברית",
       "region": "ישראל",
       "flag": "🇮🇱",
+      "estimatedModelMegabytes": 60,
       "frenchName": "hébreu",
-      "estimatedModelMegabytes": 63,
       "rank": 23
     },
     {
@@ -257,8 +241,8 @@
       "name": "Čeština",
       "region": "Česko",
       "flag": "🇨🇿",
-      "frenchName": "tchèque",
       "estimatedModelMegabytes": 60,
+      "frenchName": "tchèque",
       "rank": 24
     },
     {
@@ -266,8 +250,8 @@
       "name": "Ελληνικά",
       "region": "Ελλάδα",
       "flag": "🇬🇷",
-      "frenchName": "grec",
       "estimatedModelMegabytes": 66,
+      "frenchName": "grec",
       "rank": 25
     },
     {
@@ -275,8 +259,8 @@
       "name": "Magyar",
       "region": "Magyarország",
       "flag": "🇭🇺",
-      "frenchName": "hongrois",
       "estimatedModelMegabytes": 62,
+      "frenchName": "hongrois",
       "rank": 26
     },
     {
@@ -284,8 +268,8 @@
       "name": "Română",
       "region": "România",
       "flag": "🇷🇴",
-      "frenchName": "roumain",
       "estimatedModelMegabytes": 59,
+      "frenchName": "roumain",
       "rank": 27
     },
     {
@@ -293,8 +277,8 @@
       "name": "Slovenčina",
       "region": "Slovensko",
       "flag": "🇸🇰",
-      "frenchName": "slovaque",
       "estimatedModelMegabytes": 58,
+      "frenchName": "slovaque",
       "rank": 28
     },
     {
@@ -302,8 +286,8 @@
       "name": "Hrvatski",
       "region": "Hrvatska",
       "flag": "🇭🇷",
-      "frenchName": "croate",
       "estimatedModelMegabytes": 57,
+      "frenchName": "croate",
       "rank": 29
     },
     {
@@ -311,8 +295,8 @@
       "name": "Bahasa Melayu",
       "region": "Malaysia",
       "flag": "🇲🇾",
-      "frenchName": "malais",
       "estimatedModelMegabytes": 55,
+      "frenchName": "malais",
       "rank": 30
     },
     {
@@ -320,216 +304,216 @@
       "name": "Català",
       "region": "Catalunya",
       "flag": "🇪🇸",
-      "frenchName": "catalan",
       "estimatedModelMegabytes": 55,
+      "frenchName": "catalan",
       "rank": 31
-    },
-    {
-      "code": "en-GB",
-      "name": "English",
-      "region": "United Kingdom",
-      "flag": "🇬🇧",
-      "frenchName": "anglais",
-      "estimatedModelMegabytes": 58,
-      "rank": 1000
-    },
-    {
-      "code": "fr-CA",
-      "name": "Français",
-      "region": "Canada",
-      "flag": "🇨🇦",
-      "frenchName": "français",
-      "estimatedModelMegabytes": 64,
-      "rank": 1001
-    },
-    {
-      "code": "es-MX",
-      "name": "Español",
-      "region": "México",
-      "flag": "🇲🇽",
-      "frenchName": "espagnol",
-      "estimatedModelMegabytes": 62,
-      "rank": 1002
-    },
-    {
-      "code": "pt-BR",
-      "name": "Português",
-      "region": "Brasil",
-      "flag": "🇧🇷",
-      "frenchName": "portugais",
-      "estimatedModelMegabytes": 63,
-      "rank": 1003
-    },
-    {
-      "code": "en-AU",
-      "name": "English",
-      "region": "Australia",
-      "flag": "🇦🇺",
-      "frenchName": "anglais",
-      "estimatedModelMegabytes": 58,
-      "rank": 1004
-    },
-    {
-      "code": "en-CA",
-      "name": "English",
-      "region": "Canada",
-      "flag": "🇨🇦",
-      "frenchName": "anglais",
-      "estimatedModelMegabytes": 58,
-      "rank": 1005
-    },
-    {
-      "code": "en-IE",
-      "name": "English",
-      "region": "Ireland",
-      "flag": "🇮🇪",
-      "frenchName": "anglais",
-      "estimatedModelMegabytes": 58,
-      "rank": 1006
-    },
-    {
-      "code": "en-IN",
-      "name": "English",
-      "region": "India",
-      "flag": "🇮🇳",
-      "frenchName": "anglais",
-      "estimatedModelMegabytes": 58,
-      "rank": 1007
-    },
-    {
-      "code": "en-NZ",
-      "name": "English",
-      "region": "New Zealand",
-      "flag": "🇳🇿",
-      "frenchName": "anglais",
-      "estimatedModelMegabytes": 58,
-      "rank": 1008
-    },
-    {
-      "code": "en-SG",
-      "name": "English",
-      "region": "Singapore",
-      "flag": "🇸🇬",
-      "frenchName": "anglais",
-      "estimatedModelMegabytes": 58,
-      "rank": 1009
-    },
-    {
-      "code": "en-ZA",
-      "name": "English",
-      "region": "South Africa",
-      "flag": "🇿🇦",
-      "frenchName": "anglais",
-      "estimatedModelMegabytes": 58,
-      "rank": 1010
-    },
-    {
-      "code": "fr-BE",
-      "name": "Français",
-      "region": "Belgique",
-      "flag": "🇧🇪",
-      "frenchName": "français",
-      "estimatedModelMegabytes": 62,
-      "rank": 1011
-    },
-    {
-      "code": "fr-CH",
-      "name": "Français",
-      "region": "Suisse",
-      "flag": "🇨🇭",
-      "frenchName": "français",
-      "estimatedModelMegabytes": 62,
-      "rank": 1012
     },
     {
       "code": "de-AT",
       "name": "Deutsch",
       "region": "Österreich",
       "flag": "🇦🇹",
+      "estimatedModelMegabytes": 66,
       "frenchName": "allemand",
-      "estimatedModelMegabytes": 68,
-      "rank": 1013
+      "rank": 32
     },
     {
       "code": "de-CH",
       "name": "Deutsch",
       "region": "Schweiz",
       "flag": "🇨🇭",
+      "estimatedModelMegabytes": 65,
       "frenchName": "allemand",
-      "estimatedModelMegabytes": 68,
-      "rank": 1014
+      "rank": 33
     },
     {
-      "code": "es-US",
-      "name": "Español",
-      "region": "Estados Unidos",
-      "flag": "🇺🇸",
-      "frenchName": "espagnol",
-      "estimatedModelMegabytes": 62,
-      "rank": 1015
+      "code": "en-AU",
+      "name": "English",
+      "region": "Australia",
+      "flag": "🇦🇺",
+      "estimatedModelMegabytes": 56,
+      "frenchName": "anglais",
+      "rank": 34
+    },
+    {
+      "code": "en-CA",
+      "name": "English",
+      "region": "Canada",
+      "flag": "🇨🇦",
+      "estimatedModelMegabytes": 56,
+      "frenchName": "anglais",
+      "rank": 35
+    },
+    {
+      "code": "en-GB",
+      "name": "English",
+      "region": "United Kingdom",
+      "flag": "🇬🇧",
+      "estimatedModelMegabytes": 57,
+      "frenchName": "anglais",
+      "rank": 36
+    },
+    {
+      "code": "en-IE",
+      "name": "English",
+      "region": "Ireland",
+      "flag": "🇮🇪",
+      "estimatedModelMegabytes": 57,
+      "frenchName": "anglais",
+      "rank": 37
+    },
+    {
+      "code": "en-IN",
+      "name": "English",
+      "region": "India",
+      "flag": "🇮🇳",
+      "estimatedModelMegabytes": 55,
+      "frenchName": "anglais",
+      "rank": 38
+    },
+    {
+      "code": "en-NZ",
+      "name": "English",
+      "region": "New Zealand",
+      "flag": "🇳🇿",
+      "estimatedModelMegabytes": 56,
+      "frenchName": "anglais",
+      "rank": 39
+    },
+    {
+      "code": "en-SG",
+      "name": "English",
+      "region": "Singapore",
+      "flag": "🇸🇬",
+      "estimatedModelMegabytes": 56,
+      "frenchName": "anglais",
+      "rank": 40
+    },
+    {
+      "code": "en-ZA",
+      "name": "English",
+      "region": "South Africa",
+      "flag": "🇿🇦",
+      "estimatedModelMegabytes": 56,
+      "frenchName": "anglais",
+      "rank": 41
     },
     {
       "code": "es-CL",
       "name": "Español",
       "region": "Chile",
       "flag": "🇨🇱",
+      "estimatedModelMegabytes": 61,
       "frenchName": "espagnol",
-      "estimatedModelMegabytes": 62,
-      "rank": 1016
+      "rank": 42
     },
     {
       "code": "es-CO",
       "name": "Español",
       "region": "Colombia",
       "flag": "🇨🇴",
+      "estimatedModelMegabytes": 61,
       "frenchName": "espagnol",
+      "rank": 43
+    },
+    {
+      "code": "es-MX",
+      "name": "Español",
+      "region": "México",
+      "flag": "🇲🇽",
+      "estimatedModelMegabytes": 61,
+      "frenchName": "espagnol",
+      "rank": 44
+    },
+    {
+      "code": "es-US",
+      "name": "Español",
+      "region": "Estados Unidos",
+      "flag": "🇺🇸",
+      "estimatedModelMegabytes": 60,
+      "frenchName": "espagnol",
+      "rank": 45
+    },
+    {
+      "code": "fr-BE",
+      "name": "Français",
+      "region": "Belgique",
+      "flag": "🇧🇪",
       "estimatedModelMegabytes": 62,
-      "rank": 1017
+      "frenchName": "français",
+      "rank": 46
+    },
+    {
+      "code": "fr-CA",
+      "name": "Français",
+      "region": "Canada",
+      "flag": "🇨🇦",
+      "estimatedModelMegabytes": 64,
+      "frenchName": "français",
+      "rank": 47
+    },
+    {
+      "code": "fr-CH",
+      "name": "Français",
+      "region": "Suisse",
+      "flag": "🇨🇭",
+      "estimatedModelMegabytes": 62,
+      "frenchName": "français",
+      "rank": 48
     },
     {
       "code": "it-CH",
       "name": "Italiano",
       "region": "Svizzera",
       "flag": "🇨🇭",
-      "frenchName": "italien",
       "estimatedModelMegabytes": 59,
-      "rank": 1018
+      "frenchName": "italien",
+      "rank": 49
     },
     {
       "code": "nl-BE",
-      "name": "Nederlands",
+      "name": "Vlaams",
       "region": "België",
       "flag": "🇧🇪",
+      "estimatedModelMegabytes": 57,
       "frenchName": "néerlandais",
-      "estimatedModelMegabytes": 58,
-      "rank": 1019
+      "rank": 50
     },
     {
-      "code": "zh-HK",
-      "name": "繁體中文",
-      "region": "香港",
-      "flag": "🇭🇰",
-      "frenchName": "chinois",
-      "estimatedModelMegabytes": 80,
-      "rank": 1020
-    },
-    {
-      "code": "zh-TW",
-      "name": "繁體中文",
-      "region": "台灣",
-      "flag": "🇹🇼",
-      "frenchName": "chinois",
-      "estimatedModelMegabytes": 80,
-      "rank": 1021
+      "code": "pt-BR",
+      "name": "Português",
+      "region": "Brasil",
+      "flag": "🇧🇷",
+      "estimatedModelMegabytes": 63,
+      "frenchName": "portugais",
+      "rank": 51
     },
     {
       "code": "yue-CN",
       "name": "粵語",
       "region": "中国",
       "flag": "🇨🇳",
-      "frenchName": "cantonais",
       "estimatedModelMegabytes": 78,
-      "rank": 1022
+      "frenchName": "cantonais",
+      "rank": 52
+    },
+    {
+      "code": "zh-HK",
+      "name": "廣東話",
+      "region": "香港",
+      "flag": "🇭🇰",
+      "estimatedModelMegabytes": 76,
+      "frenchName": "chinois",
+      "rank": 53
+    },
+    {
+      "code": "zh-TW",
+      "name": "繁體中文",
+      "region": "台灣",
+      "flag": "🇹🇼",
+      "estimatedModelMegabytes": 78,
+      "frenchName": "chinois",
+      "rank": 54
     }
   ]
 }
