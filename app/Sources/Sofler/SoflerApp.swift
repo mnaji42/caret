@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let onboarding = OnboardingWindowController()
     private let engineNotice = EngineStartupNoticeController()
     private let installPrompt = InstallPromptWindowController()
+    private let updateNotice = UpdateNotificationWindowController()
     private let uninstaller = UninstallWindowController.shared
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -134,6 +135,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // et le résultat n'arrive qu'une fois le réseau revenu.
         Task {
             await UpdateChecker.shared.checkIfDue()
+            // La vérification trouvait une version plus récente et n'en disait
+            // rien : il fallait ouvrir les Réglages pour l'apprendre. Une
+            // fonction qu'on active pour être prévenu ne prévenait personne.
+            updateNotice.showIfNeeded()
             if UpdateChecker.shared.newer != nil { await refreshMenu() }
         }
     }

@@ -47,6 +47,7 @@ final class Preferences {
         static let onboarded = "sofler.onboarded"
         static let onboardingStep = "sofler.onboarding.step"
         static let updateCheck = "sofler.update.check"
+        static let ignoredUpdate = "sofler.update.ignored"
         static let lastValidEngine = "sofler.engine.lastValid"
         static let habits = "sofler.habits"
         static let crisperLicence = "sofler.crisper.licence"
@@ -372,6 +373,17 @@ final class Preferences {
         didSet {
             defaults.set(chosenCrisperModel?.rawValue, forKey: Key.crisperChosenModel)
         }
+    }
+
+    /// La version de mise à jour qu'on a explicitement refusée.
+    ///
+    /// Refuser vaut pour **cette version-là**, pas pour la fonction. Quelqu'un
+    /// qui écarte la 0.8.3 parce qu'il est en plein travail doit revoir la
+    /// proposition quand la 0.8.4 paraît — sans quoi « Ignorer » deviendrait un
+    /// interrupteur déguisé, et le seul moyen de revenir en arrière serait de
+    /// deviner qu'il existe.
+    var ignoredUpdateVersion: String? {
+        didSet { defaults.set(ignoredUpdateVersion, forKey: Key.ignoredUpdate) }
     }
 
     /// Le moteur retenu au tout premier lancement.
@@ -746,6 +758,7 @@ final class Preferences {
             ?? (resolvedFinal == .crisperWhisper ? .crisperWhisper : resolvedApple)
 
         crisperLicenceAccepted = defaults.bool(forKey: Key.crisperLicence)
+        ignoredUpdateVersion = defaults.string(forKey: Key.ignoredUpdate)
         chosenCrisperModel = defaults.string(forKey: Key.crisperChosenModel)
             .flatMap(CrisperWhisperModel.init(rawValue:))
         habits = defaults.data(forKey: Key.habits)
