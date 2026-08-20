@@ -60,6 +60,59 @@ struct ReleaseNotesTests {
                 == ["Cette version corrige la dictée."])
     }
 
+    /// Le défaut qui a motivé la reprise : `release-notes/v0.9.0.md` est
+    /// justifié à 80 colonnes, comme tout fichier Markdown écrit dans un
+    /// éditeur. Découpé ligne à ligne, son premier paragraphe donnait trois
+    /// puces coupées au milieu des phrases.
+    @Test("Un paragraphe justifié reste une seule entrée")
+    func joinsWrappedParagraphs() {
+        let body = """
+            Sofler devient Caspr. Vos réglages et votre corpus sont repris
+            automatiquement au premier lancement — il n'y a rien à refaire.
+            """
+        #expect(ReleaseNotes.lines(from: body) == [
+            "Sofler devient Caspr. Vos réglages et votre corpus sont repris "
+                + "automatiquement au premier lancement — il n'y a rien à refaire.",
+        ])
+    }
+
+    /// Une ligne blanche sépare deux paragraphes, comme en Markdown.
+    @Test("La ligne blanche sépare, le retour à la ligne non")
+    func blankLineSeparates() {
+        #expect(ReleaseNotes.lines(from: "Premier\nparagraphe\n\nSecond")
+                == ["Premier paragraphe", "Second"])
+    }
+
+    /// Une puce ferme ce qui la précède, sinon la phrase d'introduction
+    /// avalerait la première entrée de la liste.
+    @Test("Une puce ferme le paragraphe qui la précède")
+    func bulletClosesParagraph() {
+        let body = """
+            Cette version apporte :
+            - Le premier changement
+            - Le second changement
+            """
+        #expect(ReleaseNotes.lines(from: body) == [
+            "Cette version apporte :",
+            "Le premier changement",
+            "Le second changement",
+        ])
+    }
+
+    /// Une puce justifiée sur deux lignes reste une seule entrée.
+    @Test("Une puce sur deux lignes reste une entrée")
+    func joinsWrappedBullets() {
+        let body = """
+            - Les langues qu'aucun moteur ne sait transcrire sont annoncées
+              comme telles.
+            - Recherche par nom français.
+            """
+        #expect(ReleaseNotes.lines(from: body) == [
+            "Les langues qu'aucun moteur ne sait transcrire sont annoncées comme telles.",
+            "Recherche par nom français.",
+        ])
+    }
+
     /// Le gras et le code en ligne survivent : `Text(.init(_:))` les rend, et
     /// ils portent du sens dans une note de version.
     @Test("Le Markdown en ligne est conservé")

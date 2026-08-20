@@ -31,21 +31,43 @@ import Foundation
 /// plus du gras et du code en ligne, que `Text(.init(_:))` sait rendre.
 public enum ReleaseNotes {
 
-    /// Les changements, une phrase par entrée. Vide quand il n'y a rien à dire.
+    /// Les changements, une entrée par idée. Vide quand il n'y a rien à dire.
+    ///
+    /// **Les lignes qui se suivent forment une seule entrée**, comme en
+    /// Markdown : c'est la ligne blanche qui sépare, pas le retour à la ligne.
+    /// Sans ça, un paragraphe justifié à 80 colonnes — ce que fait n'importe
+    /// quel éditeur, et ce que fait `release-notes/v0.9.0.md` — devenait une
+    /// puce par ligne physique, coupée au milieu des phrases.
     public static func lines(from body: String) -> [String] {
         var found: [String] = []
-        for raw in body.components(separatedBy: .newlines) {
-            let line = raw.trimmingCharacters(in: .whitespaces)
-            guard !line.isEmpty, !isStructure(line) else { continue }
-            let cleaned = strippingAttribution(strippingMarker(line))
+        var pending: [String] = []
+
+        func flush() {
+            let joined = pending.joined(separator: " ")
                 .trimmingCharacters(in: .whitespaces)
-            guard !cleaned.isEmpty else { continue }
+            pending.removeAll()
+            guard !joined.isEmpty else { return }
             // Dédoublonnage : une note recopiée d'un tag à l'autre — ça arrive
             // quand on republie une version — afficherait deux fois la même
             // phrase, ce qui fait douter d'avoir bien lu.
-            guard !found.contains(cleaned) else { continue }
-            found.append(cleaned)
+            guard !found.contains(joined) else { return }
+            found.append(joined)
         }
+
+        for raw in body.components(separatedBy: .newlines) {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            // Une ligne blanche ou un titre ferme ce qui précède : ce sont les
+            // deux façons de dire « on passe à autre chose ».
+            guard !line.isEmpty, !isStructure(line) else { flush(); continue }
+            // Une puce ouvre une entrée, donc ferme la précédente.
+            let marked = strippingMarker(line)
+            if marked != line { flush() }
+            let cleaned = strippingAttribution(marked)
+                .trimmingCharacters(in: .whitespaces)
+            guard !cleaned.isEmpty else { continue }
+            pending.append(cleaned)
+        }
+        flush()
         return found
     }
 
