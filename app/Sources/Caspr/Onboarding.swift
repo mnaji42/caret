@@ -177,7 +177,7 @@ private struct OnboardingView: View {
     /// l'application : celle-ci vit dans le Dock et dans la fenêtre
     /// d'installation, où il faut la reconnaître ; ici on présente le produit.
     static var logo: AnyView? {
-        BrandIcon("caspr-logo-stacked", height: 64).map { AnyView($0) }
+        BrandIcon("caspr-ghost", height: 64).map { AnyView($0) }
     }
 
     var body: some View {
@@ -185,10 +185,18 @@ private struct OnboardingView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     if let header = step.header {
-                        PageHeader(title: header.title,
-                                   subtitle: header.subtitle,
-                                   scale: step == .completion ? .summary : .screen,
-                                   accessory: step == .welcome ? Self.logo : nil)
+                        if step == .welcome, let logo = Self.logo {
+                            HStack(alignment: .top, spacing: 16) {
+                                logo
+                                PageHeader(title: header.title,
+                                           subtitle: header.subtitle,
+                                           scale: .screen)
+                            }
+                        } else {
+                            PageHeader(title: header.title,
+                                       subtitle: header.subtitle,
+                                       scale: step == .completion ? .summary : .screen)
+                        }
                     }
                     content
                 }

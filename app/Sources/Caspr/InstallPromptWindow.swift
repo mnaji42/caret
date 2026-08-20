@@ -35,7 +35,7 @@ final class InstallPromptWindowController {
                 self?.close()
             })
         }
-        window.setContentSize(NSSize(width: 380, height: 372))
+        window.setContentSize(NSSize(width: 380, height: 416))
         window.styleMask.remove(.closable)
         window.styleMask.remove(.miniaturizable)
         self.window = window
@@ -55,78 +55,88 @@ private struct InstallPromptView: View {
     @State private var working = false
 
     var body: some View {
-        VStack(spacing: 16) {
-            // L'icône de l'application, celle-là même qu'on propose de ranger
-            // dans Applications. Une icône plutôt qu'un triangle
-            // d'avertissement : rien n'est cassé.
-            //
-            // C'était un `waveform` sur un carré dégradé, dessiné ici à la
-            // main — le dernier symbole générique de l'application, et sur le
-            // tout premier écran qu'on voit depuis l'image disque. La fenêtre
-            // montrait donc autre chose que l'icône du Finder juste derrière
-            // elle, au moment précis où l'on demande de reconnaître les deux.
-            if let icon = BrandIcon("caspr-app-icon", height: 68) {
+        VStack(spacing: 0) {
+            // L'icône de l'application
+            if let icon = BrandIcon("caspr-app-icon", height: 74) {
                 icon.shadow(color: Color(hex: 0x33E1FF).opacity(0.35),
-                            radius: 14, y: 6)
+                            radius: 16, y: 6)
+                    .padding(.bottom, 18)
             }
 
-            VStack(spacing: 10) {
-                Text(choice.alreadyInstalled
-                     ? "Ce n'est pas la copie installée"
-                     : "Caspr n'est pas encore installé")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-
-                VStack(spacing: 8) {
-                    Text(choice.alreadyInstalled
-                         ? "Caspr est bien dans Applications, mais c'est la "
-                           + "copie restée dans l'image disque qui vient de "
-                           + "s'ouvrir — les deux icônes se ressemblent."
-                         : "Il est ouvert depuis l'image disque, en lecture "
-                           + "seule : les autorisations accordées seraient "
-                           + "perdues et les mises à jour impossibles.")
-                    Text(choice.alreadyInstalled
-                         ? "Ouvrez plutôt celle d'Applications : c'est elle qui "
-                           + "garde vos autorisations."
-                         : "Caspr peut s'installer dans **Applications** et "
-                           + "s'y rouvrir tout seul.")
-                }
-                .font(.system(size: 12))
-                .foregroundStyle(Style.textSecondary)
-                .lineSpacing(2)
+            // Titre
+            Text(choice.alreadyInstalled
+                 ? "Ce n'est pas la copie installée"
+                 : "Caspr n'est pas encore installé")
+                .font(.system(size: 19, weight: .bold))
+                .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 14)
+
+            // Description
+            VStack(spacing: 12) {
+                Text(choice.alreadyInstalled
+                     ? "Caspr est bien dans Applications, mais c'est la "
+                       + "copie restée dans l'image disque qui vient de "
+                       + "s'ouvrir — les deux icônes se ressemblent."
+                     : "Il est ouvert depuis l'image disque, en lecture "
+                       + "seule : les autorisations accordées seraient "
+                       + "perdues et les mises à jour impossibles.")
+                Text(choice.alreadyInstalled
+                     ? "Ouvrez plutôt celle d'Applications : c'est elle qui "
+                       + "garde vos autorisations."
+                     : "Caspr peut s'installer dans **Applications** et "
+                       + "s'y rouvrir tout seul.")
             }
+            .font(.system(size: 12.5))
+            .foregroundStyle(Style.textSecondary)
+            .lineSpacing(2.5)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
 
-            Spacer(minLength: 0)
+            Spacer(minLength: 22)
 
-            VStack(spacing: 8) {
-                Button(primaryLabel) {
+            // Boutons en pleine largeur
+            VStack(spacing: 10) {
+                Button {
                     working = true
                     choice.onPrimary()
+                } label: {
+                    Text(primaryLabel)
+                        .font(.system(size: 13.5, weight: .semibold))
+                        .foregroundStyle(Style.onAccent)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 42)
+                        .background(Capsule().fill(Style.accent))
+                        .shadow(color: working ? .clear : Style.accentGlow, radius: 10, y: 2)
                 }
-                .buttonStyle(CasprPrimaryButtonStyle())
+                .buttonStyle(.plain)
                 .disabled(working)
-                .frame(maxWidth: .infinity)
+                .opacity(working ? 0.4 : 1)
 
-                // Le refus reste possible, et il est nommé sans reproche : on
-                // peut vouloir essayer l'application avant de la ranger.
-                Button("Continuer quand même") {
+                Button {
                     choice.onContinue()
                     onFinish()
+                } label: {
+                    Text("Continuer quand même")
+                        .font(.system(size: 13.5, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.85))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 42)
+                        .background(
+                            Capsule()
+                                .fill(Color.white.opacity(0.08))
+                                .overlay(Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 1))
+                        )
                 }
-                .buttonStyle(CasprSecondaryButtonStyle())
+                .buttonStyle(.plain)
                 .disabled(working)
-                .frame(maxWidth: .infinity)
             }
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 22)
-        .padding(.bottom, 22)
+        .padding(.horizontal, 28)
+        .padding(.top, 28)
+        .padding(.bottom, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WindowBackground().ignoresSafeArea())
-        .tint(Style.accent)
     }
 
     private var primaryLabel: String {
