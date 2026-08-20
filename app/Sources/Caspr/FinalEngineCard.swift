@@ -41,7 +41,7 @@ struct FinalEngineCard: View, ValidatingComponent {
     /// d'aplomb à la prochaine ouverture — c'est un état de vue, pas un
     /// réglage, et il disparaît avec elle.
     @State private var pinned: Preferences.FinalEngineChoice?
-    @State private var commitTick = 0
+    @State private var monitor = EngineStateMonitor.shared
 
     // MARK: - Validité
 
@@ -97,30 +97,14 @@ struct FinalEngineCard: View, ValidatingComponent {
         // avoir démarré CrisperWhisper, changer d'onglet et revenir affichait
         // « macOS (Natif) » sélectionné, parce que la vue recréée repart du
         // réglage — resté sur macOS — et non du brouillon, perdu avec elle.
-        .task(id: needsWatching ? commitTick : -1) {
-            guard needsWatching else { return }
-            try? await Task.sleep(for: .milliseconds(500))
-            guard !Task.isCancelled else { return }
-            commitIfReady()
-            commitTick &+= 1
-        }
-    }
-
-    /// Un choix attend d'être enregistré, faute d'un moteur encore prêt.
-    private var awaitingCommit: Bool {
-        guard let draft else { return false }
-        return draft != prefs.finalEngine
-    }
-
-    /// Faut-il continuer de regarder ?
-    ///
-    /// Oui tant qu'un choix attend, et oui dès que CrisperWhisper est le moteur
-    /// retenu : son service peut s'arrêter à tout moment — depuis le bouton
-    /// « Arrêter », ou de lui-même — et rien ne le signale. Sans ce regard, le
-    /// bandeau qui annonce le repli sur macOS n'apparaissait qu'au prochain
-    /// changement d'onglet, c'est-à-dire trop tard pour qui vient de cliquer.
-    private var needsWatching: Bool {
-        awaitingCommit || prefs.finalEngine == .crisperWhisper
+        //
+        // La carte avait sa propre boucle pour ça. Elle observe désormais
+        // `EngineStateMonitor`, qui regarde pour tout le monde : `isAnswering`
+        // étant publié, un changement redessine cette vue, et `.onChange`
+        // rejoue le commit. Une horloge de moins, et la même réaction.
+        .onAppear { monitor.observe() }
+        .onDisappear { monitor.release() }
+        .onChange(of: monitor.isAnswering) { _, _ in commitIfReady() }
     }
 
     /// Un clic sur une ligne lève l'épinglage : là, c'est un vrai choix.

@@ -55,8 +55,21 @@ private struct EngineStartupNoticeView: View {
     let onClose: () -> Void
     let onSettings: () -> Void
 
+    /// Dit que c'est prêt, laisse le temps de le lire, puis referme.
+    ///
+    /// Idempotente : elle est appelée à l'affichage **et** au changement d'état,
+    /// et deux appels ne doivent pas programmer deux fermetures.
+    private func announceReady() {
+        guard !ready else { return }
+        ready = true
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            onClose()
+        }
+    }
+
     @State private var ready = false
-    @State private var tick = 0
+    @State private var monitor = EngineStateMonitor.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -104,20 +117,25 @@ private struct EngineStartupNoticeView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(WindowBackground().ignoresSafeArea())
         .tint(Style.accent)
-        // Le socket n'est pas observable : on regarde, deux fois par seconde,
-        // jusqu'à ce qu'il réponde. Puis la fenêtre s'efface d'elle-même — elle
-        // a dit ce qu'elle avait à dire.
-        .task(id: tick) {
-            guard !ready else { return }
-            try? await Task.sleep(for: .milliseconds(500))
-            guard !Task.isCancelled else { return }
-            if EngineService.isAnswering {
-                ready = true
-                try? await Task.sleep(for: .seconds(2))
-                onClose()
-            } else {
-                tick &+= 1
-            }
+        // Le socket n'est pas observable : quelqu'un doit regarder. C'est
+        // `EngineStateMonitor`, pour toute l'application — cette fenêtre avait
+        // sa propre boucle, la carte CrisperWhisper une deuxième et la carte du
+        // moteur final une troisième.
+        //
+        // Puis la fenêtre s'efface d'elle-même : elle a dit ce qu'elle avait à
+        // dire, et deux secondes suffisent à lire « c'est prêt ».
+        .onAppear {
+            monitor.observe()
+            // L'état courant compte autant que ses changements : le service a
+            // pu finir de charger entre l'ouverture de la fenêtre et son
+            // premier affichage, et `onChange` ne se déclenche que sur une
+            // transition. Sans ça, la fenêtre resterait sur « démarre… »
+            // devant un service prêt.
+            if monitor.isAnswering { announceReady() }
+        }
+        .onDisappear { monitor.release() }
+        .onChange(of: monitor.isAnswering) { _, answering in
+            if answering { announceReady() }
         }
     }
 }

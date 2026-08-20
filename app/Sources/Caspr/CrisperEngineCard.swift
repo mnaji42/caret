@@ -53,6 +53,7 @@ struct CrisperEngineCard: View, ValidatingComponent {
 
     @State private var prefs = Preferences.shared
     @State private var bootstrap = EngineBootstrap.shared
+    @State private var monitor = EngineStateMonitor.shared
     @State private var catalogueExpanded = false
     /// Le modèle que l'utilisateur regarde, qui n'est pas forcément celui qui
     /// est installé — c'est tout l'intérêt du catalogue.
@@ -72,7 +73,11 @@ struct CrisperEngineCard: View, ValidatingComponent {
     /// Calculée par modèle et non globalement : regarder un modèle non
     /// téléchargé doit montrer « poids manquants », même si un autre modèle
     /// tourne parfaitement à côté.
-    private var step: EngineInstall.Step { EngineInstall.step(for: draftModel) }
+    ///
+    /// Lue sur `EngineStateMonitor` et non sur `EngineInstall` : c'est une
+    /// propriété calculée, donc un seul rendu la relit plusieurs fois, et la
+    /// version d'origine lançait un `launchctl` à chaque lecture.
+    private var step: EngineInstall.Step { monitor.step(for: draftModel) }
 
     private var installing: Bool {
         switch bootstrap.phase {
@@ -119,26 +124,6 @@ struct CrisperEngineCard: View, ValidatingComponent {
         !catalogueExpanded && chosenModel != nil
     }
 
-    /// Bat la mesure tant que l'état n'est pas stable.
-    ///
-    /// Ce que cette carte affiche vient de trois sources qu'aucune notification
-    /// ne signale : des fichiers sur le disque, l'avis de launchd, et
-    /// l'existence d'un socket. Seule `phase` est observable — et s'y fier
-    /// seule s'est révélé insuffisant : le journal montre le service démarré et
-    /// `phase` passée à `.done`, pendant que la vue restait figée sur « … 9 s ».
-    /// Le sous-arbre entier avait cessé de se redessiner ; `commitIfReady` de
-    /// la carte parente ne repassait pas non plus.
-    ///
-    /// Deux fois par seconde, tant que le service n'est pas prêt ou qu'une
-    /// opération est en cours. Rien à sonder quand tout va bien, donc rien qui
-    /// tourne pour rien : la carte n'est visible que dans les réglages et
-    /// l'accueil, et l'appel à launchd garde sa mémoire d'une seconde.
-    @State private var tick = 0
-
-    private var needsPolling: Bool {
-        step != .ready || bootstrap.isBusy
-    }
-
     var body: some View {
         Group {
             if isSubCard {
@@ -147,20 +132,24 @@ struct CrisperEngineCard: View, ValidatingComponent {
                 Card { content }
             }
         }
-        // Le modèle peut changer depuis ailleurs — un retrait dans une autre
-        // carte, un descripteur réécrit par le service.
+        // Ce que cette carte affiche vient de trois sources qu'aucune
+        // notification ne signale : des fichiers sur le disque, l'avis de
+        // launchd, et l'existence d'un socket. Seule `phase` est observable — et
+        // s'y fier seule s'est révélé insuffisant : le journal montrait le
+        // service démarré et `phase` passée à `.done`, pendant que la vue
+        // restait figée sur « … 9 s ».
+        //
+        // C'est `EngineStateMonitor` qui regarde désormais, pour tout le monde.
+        // La carte avait sa propre boucle, la carte parente une deuxième, et la
+        // fenêtre de démarrage une troisième — trois horloges pour la même
+        // question.
         .onAppear {
+            monitor.observe()
+            // Le modèle peut changer depuis ailleurs — un retrait dans une
+            // autre carte, un descripteur réécrit par le service.
             draftModel = prefs.chosenCrisperModel ?? EngineInstall.selectedModel
         }
-        // La clé porte aussi le besoin de sonder : sans elle, la boucle
-        // s'arrêterait une fois pour toutes au premier état stable et ne
-        // repartirait jamais quand une opération recommence.
-        .task(id: needsPolling ? tick : -1) {
-            guard needsPolling else { return }
-            try? await Task.sleep(for: .milliseconds(500))
-            guard !Task.isCancelled else { return }
-            tick &+= 1
-        }
+        .onDisappear { monitor.release() }
     }
 
     /// Quatre sections, dans cet ordre, et qui ne se mélangent pas.
@@ -748,7 +737,10 @@ struct CrisperEngineCard: View, ValidatingComponent {
         guard model.isDownloaded, EngineInstall.isAvailable else { return }
         Task {
             await bootstrap.startService(model: model)
-            if EngineInstall.step(for: model) == .ready {
+            // Relu tout de suite : l'inspecteur ne rebattra qu'au prochain
+            // tour, et ce qui suit décide de replier le catalogue.
+            monitor.refresh()
+            if monitor.step(for: model) == .ready {
                 EngineSafetyManager.shared.confirmWorking(.crisperWhisper)
                 catalogueExpanded = false
             }
@@ -763,16 +755,20 @@ struct CrisperEngineCard: View, ValidatingComponent {
         Task {
             await bootstrap.install(model: draftModel,
                                     licenceAccepted: prefs.crisperLicenceAccepted)
+            monitor.refresh()
             // Le catalogue se replie de lui-même quand tout est prêt : la
             // question qu'il posait n'a plus lieu d'être.
-            if EngineInstall.step(for: draftModel) == .ready {
+            if monitor.step(for: draftModel) == .ready {
                 catalogueExpanded = false
             }
         }
     }
 
     private func start() {
-        Task { await bootstrap.startService(model: draftModel) }
+        Task {
+            await bootstrap.startService(model: draftModel)
+            monitor.refresh()
+        }
     }
 
     /// Arrêter le service, c'est choisir de ne plus dicter avec CrisperWhisper.
@@ -795,24 +791,21 @@ struct CrisperEngineCard: View, ValidatingComponent {
             "Service arrêté — \(draftModel.residentMemory) libérés. "
             + "macOS écrit désormais ; \(draftModel.catalogueName) reste sur "
             + "votre disque.")
-        // Rien d'observable n'a changé : ni fichier surveillé, ni objet
-        // observé. Sans ce coup de pouce, la carte gardait « Service actif »
-        // sous les yeux de quelqu'un qui venait de l'arrêter.
-        //
-        // Une courte rafale plutôt qu'un seul coup : launchd rend la main avant
-        // que le serveur ait retiré son socket, donc le premier regard voit
-        // encore un service qui répond — et le sondage ordinaire, qui ne part
-        // que lorsque l'état n'est pas « prêt », ne démarrerait jamais.
+        // Une courte rafale plutôt qu'un seul regard : `launchctl` rend la main
+        // avant que le serveur ait retiré son socket, donc le premier constat
+        // voit encore un service qui répond — et la carte garderait « Service
+        // actif » sous les yeux de quelqu'un qui vient de l'arrêter.
         Task {
             for _ in 0..<6 {
                 try? await Task.sleep(for: .milliseconds(400))
-                tick &+= 1
+                monitor.refresh()
             }
         }
     }
 
     private func remove(_ model: CrisperWhisperModel) {
         EngineInstall.remove(model: model)
+        monitor.refresh()
         // Retirer les poids annule le choix : il n'y a plus de décision à
         // rappeler, et la grille reprend sa place d'elle-même.
         if prefs.chosenCrisperModel == model { prefs.chosenCrisperModel = nil }

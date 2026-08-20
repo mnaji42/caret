@@ -75,14 +75,44 @@ enum EngineInstall {
         case ready
     }
 
+    /// L'étape, mesurée à l'instant.
+    ///
+    /// Interroge le disque et `launchd` à chaque appel : c'est ce qu'il faut
+    /// hors des vues — le chemin de dictée, l'installateur — où l'on veut la
+    /// vérité, pas une valeur d'il y a deux secondes.
+    ///
+    /// Les vues, elles, passent par `EngineStateMonitor`, qui pose la **même
+    /// règle** sur des valeurs relues une fois par tour. C'est la surcharge
+    /// ci-dessous qui la porte, pour qu'il n'y en ait qu'une : une règle
+    /// recopiée à deux endroits finit par diverger, et c'est exactement le
+    /// défaut que ce moniteur existe pour supprimer.
     static func step(for model: CrisperWhisperModel) -> Step {
-        guard isAvailable else { return .engineMissing }
-        guard model.isDownloaded else { return .modelMissing(model) }
-        guard EngineService.isInstalled else { return .serviceMissing }
-        guard EngineService.isRunning else { return .serviceStopped }
+        step(for: model,
+             engineAvailable: isAvailable,
+             modelDownloaded: model.isDownloaded,
+             serviceInstalled: EngineService.isInstalled,
+             serviceRunning: EngineService.isRunning,
+             serviceAnswering: EngineService.isAnswering)
+    }
+
+    /// La règle, sur des faits déjà constatés.
+    ///
+    /// L'ordre importe : chaque étape suppose la précédente franchie, et
+    /// annoncer « service arrêté » à quelqu'un dont les poids ne sont pas
+    /// téléchargés l'enverrait démarrer un service qui n'a rien à charger.
+    static func step(for model: CrisperWhisperModel,
+                     engineAvailable: Bool,
+                     modelDownloaded: Bool,
+                     serviceInstalled: Bool,
+                     serviceRunning: Bool,
+                     serviceAnswering: Bool) -> Step {
+        guard engineAvailable else { return .engineMissing }
+        guard modelDownloaded else { return .modelMissing(model) }
+        guard serviceInstalled else { return .serviceMissing }
+        guard serviceRunning else { return .serviceStopped }
         // launchd dit « lancé », le socket dit « prêt ». Cf.
         // EngineService.isAnswering : ce n'est pas la même question.
-        return EngineService.isAnswering ? .ready : .serviceStarting
+        return serviceAnswering ? .ready : .serviceStarting
     }
 
     // MARK: - Agent de lancement
