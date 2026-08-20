@@ -185,6 +185,17 @@ enum EngineInstall {
     /// qui cesse d'écrire après une suppression dont on ne voit pas le
     /// rapport. Le repli est la conséquence annoncée du bouton, pas un effet
     /// de bord.
+    ///
+    /// **Le repli change de famille, jamais de version.** C'était
+    /// `prefs.engine = .apple`, et ce point d'entrée porte les deux décisions
+    /// à la fois : il écrivait donc aussi `finalAppleTechnology = .apple`.
+    /// Quelqu'un qui avait choisi la Dictée se retrouvait sur Apple
+    /// Intelligence pour avoir supprimé des poids Whisper — c'est-à-dire un
+    /// réglage effacé par un geste qui ne le concernait pas, et sur un Mac
+    /// Intel ou une machine sans Apple Intelligence, un moteur incapable
+    /// d'écrire. `finalEngine` seul dit « ce n'est plus CrisperWhisper qui
+    /// écrit » et laisse intacte la version de macOS retenue.
+    /// Cf. `CrisperEngineCard.stop()`, qui fait déjà ce choix.
     @discardableResult
     static func remove(model: CrisperWhisperModel) -> Bool {
         guard FileManager.default.fileExists(atPath: model.cacheDirectory.path)
@@ -193,8 +204,8 @@ enum EngineInstall {
         if selectedModel == model {
             _ = launchctl(["bootout", "gui/\(getuid())/\(EngineService.label)"])
             EngineService.forgetRunningState()
-            if Preferences.shared.engine == .crisperWhisper {
-                Preferences.shared.engine = .apple
+            if Preferences.shared.finalEngine == .crisperWhisper {
+                Preferences.shared.finalEngine = .apple
             }
         }
         do {

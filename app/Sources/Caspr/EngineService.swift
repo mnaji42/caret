@@ -88,10 +88,20 @@ enum EngineService {
     /// précisément 1,6 Go de poids sans rien pour les charger. L'application
     /// annonçait alors qu'il fallait tout télécharger, ce qui est faux et
     /// coûterait une heure à quelqu'un qui le croirait.
+    ///
+    /// **N'importe lequel des quatre, et non `turbo`.** Le chemin était écrit
+    /// en dur sur `turbo`, si bien que la panne ci-dessus subsistait pour qui
+    /// avait choisi `small`, `medium` ou `large` : trois gigaoctets de poids
+    /// sur le disque, et une application qui répond « CrisperWhisper n'est pas
+    /// installé sur cette machine ». Depuis qu'on change de modèle depuis
+    /// l'application, ce n'est plus un cas de coin.
+    ///
+    /// La mesure passe par `isDownloaded`, qui pèse le dossier au lieu de
+    /// constater son existence : un téléchargement interrompu laisse une
+    /// arborescence en place, et la compter comme installée renverrait vers un
+    /// service qui échouerait au chargement.
     nonisolated static var modelIsDownloaded: Bool {
-        let path = FileManager.default.homeDirectoryForCurrentUser
-            .appending(path: ".cache/huggingface/hub/models--nyralabs--CrisperWhisper2.0_turbo")
-        return FileManager.default.fileExists(atPath: path.path)
+        !CrisperWhisperModel.downloaded.isEmpty
     }
 
     /// Ce qui manque pour que CrisperWhisper puisse écrire.
