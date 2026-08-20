@@ -1,89 +1,95 @@
 <!DOCTYPE html>
-<html lang="fr" class="dark">
+<html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Politique de Confidentialité — Caspr (Projet Lyria Studio)</title>
-  <meta name="description" content="Politique de confidentialité et engagement sur le traitement 100% local des données de l'application Caspr par Lyria Studio.">
-  <meta name="theme-color" content="#07090e">
-  <link rel="icon" type="image/svg+xml" href="images/caspr-app-icon.svg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" media="print" onload="this.media='all'">
-  <noscript>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap">
-  </noscript>
-  <link rel="preload" as="style" href="style.css?v=2.2">
-  <link rel="stylesheet" href="style.css?v=2.2">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Politique de confidentialité — Caspr</title>
+<meta name="description" content="Ce que Caspr fait de votre voix et de vos textes : rien ne quitte votre Mac.">
+<meta name="theme-color" content="#0b0e14">
+<meta name="color-scheme" content="dark">
+<link rel="canonical" href="https://caspr.lyriastudio.fr/politique-de-confidentialite.html">
+<link rel="alternate" hreflang="fr" href="https://caspr.lyriastudio.fr/politique-de-confidentialite.html">
+<link rel="alternate" hreflang="en" href="https://caspr.lyriastudio.fr/privacy.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Politique de confidentialité — Caspr">
+<meta property="og:description" content="Ce que Caspr fait de votre voix et de vos textes : rien ne quitte votre Mac.">
+<meta property="og:url" content="https://caspr.lyriastudio.fr/politique-de-confidentialite.html">
+<link rel="icon" type="image/svg+xml" href="images/caspr-app-icon.svg">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
-  <div class="glow-orb glow-top-left"></div>
 
-  <header class="site-header">
-    <div class="container header-inner">
-      <a href="index.html" class="brand-logo" aria-label="Caspr Accueil">
-        <img src="images/caspr-logo-horizontal.svg" alt="Caspr" class="brand-logo-img" width="130" height="50">
-      </a>
-      <a href="index.html" class="btn btn-secondary btn-sm">← Retour au site</a>
+<a class="skip-link" href="#main">Passer au contenu</a>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="/" aria-label="Caspr, retour à l'accueil">
+      <img src="images/caspr-logo-horizontal.svg" alt="Caspr" width="118" height="30">
+    </a>
+    <div class="header-actions" style="margin-left:auto">
+      <a class="btn btn--secondary btn--sm" href="/"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m0 0 6-6m-6 6 6 6"/></svg>Retour au site</a>
     </div>
-  </header>
+  </div>
+</header>
 
-  <main class="container legal-page-container">
-    <div class="legal-content-card">
-      <h1>Politique de Confidentialité</h1>
-      <p class="legal-updated">Dernière mise à jour : 18 août 2026</p>
+<main id="main">
+  <article class="container legal">
+    <h1>Politique de confidentialité</h1>
+    <p class="legal-date">Dernière mise à jour : 20 août 2026</p>
 
-      <section>
-        <h2>Notre Engagement : Confidentialité Absolue</h2>
-        <p>Chez <strong>Lyria Studio</strong>, nous considérons que vos paroles, vos idées et votre voix sont strictement privées. L'architecture de <strong>Caspr</strong> a été rigoureusement conçue pour garantir qu'aucun enregistrement audio ni texte ne quitte votre Mac.</p>
-      </section>
+    <section>
+      <h2>Le principe</h2>
+      <p>Vos paroles vous appartiennent. Caspr est construit de sorte qu'aucun enregistrement ni aucun texte ne quitte votre Mac — non pas par engagement, mais parce qu'il n'existe aucun serveur vers lequel les envoyer.</p>
+    </section>
 
-      <section>
-        <h2>1. Traitement Audio 100% Local</h2>
-        <p>Lorsque vous activez la dictée vocale dans Caspr :</p>
-        <ul class="legal-list">
-          <li>Le flux audio capté par votre microphone est traité <strong>exclusivement dans la mémoire vive de votre Mac</strong>.</li>
-          <li>Les modèles de transcription (reconnaissance vocale native Apple ou modèle local CrisperWhisper IA) s'exécutent en local sur la puce (CPU/GPU/Neural Engine) de votre Mac.</li>
-          <li><strong>Zéro octet d'enregistrement audio n'est transmis sur Internet ou sur un serveur tiers.</strong></li>
-        </ul>
-      </section>
+    <section>
+      <h2>1. Le traitement audio reste sur la machine</h2>
+      <p>Quand vous dictez :</p>
+      <ul>
+        <li>Le flux capté par le microphone est traité <strong>dans la mémoire vive de votre Mac</strong>.</li>
+        <li>Les moteurs de transcription — reconnaissance vocale de macOS, ou modèle local CrisperWhisper — s'exécutent sur le processeur et le GPU de votre machine.</li>
+        <li><strong>Aucun octet d'audio n'est transmis sur Internet.</strong></li>
+      </ul>
+    </section>
 
-      <section>
-        <h2>2. Absence de Télémétrie et de Traçage</h2>
-        <p>L'application Caspr :</p>
-        <ul class="legal-list">
-          <li>Ne requiert la création d'aucun compte utilisateur.</li>
-          <li>N'intègre aucun outil d'analyse comportementale, de traçage publicitaire ou de SDK tiers.</li>
-          <li>Ne communique avec aucun serveur en arrière-plan (seule la vérification non-bloquante de nouvelles versions sur GitHub Release peut être interrogée par votre navigateur).</li>
-        </ul>
-      </section>
+    <section>
+      <h2>2. Ni télémétrie, ni traçage</h2>
+      <p>L'application :</p>
+      <ul>
+        <li>ne demande la création d'aucun compte ;</li>
+        <li>n'intègre aucun outil de mesure d'audience, de traçage publicitaire ou de SDK tiers ;</li>
+        <li>n'émet qu'une seule requête réseau, facultative : la vérification des mises à jour auprès de GitHub, qui se désactive dans les réglages.</li>
+      </ul>
+    </section>
 
-      <section>
-        <h2>3. Fonctionnalité de Collecte Locale (Optionnelle)</h2>
-        <p>Caspr propose une option de « Collecte locale » servant à mesurer la fidélité de transcription entre les moteurs. Si vous l'activez, les fichiers audio et textes sont conservés <strong>uniquement sur votre disque dur local</strong> (dans <code>~/Library/Application Support/Caspr/corpus</code>). Ces données restent sous votre contrôle exclusif et ne sont jamais téléversées.</p>
-      </section>
+    <section>
+      <h2>3. La collecte locale, si vous l'activez</h2>
+      <p>Caspr propose une collecte locale, destinée à mesurer la fidélité des moteurs sur de la parole réelle. Elle est <strong>désactivée par défaut</strong>. Une fois activée, les fichiers audio et les textes sont conservés <strong>sur votre seul disque</strong>, dans <code>~/Library/Application Support/Caspr/corpus</code>. Ils restent sous votre contrôle et ne sont jamais téléversés. La barre d'enregistrement rappelle en permanence que la collecte est active, et permet de l'arrêter.</p>
+    </section>
 
-      <section>
-        <h2>4. Contact</h2>
-        <p>Pour toute question relative à la confidentialité de l'application, vous pouvez nous écrire directement à : <a href="mailto:contact@lyriastudio.fr">contact@lyriastudio.fr</a>.</p>
-      </section>
-    </div>
-  </main>
+    <section>
+      <h2>4. Le site</h2>
+      <p>Ce site n'emploie ni cookie de mesure d'audience, ni traceur, ni police distante. Il interroge l'interface publique de GitHub pour afficher le numéro de la dernière version publiée.</p>
+    </section>
 
-  <footer class="site-footer">
-    <div class="container footer-bottom-bar">
-      <p class="footer-copyright">
-        © 2026 Caspr — Conçu & développé avec passion par <a href="https://lyriastudio.fr" target="_blank" rel="noopener noreferrer" class="footer-studio-highlight">Lyria Studio</a>.
-      </p>
-      <div class="footer-legal-links">
-        <span class="footer-privacy-badge">🔒 100% Hors-ligne · Zéro Donnée</span>
-        <span class="footer-sep">·</span>
+    <section>
+      <h2>5. Contact</h2>
+      <p>Pour toute question : <a href="mailto:contact@lyriastudio.fr">contact@lyriastudio.fr</a>.</p>
+    </section>
+
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-bottom" style="margin-top:0">
+      <p>© 2026 Caspr — un projet <a href="https://lyriastudio.fr" rel="noopener">Lyria Studio</a>.</p>
+      <div class="footer-legal">
         <a href="mentions-legales.html">Mentions légales</a>
-        <span class="footer-sep">·</span>
         <a href="politique-de-confidentialite.html">Politique de confidentialité</a>
       </div>
     </div>
-  </footer>
+  </div>
+</footer>
 </body>
 </html>
