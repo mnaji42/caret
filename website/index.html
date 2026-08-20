@@ -1,714 +1,838 @@
 <!DOCTYPE html>
-<html lang="fr" class="dark">
+<html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Caspr — Dictée Vocale IA 100% Locale & Open Source pour macOS</title>
-  <meta name="description" content="Dictée vocale locale ultra-rapide, privée et open source pour macOS. Parlez en maintenant ⌥ Option, l'IA locale nettoie vos hésitations et écrit à la vitesse de votre pensée.">
-  
-  <!-- OpenGraph / Social -->
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://caspr.lyriastudio.fr/">
-  <meta property="og:title" content="Caspr — Dictée Vocale IA 100% Locale & Open Source pour macOS">
-  <meta property="og:description" content="Parlez naturellement. Votre Mac écrit à la vitesse de votre pensée. Zéro cloud, 100% Open Source.">
-  <meta property="og:image" content="https://caspr.lyriastudio.fr/images/og-preview.png">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="theme-color" content="#07090e">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caspr — dictée vocale locale et hors-ligne pour macOS</title>
+<meta name="description" content="Caspr transcrit votre voix directement sur votre Mac, sans cloud ni compte. Il écrit useEffect quand vous dites useEffect, même au milieu d'une phrase en français.">
+<meta name="theme-color" content="#0b0e14">
+<meta name="color-scheme" content="dark">
 
-  <!-- SEO hreflang -->
-  <link rel="canonical" href="https://caspr.lyriastudio.fr/">
-  <link rel="alternate" hreflang="fr" href="https://caspr.lyriastudio.fr/">
-  <link rel="alternate" hreflang="en" href="https://caspr.lyriastudio.fr/en.html">
-  <link rel="alternate" hreflang="x-default" href="https://caspr.lyriastudio.fr/">
+<link rel="canonical" href="https://caspr.lyriastudio.fr/">
+<link rel="alternate" hreflang="fr" href="https://caspr.lyriastudio.fr/">
+<link rel="alternate" hreflang="en" href="https://caspr.lyriastudio.fr/en.html">
+<link rel="alternate" hreflang="x-default" href="https://caspr.lyriastudio.fr/">
 
-  <!-- Favicon SVG (Caspr macOS App Icon) -->
-  <link rel="icon" type="image/svg+xml" href="images/caspr-app-icon.svg">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Caspr">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:url" content="https://caspr.lyriastudio.fr/">
+<meta property="og:title" content="Caspr — dictée vocale locale et hors-ligne pour macOS">
+<meta property="og:description" content="La dictée qui écrit useEffect, pas « use effect ». Tout tourne sur votre Mac : pas de cloud, pas de compte, pas de télémétrie.">
+<meta property="og:image" content="https://caspr.lyriastudio.fr/images/og-preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Caspr — dictée vocale locale pour macOS">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Caspr — dictée vocale locale et hors-ligne pour macOS">
+<meta name="twitter:description" content="La dictée qui écrit useEffect, pas « use effect ». Tout tourne sur votre Mac.">
+<meta name="twitter:image" content="https://caspr.lyriastudio.fr/images/og-preview.png">
 
-  <!-- Preconnect & Non-Blocking Google Fonts (100/100 Lighthouse Performance) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" media="print" onload="this.media='all'">
-  <noscript>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap">
-  </noscript>
+<link rel="icon" type="image/svg+xml" href="images/caspr-app-icon.svg">
+<link rel="apple-touch-icon" href="images/caspr-app-icon.svg">
 
-  <!-- Preload Local Stylesheet to Avoid Chaining Critical Requests -->
-  <link rel="preload" as="style" href="style.css?v=2.2">
-  <link rel="stylesheet" href="style.css?v=2.2">
+<!-- Aucune police distante : le site emploie la police système de macOS, comme
+     l'application. Une requête réseau de moins, et zéro décalage au chargement. -->
+<link rel="stylesheet" href="style.css?v=4">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://caspr.lyriastudio.fr/#app",
+      "name": "Caspr",
+      "applicationCategory": "UtilitiesApplication",
+      "applicationSubCategory": "Dictée vocale",
+      "operatingSystem": "macOS 14 ou plus récent",
+      "description": "Application de dictée vocale locale pour macOS, conçue pour la parole bilingue français-anglais et le vocabulaire technique. La transcription s'exécute sur la machine, sans service distant.",
+      "url": "https://caspr.lyriastudio.fr/",
+      "downloadUrl": "https://github.com/mnaji42/caspr/releases/latest",
+      "softwareHelp": "https://github.com/mnaji42/caspr#install",
+      "license": "https://github.com/mnaji42/caspr/blob/main/LICENSE",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+      "featureList": [
+        "Transcription entièrement locale, sans connexion réseau",
+        "Conditionnement par lexique pour le vocabulaire technique",
+        "Parole bilingue français-anglais dans une même phrase",
+        "Insertion du texte au curseur de l'application active",
+        "Accumulation des dictées dans un fichier Markdown daté",
+        "Deux moteurs au choix : moteur intégré de macOS ou CrisperWhisper"
+      ],
+      "author": { "@id": "https://lyriastudio.fr/#org" }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://lyriastudio.fr/#org",
+      "name": "Lyria Studio",
+      "url": "https://lyriastudio.fr"
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://caspr.lyriastudio.fr/#site",
+      "url": "https://caspr.lyriastudio.fr/",
+      "name": "Caspr",
+      "inLanguage": "fr-FR",
+      "publisher": { "@id": "https://lyriastudio.fr/#org" }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://caspr.lyriastudio.fr/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "De quel Mac ai-je besoin ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Cela dépend du moteur. Le moteur intégré s'appuie sur la reconnaissance vocale de macOS et demande macOS 26 ou plus récent, sur n'importe quel Mac qui fait tourner cette version. CrisperWhisper demande macOS 14 ou plus récent et une puce Apple Silicon (M1 et au-delà), avec environ 1,6 Go de poids à télécharger et 3 Go de mémoire résidente."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Ma voix ou mes textes partent-ils sur un serveur ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Non. La transcription s'exécute sur votre machine, avec les deux moteurs. Il n'y a ni compte, ni serveur, ni télémétrie. Coupez le Wi-Fi et Caspr fonctionne à l'identique. La seule requête réseau que fait l'application est la vérification des mises à jour sur GitHub, et elle se désactive dans les réglages."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Pourquoi macOS refuse-t-il d'ouvrir l'application la première fois ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Parce que l'application n'est pas notariée par Apple, ce qui suppose un compte développeur payant. Caspr est signé de façon ad hoc. macOS affiche donc un avertissement au premier lancement, et l'autorisation se donne une fois dans Réglages Système, rubrique Confidentialité et sécurité. Le guide d'installation détaille chaque étape."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Caspr comprend-il le franglais et les termes de code ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "C'est la raison d'être du projet. CrisperWhisper 2.0 accepte un lexique qui oriente le décodage vers les termes que vous lui donnez. Mesuré sur de la parole réelle mêlant français et anglais, 32 termes techniques sur 34 sont préservés avec lexique, contre 29 sur 34 sans, et sans régression sur les phrases en français simple."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Quelle est la licence de Caspr ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Le code de Caspr est sous licence MIT, tout comme le code d'inférence de CrisperWhisper. Les poids du modèle CrisperWhisper 2.0 relèvent en revanche d'une licence de recherche non commerciale de Nyra Health. Caspr n'embarque donc pas ces poids et ne les télécharge jamais en silence : la licence est présentée avant tout téléchargement, et le choix vous revient."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Puis-je désinstaller proprement ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Oui. L'application inclut un désinstallateur qui retire l'environnement Python, les poids du modèle, les caches et les préférences. Il ne propose de supprimer que ce qui est effectivement installé."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
 </head>
 <body>
 
-  <!-- BACKGROUND GLOWS -->
-  <div class="glow-orb glow-top-left"></div>
-  <div class="glow-orb glow-top-right"></div>
-  <div class="glow-orb glow-bottom-center"></div>
+<a class="skip-link" href="#main">Passer au contenu</a>
 
-  <!-- NAVIGATION HEADER -->
-  <header class="site-header">
-    <div class="container header-inner">
-      <a href="#" class="brand-logo" aria-label="Caspr Accueil">
-        <img src="images/caspr-logo-horizontal.svg" alt="Caspr" class="brand-logo-img" width="130" height="50">
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="/" aria-label="Caspr, retour à l'accueil">
+      <img src="images/caspr-logo-horizontal.svg" alt="Caspr" width="118" height="30">
+    </a>
+
+    <nav class="site-nav" aria-label="Sections du site">
+      <a class="nav-link" href="#franglais">Le franglais</a>
+      <a class="nav-link" href="#barre">La barre</a>
+      <a class="nav-link" href="#notes">Les notes</a>
+      <a class="nav-link" href="#moteurs">Les moteurs</a>
+      <a class="nav-link" href="#mesures">Les mesures</a>
+      <a class="nav-link" href="#questions">Questions</a>
+    </nav>
+
+    <div class="header-actions">
+      <div class="lang-switch">
+        <a href="/" aria-current="true" lang="fr">FR</a>
+        <a href="en.html" hreflang="en" lang="en">EN</a>
+      </div>
+
+      <a class="btn btn--secondary btn--sm" href="https://github.com/mnaji42/caspr" rel="noopener">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.95 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.03A9.5 9.5 0 0 1 12 6.8c.85 0 1.71.11 2.5.34 1.91-1.3 2.75-1.03 2.75-1.03.55 1.38.2 2.4.1 2.65.64.7 1.03 1.6 1.03 2.69 0 3.85-2.34 4.7-4.57 4.95.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 22 12c0-5.52-4.48-10-10-10Z"/></svg>
+        <span class="sr-only">Voir Caspr sur </span>GitHub
       </a>
 
-      <nav class="nav-links">
-        <a href="#demo" class="nav-link">Démo Live</a>
-        <a href="#engines" class="nav-link">Deux Moteurs</a>
-        <a href="#features" class="nav-link">Super-pouvoirs</a>
-        <a href="#opensource" class="nav-link">Open Source</a>
-        <a href="#faq" class="nav-link">FAQ</a>
-      </nav>
-
-      <div class="header-actions">
-        <!-- Language Switcher (FR Active) -->
-        <div class="lang-switcher" role="navigation" aria-label="Choix de langue">
-          <span class="lang-btn active" title="Français">🇫🇷 FR</span>
-          <span class="lang-divider">|</span>
-          <a href="en.html" class="lang-btn" title="English">🇬🇧 EN</a>
-        </div>
-
-        <a href="https://github.com/mnaji42/caspr" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" aria-label="Voir le projet Caspr sur GitHub">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-          </svg>
-          <span class="desktop-only">GitHub</span>
-        </a>
-
-        <button type="button" class="btn btn-primary btn-sm download-trigger-btn header-download-btn" aria-label="Télécharger Caspr">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.85c.66-.8 1.11-1.92.99-3.05-.96.04-2.13.64-2.82 1.44-.6.69-1.13 1.83-1 2.94 1.07.08 2.17-.53 2.83-1.33z"/>
-          </svg>
-          <span>Télécharger</span>
-        </button>
-      </div>
+      <button type="button" class="btn btn--primary btn--sm js-download">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        Télécharger
+      </button>
     </div>
-  </header>
+  </div>
+</header>
 
-  <!-- MAIN CONTENT LANDMARK -->
-  <main id="main-content">
+<main id="main">
 
-  <!-- HERO SECTION WITH TYPEWRITER ANIMATION -->
-  <section class="hero-section">
-    <div class="container hero-content">
-      
-      <!-- Top Badge -->
-      <div class="hero-badge">
-        <span class="badge-dot"></span>
-        <span class="badge-text">⚡ Dictée Vocale IA 100% Locale & Open Source pour macOS</span>
-      </div>
-
-      <!-- Main Headline with Super-Fast Single Line Typewriter -->
-      <h1 class="hero-title">
-        <span class="hero-title-static">Parlez naturellement. <span class="hero-brand-cyan">Caspr</span></span>
-        <span class="typewriter-container"><span class="typewriter-text" id="typewriter-phrase">écrit à la vitesse de votre pensée.</span><span class="typewriter-cursor">|</span></span>
-      </h1>
-
-      <!-- Subtitle -->
-      <p class="hero-subtitle">
-        Maintenez <strong>⌥ Option</strong> et parlez librement. L'IA locale transcrit et nettoie vos hésitations <strong>instantanément</strong>, puis insère le texte directement là où votre curseur clignote. <strong>100% Hors-ligne. 100% Open Source. Zéro compte. Zéro latence.</strong>
-      </p>
-
-      <!-- CTA Button & Live Meta -->
-      <div class="hero-cta-group">
-        <button type="button" id="main-download-btn" class="btn btn-primary btn-download-hero download-trigger-btn">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.85c.66-.8 1.11-1.92.99-3.05-.96.04-2.13.64-2.82 1.44-.6.69-1.13 1.83-1 2.94 1.07.08 2.17-.53 2.83-1.33z"/>
-          </svg>
-          <span>Télécharger pour macOS</span>
-        </button>
-
-        <div class="release-status-banner" id="release-status">
-          <span class="status-indicator"></span>
-          <span id="release-info-text">Chargement de la version…</span>
-        </div>
-      </div>
-
-      <!-- INTERACTIVE FLOATING HUD SIMULATOR -->
-      <div id="demo" class="hud-simulator-wrapper">
-        <div class="hud-mockup-header">
-          <div class="mac-window-dots">
-            <span class="dot dot-red"></span>
-            <span class="dot dot-yellow"></span>
-            <span class="dot dot-green"></span>
-          </div>
-          <span class="hud-mockup-title">Simulation en direct du cycle d'enregistrement Caspr</span>
-          <div class="hud-badge-tag">Maintenez ⌥ Option pour dicter</div>
-        </div>
-
-        <div class="hud-stage-scene">
-          
-          <!-- Mockup Text Editor in Background -->
-          <div class="mock-editor">
-            <div class="mock-editor-header">
-              <span class="mock-file-name">compte-rendu.md</span>
-              <span class="mock-cursor-pos">Ln 14, Col 32</span>
-            </div>
-            <div class="mock-editor-content">
-              <p class="editor-faded"># Architecture Caspr — Dictée Locale</p>
-              <p class="editor-faded">- Inférence ultra-rapide et frappe instantanée</p>
-              <p class="editor-active-line">
-                <span id="mock-inserted-text"></span>
-                <span class="cursor-blink">|</span>
-              </p>
-            </div>
-          </div>
-
-          <!-- The Floating HUD Overlay (Strict 440pt constant width) -->
-          <div class="floating-hud-card" id="interactive-hud">
-            
-            <!-- Line 1: Timer, Waveform, Mic Mode, Collecte Badge -->
-            <div class="hud-top-row">
-              <div class="hud-status-left">
-                <span class="hud-rec-dot" id="hud-dot"></span>
-                <span class="hud-timer" id="hud-timer">0:03</span>
-                <div class="hud-vumeter" id="hud-vumeter">
-                  <div class="vu-bar" style="height: 6px;"></div>
-                  <div class="vu-bar" style="height: 12px;"></div>
-                  <div class="vu-bar" style="height: 16px;"></div>
-                  <div class="vu-bar" style="height: 14px;"></div>
-                  <div class="vu-bar" style="height: 8px;"></div>
-                  <div class="vu-bar" style="height: 15px;"></div>
-                  <div class="vu-bar" style="height: 10px;"></div>
-                  <div class="vu-bar" style="height: 14px;"></div>
-                </div>
-              </div>
-
-              <div class="hud-status-right">
-                <button type="button" class="hud-btn-mode" id="btn-mic-mode" title="Mode Micro macOS">Isolement</button>
-                <button type="button" class="hud-btn-badge" id="btn-collecte" title="Archivage local dans le corpus">COLLECTE</button>
-              </div>
-            </div>
-
-            <!-- Line 2: Real-time Live Transcription Preview -->
-            <div class="hud-preview-box">
-              <div class="hud-preview-text" id="hud-live-text">
-                <span class="preview-inserted" id="hud-preview-inserted">Texte nettoyé et inséré au curseur instantanément</span>
-              </div>
-            </div>
-
-          </div>
-
-          <!-- Bottom Floating Tabs -->
-          <div class="hud-bottom-tabs" id="hud-tabs">
-            <div class="hud-pill-group">
-              <button type="button" class="hud-pill-btn active" id="tab-clean">Nettoyé</button>
-              <button type="button" class="hud-pill-btn" id="tab-raw">Brut</button>
-            </div>
-            
-            <div class="hud-pill-indicator">
-              <span id="hud-lang-flag">🇫🇷</span>
-              <span id="hud-lang-code">FR</span>
-            </div>
-
-            <div class="hud-pill-group">
-              <button type="button" class="hud-pill-btn active" id="tab-caret">Curseur</button>
-              <button type="button" class="hud-pill-btn" id="tab-notes">Notes</button>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Simulator Interactive Footnote / Replay Trigger -->
-        <div class="hud-simulator-footer">
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-trigger-dictate" aria-label="Rejouer la démonstration de dictée">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8 5v14l11-7z"/>
-            </svg>
-            <span>Rejouer la dictée</span>
-          </button>
-          <span class="hud-simulator-note">Live Preview en direct pendant que vous parlez, puis insertion instantanée du texte nettoyé</span>
-        </div>
-
-      </div>
-
-    </div>
-  </section>
-
-  <!-- BEFORE / AFTER COMPARISON SECTION -->
-  <section class="section comparison-section">
+  <!-- ===================================================================
+       Hero — la thèse : le terme technique survit à la dictée française.
+       =================================================================== -->
+  <section class="hero">
     <div class="container">
-      <div class="section-header text-center">
-        <span class="section-tag">L'Intelligence au service de votre voix</span>
-        <h2 class="section-title">Pourquoi la dictée classique est frustrante,<br>et comment Caspr la réinvente.</h2>
-        <p class="section-subtitle">Les dictées classiques écrivent chaque 'euh', répétition et bégaiement. Caspr écoute votre flux de pensée et restitue un texte propre, structuré et ponctué.</p>
-      </div>
+      <div class="hero-copy">
+        <h1>La dictée qui écrit <span class="term term--ok">useEffect</span>, <span style="white-space:nowrap">pas «&nbsp;use effect&nbsp;»<span class="caret" aria-hidden="true"></span></span></h1>
 
-      <div class="comparison-grid">
-        
-        <!-- Classic Dictation Card -->
-        <div class="comparison-card card-classic">
-          <div class="card-badge-status status-bad">❌ Dictée Standard (Cloud / Native)</div>
-          <h3 class="comparison-card-title">Brute & Remplie d'hésitations</h3>
-          <div class="speech-bubble speech-bubble-bad">
-            <p>
-              "Alors euh attends, on va faire la fonction euh <span class="highlight-bad">get user data</span> enfin non <span class="highlight-bad">fetch user data</span> avec un try catch virgule et euh si ça plante on renvoie nul point d'interrogation"
-            </p>
-          </div>
-          <ul class="comparison-points">
-            <li><span>⚠️</span> Aucun nettoyage des bégaiements ou faux départs</li>
-            <li><span>⚠️</span> Ponctuation orale lourde à devoir dicter à voix haute</li>
-            <li><span>⚠️</span> Mélange catastrophique du code et de l'anglais technique</li>
-          </ul>
-        </div>
+        <p class="hero-lead">
+          Caspr est une application de dictée pour macOS qui suit les développeurs
+          quand ils passent du français à l'anglais au milieu d'une phrase.
+          Tout tourne sur votre Mac : pas de cloud, pas de compte, pas de télémétrie.
+        </p>
 
-        <!-- Caspr Cleaned Card -->
-        <div class="comparison-card card-caspr">
-          <div class="card-badge-status status-good">✨ Avec Caspr (CrisperWhisper IA)</div>
-          <h3 class="comparison-card-title">Nettoyée, Structurée & Ponctuée</h3>
-          <div class="speech-bubble speech-bubble-good">
-            <p>
-              "On va créer la fonction <code>fetchUserData</code> avec un bloc try/catch, et renvoyer <code>null</code> en cas d'erreur."
-            </p>
-          </div>
-          <ul class="comparison-points">
-            <li><span>✓</span> Suppression automatique des 'euh', bégaiements et hésitations</li>
-            <li><span>✓</span> Ponctuation naturelle et majuscules inférées par le sens</li>
-            <li><span>✓</span> Reconnaissance parfaite des termes de code et du franglais</li>
-          </ul>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- DUAL ENGINES SHOWCASE SECTION -->
-  <section id="engines" class="section engines-section">
-    <div class="container">
-      <div class="section-header text-center">
-        <span class="section-tag">Flexibilité Totale</span>
-        <h2 class="section-title">Deux Moteurs au Choix.<br>Adaptez Caspr à vos Besoins.</h2>
-        <p class="section-subtitle">Basculez en 1 clic selon votre situation matérielle ou vos exigences de précision.</p>
-      </div>
-
-      <div class="engines-grid">
-        
-        <!-- Engine 1: macOS Native Engine -->
-        <div class="engine-card">
-          <div class="engine-badge badge-native">⚡ 0 Mo · 100% Natif</div>
-          <div class="engine-card-header">
-            <div class="engine-icon-box">🍎</div>
-            <div class="engine-title-group">
-              <span class="engine-tag">Intégré & Léger</span>
-              <h3>Moteur macOS Natif</h3>
-            </div>
-          </div>
-          <p class="engine-desc">
-            Exploite directement les frameworks Speech natifs d'Apple. Aucune dépendance à télécharger, consommation RAM quasi-nulle et démarrage instantané.
-          </p>
-          <ul class="engine-specs-list">
-            <li><strong>Installation :</strong> Immédiate (0 Mo à télécharger)</li>
-            <li><strong>Vitesse :</strong> Ultra-rapide (&lt; 0.2s)</li>
-            <li><strong>Idéal pour :</strong> Notes rapides, frappe sans délai sur tout Mac</li>
-          </ul>
-        </div>
-
-        <!-- Engine 2: CrisperWhisper Engine -->
-        <div class="engine-card featured-engine">
-          <div class="engine-badge badge-whisper">🧠 IA Haute Fidélité</div>
-          <div class="engine-card-header">
-            <div class="engine-icon-box">✨</div>
-            <div class="engine-title-group">
-              <span class="engine-tag">Précision Maximale</span>
-              <h3>Moteur CrisperWhisper IA</h3>
-            </div>
-          </div>
-          <p class="engine-desc">
-            Modèle de transcription neuronal avancé optimisé pour Apple Silicon. Élimine les répétitions et insère le texte avec une précision chirurgicale.
-          </p>
-          <ul class="engine-specs-list">
-            <li><strong>Modèle :</strong> Modèle local quantifié ultra-rapide</li>
-            <li><strong>Franglais & Code :</strong> Parfaite compréhension des termes techniques</li>
-            <li><strong>Idéal pour :</strong> Développeurs, rédacteurs, réunions & mails pro</li>
-          </ul>
-          <div class="engine-sub-note">
-            💡 Modèle entraîné par Nyra Labs, distribué sous <a href="https://github.com/nyralabs/crisperwhisper/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="licence-link">licence de recherche non commerciale</a>.
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- FEATURES BENTO GRID -->
-  <section id="features" class="section bento-section">
-    <div class="container">
-      <div class="section-header text-center">
-        <span class="section-tag">Super-pouvoirs</span>
-        <h2 class="section-title">Une application macOS conçue pour la vitesse.</h2>
-        <p class="section-subtitle">Un condensé d'ingénierie native en Swift et d'IA locale optimisée sur Neural Engine et GPU.</p>
-      </div>
-
-      <div class="bento-grid">
-        
-        <!-- Row 1 Left: Card 1 - 100% Local & Privacy (Span 2) -->
-        <div class="bento-card bento-span-2">
-          <div class="bento-card-header">
-            <div class="bento-icon-box">🔒</div>
-            <div class="bento-header-text">
-              <span class="bento-tag">Confidentialité Absolue</span>
-              <h3 class="bento-title">100% Local. Zéro Cloud. Zéro Fuite.</h3>
-            </div>
-          </div>
-          <p class="bento-desc">
-            Votre voix et vos textes ne quittent jamais votre Mac. L'inférence tourne localement sur Apple Silicon (Metal/MPS) ou CPU Intel. Coupez votre Wi-Fi : Caspr fonctionne exactement pareil.
-          </p>
-          <div class="bento-graphic-privacy">
-            <div class="privacy-pill"><span>✓</span> 0 octet envoyé sur Internet</div>
-            <div class="privacy-pill"><span>✓</span> Aucune télémétrie ni tracker</div>
-            <div class="privacy-pill"><span>✓</span> Aucun compte requis</div>
-          </div>
-        </div>
-
-        <!-- Row 1 Right: Card 2 - Hold to talk (Span 1) -->
-        <div class="bento-card">
-          <div class="bento-card-header">
-            <div class="bento-icon-box">⌨️</div>
-            <div class="bento-header-text">
-              <span class="bento-tag">Hold-to-Talk Instantané</span>
-              <h3 class="bento-title">Touche ⌥ Option ou Raccourci</h3>
-            </div>
-          </div>
-          <p class="bento-desc">
-            Maintenez la touche Option (ou votre raccourci), dictez votre phrase, relâchez : le texte est écrit instantanément. Aucun clic ni sélection de fenêtre nécessaire.
-          </p>
-        </div>
-
-        <!-- Row 2 Left: Card 3 - Non-Intrusive HUD (Span 1) -->
-        <div class="bento-card">
-          <div class="bento-card-header">
-            <div class="bento-icon-box">🪟</div>
-            <div class="bento-header-text">
-              <span class="bento-tag">HUD Non-Intrusif</span>
-              <h3 class="bento-title">Sans vol de focus</h3>
-            </div>
-          </div>
-          <p class="bento-desc">
-            Panneau flottant non-activant (NSPanel) : affiche vos ondes sonores et le texte live sous vos yeux sans jamais désactiver l'application dans laquelle vous tapez.
-          </p>
-        </div>
-
-        <!-- Row 2 Center: Card 4 - Smart Routing (Span 1) -->
-        <div class="bento-card">
-          <div class="bento-card-header">
-            <div class="bento-icon-box">🎯</div>
-            <div class="bento-header-text">
-              <span class="bento-tag">Routage Intelligent</span>
-              <h3 class="bento-title">Curseur ou Journal Notes</h3>
-            </div>
-          </div>
-          <p class="bento-desc">
-            Dictez directement dans VS Code, Slack, Notion, Word... Ou accumulez automatiquement vos idées dans un journal Markdown quotidien sans vous interrompre.
-          </p>
-        </div>
-
-        <!-- Row 2 Right: Card 5 - Metal GPU Acceleration (Span 1) -->
-        <div class="bento-card">
-          <div class="bento-card-header">
-            <div class="bento-icon-box">⚡</div>
-            <div class="bento-header-text">
-              <span class="bento-tag">Performance Matérielle</span>
-              <h3 class="bento-title">Metal GPU & Neural Engine</h3>
-            </div>
-          </div>
-          <p class="bento-desc">
-            Inférence ultra-rapide optimisée pour les puces Apple Silicon M1, M2, M3, M4 et processeurs Intel, avec une consommation de batterie minimale.
-          </p>
-        </div>
-
-        <!-- Row 3: Card 6 - Polyglot & Custom Tech Lexicon (Span 3 Full Width) -->
-        <div class="bento-card bento-span-3">
-          <div class="bento-card-header">
-            <div class="bento-icon-box">🌐</div>
-            <div class="bento-header-text">
-              <span class="bento-tag">Polyglotte & Franglais</span>
-              <h3 class="bento-title">24+ Langues & Dictionnaire Métier Personnalisé</h3>
-            </div>
-          </div>
-          <p class="bento-desc">
-            Prise en charge native de 24+ langues avec bascule instantanée. Ajoutez vos acronymes, noms de variables, hotwords et termes techniques dans votre lexique personnalisé pour une précision chirurgicale sans correction manuelle.
-          </p>
-          <div class="vocabulary-tags-cloud">
-            <span class="vocab-tag">TypeScript</span>
-            <span class="vocab-tag">GraphQL</span>
-            <span class="vocab-tag">PostgreSQL</span>
-            <span class="vocab-tag">Kubernetes</span>
-            <span class="vocab-tag">TailwindCSS</span>
-            <span class="vocab-tag">PR Review</span>
-            <span class="vocab-tag">async/await</span>
-            <span class="vocab-tag">FastAPI</span>
-            <span class="vocab-tag">PyTorch</span>
-            <span class="vocab-tag">SwiftUI</span>
-            <span class="vocab-tag">Docker</span>
-            <span class="vocab-tag">Rust</span>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- OPEN SOURCE & FREEDOM SECTION -->
-  <section id="opensource" class="section os-section">
-    <div class="container">
-      <div class="section-header text-center">
-        <span class="section-tag">Transparence & Liberté</span>
-        <h2 class="section-title">100% Open Source. Gratuit. Auditable.</h2>
-        <p class="section-subtitle">Caspr appartient à la communauté. Aucun abonnement caché, aucun bridage payant, aucun code propriétaire opaque.</p>
-      </div>
-
-      <div class="os-cards-grid">
-        <div class="os-feature-card">
-          <div class="os-card-header">
-            <div class="os-icon">🐙</div>
-            <div class="os-header-text">
-              <span class="os-tag">Transparence</span>
-              <h3>Code Source Public sur GitHub</h3>
-            </div>
-          </div>
-          <p>L'intégralité du code Swift (AppKit, SwiftUI) et du moteur Python (uv, PyTorch, Whisper) est open source. Inspectez chaque ligne, forkez le projet ou compilez-le vous-même.</p>
-        </div>
-
-        <div class="os-feature-card">
-          <div class="os-card-header">
-            <div class="os-icon">🛠️</div>
-            <div class="os-header-text">
-              <span class="os-tag">Personnalisation</span>
-              <h3>Forkable & Modulaire</h3>
-            </div>
-          </div>
-          <p>Entraînez vos propres modèles, modifiez les prompts de nettoyage ou intégrez vos pipelines audio personnalisés selon vos flux de développement.</p>
-        </div>
-
-        <div class="os-feature-card">
-          <div class="os-card-header">
-            <div class="os-icon">🧹</div>
-            <div class="os-header-text">
-              <span class="os-tag">Intégrité macOS</span>
-              <h3>Désinstallation Propre & Zéro Résidu</h3>
-            </div>
-          </div>
-          <p>Caspr intègre un désinstallateur propre qui supprime l'environnement Python, les caches et modèles sans laisser le moindre fichier orphelin sur votre Mac.</p>
-        </div>
-      </div>
-
-      <div class="text-center" style="margin-top: 36px;">
-        <a href="https://github.com/mnaji42/caspr" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-lg">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
-          </svg>
-          <span>Voir le dépôt GitHub</span>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- FAQ SECTION -->
-  <section id="faq" class="section faq-section">
-    <div class="container faq-container">
-      <div class="section-header text-center">
-        <span class="section-tag">Questions Fréquentes</span>
-        <h2 class="section-title">Tout ce que vous devez savoir sur Caspr</h2>
-        <p class="section-subtitle">Des réponses claires et directes sur le fonctionnement, la confidentialité et l'installation.</p>
-      </div>
-
-      <div class="faq-accordion">
-        
-        <div class="faq-item active">
-          <button type="button" class="faq-question">
-            <span>Quelles sont les versions de macOS et machines compatibles ?</span>
-            <span class="faq-icon">+</span>
+        <div class="hero-actions">
+          <button type="button" class="btn btn--primary btn--lg js-download">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            Télécharger pour macOS
           </button>
-          <div class="faq-answer">
-            <p>Caspr est compatible avec <strong>macOS 14 (Sonoma)</strong>, <strong>macOS 15 (Sequoia)</strong> et supérieur. L'application tourne nativement sur les puces <strong>Apple Silicon (M1, M2, M3, M4, Pro, Max, Ultra)</strong> ainsi que sur les Mac à processeur <strong>Intel</strong>.</p>
-          </div>
-        </div>
-
-        <div class="faq-item">
-          <button type="button" class="faq-question">
-            <span>Mes données audio ou mes textes sont-ils envoyés sur un serveur ?</span>
-            <span class="faq-icon">+</span>
-          </button>
-          <div class="faq-answer">
-            <p><strong>Absolument jamais.</strong> Caspr a été développé avec une éthique stricte de confidentialité. Aucun serveur, aucun service cloud, aucun tracker, aucune télémétrie. Le traitement du signal audio et la transcription s'effectuent entièrement dans la mémoire de votre Mac.</p>
-          </div>
-        </div>
-
-        <div class="faq-item">
-          <button type="button" class="faq-question">
-            <span>Pourquoi macOS affiche-t-il un message lors de l'ouverture du .dmg ?</span>
-            <span class="faq-icon">+</span>
-          </button>
-          <div class="faq-answer">
-            <p>Pour distribuer une application sans avertissement Gatekeeper, Apple exige un compte développeur payant annuel de 99$/an. En tant que projet 100% open source et gratuit, Caspr est distribué librement. Suivre le guide en 1 clic (Ouvrir quand même dans Réglages Système) suffit à autoriser l'application de façon permanente.</p>
-          </div>
-        </div>
-
-        <div class="faq-item">
-          <button type="button" class="faq-question">
-            <span>Puis-je utiliser Caspr dans du code ou en Franglais ?</span>
-            <span class="faq-icon">+</span>
-          </button>
-          <div class="faq-answer">
-            <p>Oui, c'est l'un de ses points forts majeurs ! Le moteur IA gère parfaitement les termes bilingues, le vocabulaire informatique (<code>async/await</code>, <code>Pull Request</code>, <code>database</code>) et vous pouvez enrichir votre lexique personnel avec vos propres acronymes.</p>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- BOTTOM CTA SECTION -->
-  <section class="section bottom-cta-section">
-    <div class="container">
-      <div class="bottom-cta-card">
-        <div class="bottom-cta-glow"></div>
-        <div class="bottom-cta-content text-center">
-          <span class="section-tag">Prêt à commencer ?</span>
-          <h2 class="bottom-cta-title">Prêt à dicter plus vite que vous ne tapez ?</h2>
-          <p class="bottom-cta-desc">Téléchargez Caspr gratuitement et découvrez le plaisir d'une pensée transcrite instantanément sur votre Mac.</p>
-          <div class="bottom-cta-actions">
-            <button type="button" class="btn btn-primary btn-lg download-trigger-btn cta-glow-btn" aria-label="Télécharger Caspr pour macOS">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.85c.66-.8 1.11-1.92.99-3.05-.96.04-2.13.64-2.82 1.44-.6.69-1.13 1.83-1 2.94 1.07.08 2.17-.53 2.83-1.33z"/>
-              </svg>
-              <span>Télécharger Caspr pour macOS</span>
-            </button>
-            <span class="cta-safe-note">✓ 100% Gratuit · Open Source sur GitHub · macOS 14+</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  </main>
-
-  <!-- SITE FOOTER - LYRIA STUDIO OFFICIAL PROJECT -->
-  <footer class="site-footer">
-    <div class="container footer-inner">
-      <div class="footer-main-grid">
-        
-        <!-- Col 1: Brand & Lyria Studio Highlight -->
-        <div class="footer-brand-col">
-          <div class="footer-brand-header">
-            <img src="images/caspr-logo-stacked.svg" alt="Caspr" class="footer-logo-stacked" width="80" height="80">
-            <img src="images/caspr-logo-horizontal.svg" alt="Caspr" class="footer-logo-horizontal" width="160" height="60">
-            <p class="footer-tagline">Dictée vocale IA 100% locale, privée et instantanée pour macOS. Zéro cloud, zéro abonnement.</p>
-          </div>
-          
-          <a href="https://lyriastudio.fr" target="_blank" rel="noopener noreferrer" class="footer-studio-pill" title="Découvrir Lyria Studio">
-            <span class="studio-pill-tag">Un projet officiel de</span>
-            <span class="studio-pill-link">
-              <span class="studio-sparkle">✦</span>
-              Lyria Studio
-              <span class="studio-arrow">↗</span>
-            </span>
+          <a class="btn btn--secondary btn--lg" href="https://github.com/mnaji42/caspr" rel="noopener">
+            Lire le code source
           </a>
         </div>
 
-        <!-- Col 2: Produit & Moteurs -->
-        <div class="footer-nav-col">
-          <h4 class="footer-col-title">Produit</h4>
-          <ul class="footer-nav-list">
-            <li><a href="#demo">Démo Interactive</a></li>
-            <li><a href="#engines">Deux Moteurs IA</a></li>
-            <li><a href="#features">Super-pouvoirs</a></li>
-            <li><a href="#faq">Foire aux questions</a></li>
-          </ul>
-        </div>
-
-        <!-- Col 3: Code & Open Source -->
-        <div class="footer-nav-col">
-          <h4 class="footer-col-title">Open Source</h4>
-          <ul class="footer-nav-list">
-            <li><a href="https://github.com/mnaji42/caspr" target="_blank" rel="noopener noreferrer">Code source GitHub <span class="ext-arrow">↗</span></a></li>
-            <li><a href="https://github.com/mnaji42/caspr/releases" target="_blank" rel="noopener noreferrer">Releases & Caspr.dmg <span class="ext-arrow">↗</span></a></li>
-            <li><a href="https://github.com/mnaji42/caspr/issues" target="_blank" rel="noopener noreferrer">Signaler un bug <span class="ext-arrow">↗</span></a></li>
-            <li><a href="https://github.com/mnaji42/caspr/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">Licence MIT <span class="ext-arrow">↗</span></a></li>
-          </ul>
-        </div>
-
-        <!-- Col 4: Studio & Légal -->
-        <div class="footer-nav-col">
-          <h4 class="footer-col-title">Lyria Studio</h4>
-          <ul class="footer-nav-list">
-            <li><a href="https://lyriastudio.fr" target="_blank" rel="noopener noreferrer">À propos du studio <span class="ext-arrow">↗</span></a></li>
-            <li><a href="https://lyriastudio.fr" target="_blank" rel="noopener noreferrer">Nos réalisations <span class="ext-arrow">↗</span></a></li>
-            <li><a href="mentions-legales.html">Mentions légales</a></li>
-            <li><a href="politique-de-confidentialite.html">Confidentialité</a></li>
-          </ul>
-        </div>
-
-      </div>
-
-      <!-- Bottom Row -->
-      <div class="footer-bottom-bar">
-        <p class="footer-copyright">
-          © 2026 Caspr — Conçu & développé avec passion par <a href="https://lyriastudio.fr" target="_blank" rel="noopener noreferrer" class="footer-studio-highlight">Lyria Studio</a>.
-        </p>
-        <div class="footer-legal-links">
-          <span class="footer-privacy-badge">🔒 100% Hors-ligne · Zéro Donnée</span>
-          <span class="footer-sep">·</span>
-          <a href="mentions-legales.html">Mentions légales</a>
-          <span class="footer-sep">·</span>
-          <a href="politique-de-confidentialite.html">Politique de confidentialité</a>
-        </div>
-      </div>
-    </div>
-  </footer>
-
-  <!-- DOWNLOAD & LARGE 8-STEP CAROUSEL MODAL -->
-  <div id="download-modal" class="modal-backdrop">
-    <div class="modal-card">
-      <button type="button" class="modal-close-btn" id="modal-close-btn" aria-label="Fermer la fenêtre">&times;</button>
-      
-      <div class="modal-header">
-        <img src="images/caspr-app-icon.svg" alt="Caspr" class="modal-logo-icon" width="60" height="60">
-        <h2 class="modal-title">Téléchargement de Caspr en cours… 🚀</h2>
-        <p class="modal-subtitle">Votre fichier <code>Caspr.dmg</code> est en cours de téléchargement. Suivez ce guide illustré pour l'ouvrir facilement :</p>
-      </div>
-
-      <!-- Why Callout -->
-      <div class="modal-why-box">
-        <p class="modal-why-title"><strong>💡 Pourquoi ces étapes spécifiques ?</strong></p>
-        <p>Caspr est un projet <strong>100% open source et gratuit</strong>. Nous ne payons pas l'abonnement Apple Developer à 99$/an, ce qui fait que macOS affiche un avertissement de sécurité par défaut. Suivre ces étapes ne prend que <strong>30 secondes</strong> et n'est à faire qu'une seule fois !</p>
-      </div>
-
-      <!-- Large Interactive Carousel Container -->
-      <div class="carousel-wrapper">
-        <div class="carousel-step-header">
-          <span class="carousel-counter-badge" id="carousel-step-badge">Étape 1 sur 8</span>
-          <h3 class="carousel-step-title" id="carousel-step-title">1. Téléchargez et ouvrez Caspr.dmg</h3>
-        </div>
-
-        <div class="carousel-slide-viewport">
-          <img src="images/01-fichier-telecharger-doubleclick.png" alt="Étape 1 : double-cliquez sur le fichier Caspr.dmg" class="carousel-img" id="carousel-img" width="560" height="340" loading="lazy" decoding="async">
-        </div>
-
-        <p class="carousel-instruction-text" id="carousel-step-desc">
-          Récupérez le fichier <code>Caspr.dmg</code> puis double-cliquez dessus pour monter l'image disque dans votre Finder.
+        <p class="release-line" id="release-line">
+          <span class="release-dot" aria-hidden="true"></span>
+          <span id="release-text">Gratuit, sous licence MIT, sur GitHub.</span>
         </p>
 
-        <!-- Carousel Navigation Controls -->
-        <div class="carousel-nav-row">
-          <button type="button" class="carousel-nav-btn" id="carousel-prev-btn" aria-label="Étape précédente">‹ Précédent</button>
-          
-          <div class="carousel-dots-group" id="carousel-dots">
-            <!-- 8 dynamic dots generated by app.js -->
+        <p class="hero-req">
+          <span>macOS 14 ou plus récent</span>
+          <span>·</span>
+          <span><a href="#moteurs">Prérequis selon le moteur</a></span>
+        </p>
+      </div>
+
+      <!-- La scène : un document, et la barre de Caspr posée dessus.
+           Reproduction de la barre réelle décrite dans le README. -->
+      <div class="stage">
+        <div class="stage-chrome">
+          <div class="stage-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+          <span class="stage-file">notes-revue.md</span>
+        </div>
+
+        <div class="stage-doc">
+          <p># Revue de la PR 214</p>
+          <p>- le hook se relance à chaque rendu</p>
+          <p class="doc-live">- il manque les <span class="term term--ok">dependencies</span> dans le <span class="term term--ok">useEffect</span><span class="caret" aria-hidden="true"></span></p>
+        </div>
+
+        <!-- La barre ne prend jamais le focus dans l'application : elle est donc
+             purement descriptive ici, sans élément interactif. -->
+        <div class="bar" role="img" aria-label="La barre de Caspr pendant un enregistrement : mode « texte nettoyé », destination « curseur », minuteur à 42 secondes, collecte active, et l'aperçu de ce qui est entendu en direct.">
+          <div class="bar-tabs" aria-hidden="true">
+            <div class="tab-group">
+              <span class="tab" data-active="true">Texte nettoyé</span>
+              <span class="tab">Mot à mot</span>
+            </div>
+            <div class="tab-group">
+              <span class="tab" data-active="true">Curseur</span>
+              <span class="tab">Notes</span>
+            </div>
           </div>
 
-          <button type="button" class="carousel-nav-btn" id="carousel-next-btn" aria-label="Étape suivante">Suivant ›</button>
+          <div class="bar-main" aria-hidden="true">
+            <div class="bar-row">
+              <span class="rec-dot"></span>
+              <span class="rec-timer">0:42</span>
+              <span class="vu">
+                <i style="animation-delay:0ms"></i><i style="animation-delay:110ms"></i><i style="animation-delay:220ms"></i><i style="animation-delay:90ms"></i><i style="animation-delay:300ms"></i><i style="animation-delay:170ms"></i><i style="animation-delay:60ms"></i><i style="animation-delay:240ms"></i>
+              </span>
+              <span class="bar-meta">
+                <span class="chip">Isolement</span>
+                <span class="chip chip--collect">COLLECTE</span>
+              </span>
+            </div>
+            <p class="bar-preview">il manque les dépendances dans le use effect</p>
+          </div>
         </div>
       </div>
 
-      <!-- Modal Footer Action -->
-      <div class="modal-footer">
-        <button type="button" class="btn btn-primary" id="modal-confirm-btn" aria-label="Fermer le guide d'installation">J'ai compris !</button>
-        <a href="https://github.com/mnaji42/caspr/releases/latest/download/Caspr.dmg" class="modal-restart-link" aria-label="Relancer le téléchargement de Caspr.dmg">Le téléchargement n'a pas démarré ? Cliquez ici pour relancer.</a>
+      <p class="stage-note">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4m0-4h.01"/></svg>
+        <span>L'aperçu de la barre vient du moteur de macOS, pas de CrisperWhisper : il n'a pas votre lexique, donc il écrit «&nbsp;use effect&nbsp;» là où le texte inséré écrira <span class="term term--ok">useEffect</span>. Il répond à «&nbsp;le micro m'entend-il&nbsp;», pas à «&nbsp;la transcription sera-t-elle juste&nbsp;».</span>
+      </p>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       Le franglais — la raison d'être du projet.
+       =================================================================== -->
+  <section class="section section--raised" id="franglais" aria-labelledby="franglais-titre">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="franglais-titre">Un développeur français ne parle pas une langue à la fois</h2>
+        <p class="lead">
+          «&nbsp;Tu as oublié les <i lang="en">dependencies</i> dans le <i lang="en">useEffect</i>.&nbsp;»
+          Les modèles de reconnaissance vocale imposent une langue par segment.
+          En mode français, les termes anglais sont absorbés phonétiquement — et
+          c'est exactement ce qu'on dicte toute la journée.
+        </p>
       </div>
 
+      <div class="compare">
+        <table>
+          <caption class="sr-only">Comparaison de la transcription de trois termes techniques par les modèles de la famille Whisper en mode français et par Caspr</caption>
+          <thead>
+            <tr>
+              <th scope="col">Ce que vous dites</th>
+              <th scope="col">Modèles Whisper, mode français</th>
+              <th scope="col">Caspr, avec lexique</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row"><span class="term">useEffect</span></th>
+              <td><span class="compare-out"><span class="term term--bad">use effect</span></span></td>
+              <td><span class="compare-out"><span class="term term--ok">useEffect</span></span></td>
+            </tr>
+            <tr>
+              <th scope="row"><span class="term">dependencies</span></th>
+              <td><span class="compare-out"><span class="term term--bad">dépendances</span></span></td>
+              <td><span class="compare-out"><span class="term term--ok">dependencies</span></span></td>
+            </tr>
+            <tr>
+              <th scope="row"><span class="term">React</span></th>
+              <td><span class="compare-out"><span class="term term--bad">react</span></span></td>
+              <td><span class="compare-out"><span class="term term--ok">React</span></span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="measure">
+        <span>Mesuré sur de la parole réelle, français et anglais mêlés :</span>
+        <span class="accent"><b>32 termes techniques sur 34</b> préservés avec lexique</span>
+        <span>contre <b>29 sur 34</b> sans</span>
+        <span>— et aucune régression sur les phrases en français simple.</span>
+      </p>
+
+      <p class="source-note">
+        Le mécanisme s'appelle le conditionnement par lexique : CrisperWhisper 2.0 accepte
+        une liste de termes qui oriente le décodage. Vos noms de variables, acronymes maison
+        et bibliothèques s'ajoutent dans les réglages, et la transcription cesse de les traduire.
+      </p>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       La barre — ce qui reste modifiable pendant qu'on parle.
+       =================================================================== -->
+  <section class="section" id="barre" aria-labelledby="barre-titre">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="barre-titre">Vous changez d'avis en cours de phrase. La barre suit.</h2>
+        <p class="lead">
+          Dicter n'est pas une commande qu'on lance et qu'on subit. On réalise au
+          milieu d'une phrase que le texte ne doit pas aller là où il va. Une barre
+          flotte au bas de l'écran pendant que vous parlez, et tout ce qu'elle
+          porte se change sans vous interrompre.
+        </p>
+      </div>
+
+      <dl class="controls">
+        <div class="control">
+          <dt>
+            <span class="control-icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h13"/></svg></span>
+            <span class="control-name">Le mode</span>
+          </dt>
+          <dd>Texte nettoyé, ou mot à mot. Le premier retire les hésitations et les faux départs, le second écrit exactement ce qui a été dit — utile en entretien ou en prise de notes.</dd>
+        </div>
+
+        <div class="control">
+          <dt>
+            <span class="control-icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M8 8H6a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2m8-8h2a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/></svg></span>
+            <span class="control-name">La destination</span>
+          </dt>
+          <dd>Le curseur de l'application où vous êtes, ou un fichier. Le fichier de notes est mémorisé à part de la destination courante : l'aller-retour coûte un clic.</dd>
+        </div>
+
+        <div class="control">
+          <dt>
+            <span class="control-icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+            <span class="control-name">L'aperçu en direct</span>
+          </dt>
+          <dd>Ce qui est entendu, pendant que vous le dites. Il vient du moteur de macOS et non de CrisperWhisper, et l'interface le dit : il répond à «&nbsp;le micro m'entend-il&nbsp;», pas à «&nbsp;le texte sera-t-il juste&nbsp;».</dd>
+        </div>
+
+        <div class="control">
+          <dt>
+            <span class="control-icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v3H3zM5 10v9h14v-9M10 14h4"/></svg></span>
+            <span class="control-name">La collecte</span>
+          </dt>
+          <dd>Désactivée par défaut. Une fois activée, elle archive les dictées sur votre disque pour mesurer les moteurs sur de la vraie voix — la barre le rappelle en permanence, et l'interrupteur reste sous la main. Rien ne quitte la machine.</dd>
+        </div>
+      </dl>
+
+      <div class="rule">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+        <p>
+          Le mode et la destination sont lus <strong>à la fin de l'enregistrement</strong>,
+          jamais au début. Appuyer sur <strong>Notes</strong> au milieu d'une phrase envoie
+          cette dictée-là dans le fichier, et l'inverse fonctionne aussi. C'est ce qui rend
+          la barre utile plutôt que décorative — et elle ne prend jamais le focus, pour que
+          le texte atterrisse là où votre curseur se trouve déjà.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       Les notes — parler sans avoir à décider où ça va.
+       =================================================================== -->
+  <section class="section section--raised" id="notes" aria-labelledby="notes-titre">
+    <div class="container">
+      <div class="split">
+        <div>
+          <h2 id="notes-titre">Parlez maintenant, triez plus tard</h2>
+          <p class="lead">
+            Toutes les phrases n'ont pas de destination au moment où elles vous viennent.
+            Une idée arrive pendant que vous lisez autre chose, une remarque en réunion,
+            un rappel avant de l'oublier.
+          </p>
+          <p class="lead">
+            Basculer sur <strong>Notes</strong> envoie le texte dans un fichier Markdown daté
+            au lieu du curseur. Vous n'ouvrez pas d'application, vous ne choisissez pas où
+            écrire, vous ne quittez pas ce que vous étiez en train de faire. La journée
+            s'accumule dans un fichier, et vous la relisez quand c'est le moment.
+          </p>
+          <p class="lead">
+            Le fichier reste un fichier texte, sur votre disque, lisible par n'importe quel
+            éditeur. Rien à exporter le jour où vous changez d'outil.
+          </p>
+        </div>
+
+        <div class="notefile">
+          <div class="notefile-head">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></svg>
+            <span>~/Notes/2026-08-20.md</span>
+          </div>
+          <div class="notefile-body">
+            <ol>
+              <li><span class="notefile-time">09:14</span><span class="notefile-text">Rappeler à Sarah que la migration attend sa revue.</span></li>
+              <li><span class="notefile-time">09:41</span><span class="notefile-text">Le cache invalide trop tôt quand deux onglets écrivent en même temps.</span></li>
+              <li><span class="notefile-time">11:02</span><span class="notefile-text">Idée : refaire passer le corpus après le changement de seuil.</span></li>
+              <li><span class="notefile-time">14:27</span><span class="notefile-text">Vérifier la latence sur les dictées de plus de trente secondes.</span></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       Les moteurs — prérequis honnêtes, en tableau.
+       =================================================================== -->
+  <section class="section" id="moteurs" aria-labelledby="moteurs-titre">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="moteurs-titre">Deux moteurs, et des prérequis très différents</h2>
+        <p class="lead">
+          Une seule liste de prérequis induirait en erreur : l'écart entre les deux moteurs
+          est trop large. Le moteur intégré est celui par défaut et ne demande aucune
+          installation. C'est CrisperWhisper qui écrit <span class="term term--ok">useEffect</span>,
+          et il s'active à la demande.
+        </p>
+      </div>
+
+      <div class="specs">
+        <table>
+          <caption class="sr-only">Prérequis comparés du moteur intégré de macOS et du moteur CrisperWhisper</caption>
+          <thead>
+            <tr>
+              <th scope="col"><span class="sr-only">Critère</span></th>
+              <th scope="col">
+                <span class="col-name">Moteur intégré</span>
+                <span class="col-note">La reconnaissance vocale de macOS</span>
+              </th>
+              <th scope="col">
+                <span class="col-name">CrisperWhisper</span>
+                <span class="col-note">Le moteur qui connaît votre lexique</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Version de macOS</th>
+              <td data-col="Moteur intégré"><strong>macOS 26</strong> ou plus récent</td>
+              <td data-col="CrisperWhisper"><strong>macOS 14</strong> ou plus récent</td>
+            </tr>
+            <tr>
+              <th scope="row">Machine</th>
+              <td data-col="Moteur intégré">Tout Mac qui fait tourner macOS 26</td>
+              <td data-col="CrisperWhisper"><strong>Apple Silicon</strong> (M1 et au-delà)</td>
+            </tr>
+            <tr>
+              <th scope="row">À télécharger</th>
+              <td data-col="Moteur intégré">Rien pour le moteur, 50 à 80 Mo par langue</td>
+              <td data-col="CrisperWhisper">Environ <strong>1,6 Go</strong> de poids</td>
+            </tr>
+            <tr>
+              <th scope="row">Mémoire</th>
+              <td data-col="Moteur intégré">Négligeable</td>
+              <td data-col="CrisperWhisper">Environ <strong>3 Go</strong> résidents</td>
+            </tr>
+            <tr>
+              <th scope="row">Installation</th>
+              <td data-col="Moteur intégré">Aucune, c'est le réglage par défaut</td>
+              <td data-col="CrisperWhisper">Un script, depuis l'application</td>
+            </tr>
+            <tr>
+              <th scope="row">Langues</th>
+              <td data-col="Moteur intégré">24 langues, 42 variantes régionales</td>
+              <td data-col="CrisperWhisper">Multilingue, avec bascule au fil de la phrase</td>
+            </tr>
+            <tr>
+              <th scope="row">Vocabulaire technique</th>
+              <td data-col="Moteur intégré">Non — il écrit «&nbsp;use effect&nbsp;»</td>
+              <td data-col="CrisperWhisper"><strong>Oui</strong>, par conditionnement du décodage</td>
+            </tr>
+            <tr>
+              <th scope="row">Licence</th>
+              <td data-col="Moteur intégré">Fournie avec macOS</td>
+              <td data-col="CrisperWhisper">
+                Poids en <strong>recherche non commerciale</strong>
+                <span class="flag">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+                  À lire avant de l'installer
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="source-note">
+        Les poids de CrisperWhisper 2.0 relèvent d'une licence de recherche non commerciale
+        de Nyra Health. Caspr ne les embarque pas et ne les télécharge jamais en silence :
+        la licence s'affiche avant tout téléchargement, et le choix vous revient. Un moteur
+        sans contrainte commerciale est prévu, pour que l'application reste utilisable dans
+        tous les cas. <a href="https://huggingface.co/nyralabs/CrisperWhisper2.0_turbo/blob/main/LICENSE.md" rel="noopener">Lire la licence</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       Les mesures — des chiffres reproductibles, pas des adjectifs.
+       =================================================================== -->
+  <section class="section section--raised" id="mesures" aria-labelledby="mesures-titre">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="mesures-titre">Des chiffres, pas des adjectifs</h2>
+        <p class="lead">
+          «&nbsp;Ultra-rapide&nbsp;» ne veut rien dire. Voici ce qui a été mesuré, sur des
+          enregistrements de voix réelle et non de la parole synthétique.
+        </p>
+      </div>
+
+      <div class="metrics">
+        <div class="metric">
+          <span class="metric-value">425 ms</span>
+          <span class="metric-label">Aller-retour complet pour 13 secondes de parole, modèle déjà chaud</span>
+        </div>
+        <div class="metric">
+          <span class="metric-value">4 à 5×</span>
+          <span class="metric-label">Plus rapide que la chaîne Python de référence de CrisperWhisper, pour un texte identique à l'octet près</span>
+        </div>
+        <div class="metric">
+          <span class="metric-value">94 %</span>
+          <span class="metric-label">Des termes techniques préservés avec lexique, contre 85 % sans</span>
+        </div>
+        <div class="metric">
+          <span class="metric-value">0</span>
+          <span class="metric-label">Octet envoyé sur le réseau pendant une transcription, avec l'un ou l'autre moteur</span>
+        </div>
+      </div>
+
+      <p class="source-note">
+        Relevés sur un MacBook Pro M4 Pro, 48 Go, macOS 26.6. Deux points expliquent l'écart
+        avec la chaîne de référence : celle-ci coûte environ 1,5 seconde de surcouche par
+        transcription, et Whisper encode toujours 30 secondes même quand vous en avez dit 5 —
+        réduire cette fenêtre à 15 secondes retire près de la moitié du temps d'encodage sans
+        changer une lettre du résultat. En dessous de 15 secondes le modèle sort de son
+        domaine d'entraînement, et Caspr n'y descend pas.
+        Les scripts qui reproduisent ces mesures sont dans le dépôt.
+      </p>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       Confidentialité et code source.
+       =================================================================== -->
+  <section class="section" id="local" aria-labelledby="local-titre">
+    <div class="container">
+      <div class="split">
+        <div>
+          <h2 id="local-titre">Rien à envoyer, donc rien à protéger</h2>
+          <p class="lead">
+            La confidentialité n'est pas une promesse que Caspr vous demande de croire,
+            c'est une conséquence de son architecture : il n'y a pas de serveur à qui
+            envoyer quoi que ce soit. La transcription se fait dans la mémoire de votre
+            Mac, avec l'un comme avec l'autre moteur.
+          </p>
+          <p class="lead">
+            Le code est public. Vous pouvez lire ce que fait l'application, la compiler
+            vous-même, ou vérifier de vos yeux qu'aucune requête ne sort.
+          </p>
+          <p style="margin-top:var(--s-8)">
+            <a class="btn btn--secondary" href="https://github.com/mnaji42/caspr" rel="noopener">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.95 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.03A9.5 9.5 0 0 1 12 6.8c.85 0 1.71.11 2.5.34 1.91-1.3 2.75-1.03 2.75-1.03.55 1.38.2 2.4.1 2.65.64.7 1.03 1.6 1.03 2.69 0 3.85-2.34 4.7-4.57 4.95.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 22 12c0-5.52-4.48-10-10-10Z"/></svg>
+              Lire le code sur GitHub
+            </a>
+          </p>
+        </div>
+
+        <ul class="facts">
+          <li>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
+            <span><strong>Aucun compte.</strong> Vous téléchargez, vous ouvrez, vous parlez.</span>
+          </li>
+          <li>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
+            <span><strong>Aucune télémétrie.</strong> Pas de statistiques d'usage, pas de traceur, pas de rapport d'incident silencieux.</span>
+          </li>
+          <li>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
+            <span><strong>Hors-ligne pour de bon.</strong> Coupez le Wi-Fi : la dictée fonctionne à l'identique.</span>
+          </li>
+          <li>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
+            <span><strong>Une seule requête, facultative.</strong> La vérification des mises à jour interroge GitHub, et se désactive dans les réglages.</span>
+          </li>
+          <li>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
+            <span><strong>Une désinstallation qui désinstalle.</strong> L'environnement Python, les poids, les caches et les préférences partent avec — et seulement ce qui est réellement présent.</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       Questions.
+       =================================================================== -->
+  <section class="section section--raised" id="questions" aria-labelledby="questions-titre">
+    <div class="container">
+      <div class="section-head section-head--center">
+        <h2 id="questions-titre">Questions</h2>
+      </div>
+
+      <div class="faq">
+        <div class="faq-item" data-open="true">
+          <h3>
+            <button type="button" class="faq-q" aria-expanded="true" aria-controls="q1">
+              <span>De quel Mac ai-je besoin&nbsp;?</span>
+              <svg class="faq-sign" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </h3>
+          <div class="faq-a" id="q1"><div>
+            <p>Cela dépend du moteur. Le moteur intégré s'appuie sur la reconnaissance vocale de macOS : il demande <strong>macOS 26 ou plus récent</strong>, sur n'importe quel Mac capable de faire tourner cette version. CrisperWhisper demande <strong>macOS 14 ou plus récent et une puce Apple Silicon</strong> (M1 et au-delà), avec environ 1,6 Go de poids à télécharger et 3 Go de mémoire résidente pendant l'usage.</p>
+          </div></div>
+        </div>
+
+        <div class="faq-item">
+          <h3>
+            <button type="button" class="faq-q" aria-expanded="false" aria-controls="q2">
+              <span>Ma voix ou mes textes partent-ils sur un serveur&nbsp;?</span>
+              <svg class="faq-sign" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </h3>
+          <div class="faq-a" id="q2"><div>
+            <p>Non. La transcription s'exécute sur votre machine, avec les deux moteurs. Il n'y a ni compte, ni serveur, ni télémétrie. Coupez le Wi-Fi et Caspr fonctionne à l'identique.</p>
+            <p>La seule requête réseau de l'application est la vérification des mises à jour sur GitHub, et elle se désactive dans les réglages.</p>
+          </div></div>
+        </div>
+
+        <div class="faq-item">
+          <h3>
+            <button type="button" class="faq-q" aria-expanded="false" aria-controls="q3">
+              <span>Pourquoi macOS refuse-t-il d'ouvrir l'application la première fois&nbsp;?</span>
+              <svg class="faq-sign" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </h3>
+          <div class="faq-a" id="q3"><div>
+            <p>Parce que l'application n'est pas notariée par Apple — la notarisation suppose un compte développeur payant. Caspr est signé de façon ad hoc, alors macOS affiche un avertissement au premier lancement.</p>
+            <p>L'autorisation se donne une fois, dans Réglages Système, rubrique Confidentialité et sécurité. Le guide qui s'ouvre au téléchargement montre chaque étape en image.</p>
+          </div></div>
+        </div>
+
+        <div class="faq-item">
+          <h3>
+            <button type="button" class="faq-q" aria-expanded="false" aria-controls="q4">
+              <span>Caspr comprend-il le franglais et les termes de code&nbsp;?</span>
+              <svg class="faq-sign" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </h3>
+          <div class="faq-a" id="q4"><div>
+            <p>C'est la raison d'être du projet. CrisperWhisper 2.0 accepte un lexique qui oriente le décodage vers les termes que vous lui donnez : noms de variables, acronymes maison, bibliothèques.</p>
+            <p>Mesuré sur de la parole réelle mêlant français et anglais, <strong>32 termes techniques sur 34</strong> sont préservés avec lexique, contre 29 sur 34 sans — et sans régression sur les phrases en français simple. Le moteur intégré de macOS, lui, n'a pas ce mécanisme et écrira «&nbsp;use effect&nbsp;».</p>
+          </div></div>
+        </div>
+
+        <div class="faq-item">
+          <h3>
+            <button type="button" class="faq-q" aria-expanded="false" aria-controls="q5">
+              <span>Quelle est la licence&nbsp;?</span>
+              <svg class="faq-sign" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </h3>
+          <div class="faq-a" id="q5"><div>
+            <p>Le code de Caspr est sous licence MIT, comme le code d'inférence de CrisperWhisper. <strong>Les poids du modèle ne le sont pas</strong> : ils relèvent d'une licence de recherche non commerciale de Nyra Health.</p>
+            <p>Caspr n'embarque donc pas ces poids et ne les télécharge jamais en silence. La licence s'affiche avant tout téléchargement et le choix vous revient. Sous une lecture stricte, dicter un courriel professionnel peut relever de l'usage commercial — ce qui est dit ici est un résumé, pas un avis juridique.</p>
+          </div></div>
+        </div>
+
+        <div class="faq-item">
+          <h3>
+            <button type="button" class="faq-q" aria-expanded="false" aria-controls="q6">
+              <span>Puis-je désinstaller proprement&nbsp;?</span>
+              <svg class="faq-sign" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </h3>
+          <div class="faq-a" id="q6"><div>
+            <p>Oui. L'application inclut un désinstallateur qui retire l'environnement Python, les poids du modèle, les caches et les préférences — et il ne propose de supprimer que ce qui est effectivement installé.</p>
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       Téléchargement.
+       =================================================================== -->
+  <section class="section final" aria-labelledby="final-titre">
+    <div class="container">
+      <h2 id="final-titre">Essayez-le sur une phrase que vous n'auriez pas osé dicter</h2>
+      <p class="lead">
+        Celle avec deux termes anglais au milieu, un nom de fonction et une hésitation.
+        C'est le cas pour lequel Caspr a été écrit.
+      </p>
+      <div class="final-actions">
+        <button type="button" class="btn btn--primary btn--lg js-download">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          Télécharger pour macOS
+        </button>
+        <a class="btn btn--secondary btn--lg" href="https://github.com/mnaji42/caspr/releases" rel="noopener">
+          Voir toutes les versions
+        </a>
+      </div>
+      <p class="final-note">Gratuit et open source · macOS 14 ou plus récent · aucun compte</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <img src="images/caspr-logo-horizontal.svg" alt="Caspr" width="110" height="28">
+        <p>Dictée vocale locale pour macOS, pensée pour ceux qui parlent deux langues dans la même phrase.</p>
+        <a class="footer-studio" href="https://lyriastudio.fr" rel="noopener">
+          Un projet de <b>Lyria Studio</b>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+        </a>
+      </div>
+
+      <nav class="footer-col" aria-labelledby="foot-produit">
+        <h2 id="foot-produit">Le produit</h2>
+        <ul>
+          <li><a href="#franglais">Le franglais</a></li>
+          <li><a href="#barre">La barre</a></li>
+          <li><a href="#notes">Les notes</a></li>
+          <li><a href="#moteurs">Les moteurs</a></li>
+          <li><a href="#mesures">Les mesures</a></li>
+        </ul>
+      </nav>
+
+      <nav class="footer-col" aria-labelledby="foot-code">
+        <h2 id="foot-code">Le code</h2>
+        <ul>
+          <li><a href="https://github.com/mnaji42/caspr" rel="noopener">Dépôt GitHub</a></li>
+          <li><a href="https://github.com/mnaji42/caspr/releases" rel="noopener">Versions</a></li>
+          <li><a href="https://github.com/mnaji42/caspr/issues" rel="noopener">Signaler un problème</a></li>
+          <li><a href="https://github.com/mnaji42/caspr/blob/main/LICENSE" rel="noopener">Licence MIT du code</a></li>
+        </ul>
+      </nav>
+
+      <nav class="footer-col" aria-labelledby="foot-site">
+        <h2 id="foot-site">Le site</h2>
+        <ul>
+          <li><a href="en.html" hreflang="en" lang="en">English version</a></li>
+          <li><a href="mentions-legales.html">Mentions légales</a></li>
+          <li><a href="politique-de-confidentialite.html">Confidentialité</a></li>
+          <li><a href="https://lyriastudio.fr" rel="noopener">Lyria Studio</a></li>
+        </ul>
+      </nav>
+    </div>
+
+    <div class="footer-bottom">
+      <p>© 2026 Caspr — un projet <a href="https://lyriastudio.fr" rel="noopener">Lyria Studio</a>. Code sous licence MIT.</p>
+      <div class="footer-legal">
+        <a href="mentions-legales.html">Mentions légales</a>
+        <a href="politique-de-confidentialite.html">Politique de confidentialité</a>
+      </div>
     </div>
   </div>
+</footer>
 
-  <script src="app.js?v=2.1" defer></script>
+<!-- ===================================================================
+     Guide d'installation, ouvert au téléchargement.
+     =================================================================== -->
+<div class="modal-backdrop" id="modal" data-open="false">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titre" tabindex="-1">
+    <button type="button" class="modal-close" id="modal-close" aria-label="Fermer le guide d'installation">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+
+    <div class="modal-head">
+      <img src="images/caspr-app-icon.svg" alt="" width="44" height="44">
+      <div>
+        <h2 id="modal-titre">Le téléchargement a commencé</h2>
+        <p>Votre fichier <code>Caspr.dmg</code> arrive. Voici comment l'ouvrir, en huit étapes illustrées.</p>
+      </div>
+    </div>
+
+    <div class="modal-why">
+      <p><strong>Pourquoi ces étapes ?</strong> Caspr n'est pas notarié par Apple, ce qui suppose un compte développeur payant. macOS affiche donc un avertissement au premier lancement. L'autorisation se donne une fois, et prend une trentaine de secondes.</p>
+    </div>
+
+    <div>
+      <div class="steps-head">
+        <span class="steps-count" id="step-count">01 / 08</span>
+        <span class="steps-title" id="step-title">Ouvrez le fichier téléchargé</span>
+      </div>
+
+      <div class="steps-frame">
+        <img id="step-image" src="images/01-fichier-telecharger-doubleclick.png" alt="" width="1280" height="800" decoding="async">
+      </div>
+
+      <p class="steps-text" id="step-text">Double-cliquez sur <code>Caspr.dmg</code> dans vos téléchargements pour monter l'image disque.</p>
+      <p class="sr-only" id="step-live" role="status" aria-live="polite"></p>
+
+      <div class="steps-nav">
+        <button type="button" class="btn btn--secondary btn--sm" id="step-prev">Précédente</button>
+        <div class="steps-dots" id="step-dots" role="group" aria-label="Aller à une étape"></div>
+        <button type="button" class="btn btn--secondary btn--sm" id="step-next">Suivante</button>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <a href="https://github.com/mnaji42/caspr/releases/latest/download/Caspr.dmg">Le téléchargement n'a pas démarré ?</a>
+      <button type="button" class="btn btn--primary" id="modal-done">J'ai terminé</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js?v=4" defer></script>
 </body>
 </html>
