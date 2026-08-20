@@ -34,7 +34,7 @@
 
 <!-- Aucune police distante : le site emploie la police système de macOS, comme
      l'application. Une requête réseau de moins, et zéro décalage au chargement. -->
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 
 <script type="application/ld+json">
 {
@@ -147,6 +147,7 @@
     </a>
 
     <nav class="site-nav" aria-label="Sections du site">
+      <a class="nav-link" href="#dictee">La dictée</a>
       <a class="nav-link" href="#vocabulaire">Le vocabulaire</a>
       <a class="nav-link" href="#barre">La barre</a>
       <a class="nav-link" href="#notes">Les notes</a>
@@ -183,20 +184,22 @@
     <div class="container">
       <div class="hero-copy">
         <h1>
-          Parlez naturellement.<br>
-          Caspr écrit
-          <span class="typing">
-            <!-- La doublure invisible réserve la place de la plus longue des
-                 phrases : sans elle, chaque caractère tapé pousserait la page. -->
-            <span class="typing-ghost" aria-hidden="true">vos noms propres</span>
-            <span class="typing-out"><span id="typed"></span><span class="caret" aria-hidden="true"></span></span>
+          Parlez naturellement.
+          <span class="hero-sub">Caspr écrit
+            <span class="typing">
+              <!-- La doublure invisible réserve la place de la plus longue des
+                   phrases : sans elle, chaque caractère tapé pousserait la page. -->
+              <span class="typing-ghost" aria-hidden="true">votre franglais sans traduire</span>
+              <span class="typing-out"><span id="typed"></span><span class="caret" aria-hidden="true"></span></span>
+            </span>
           </span>
         </h1>
 
         <p class="hero-lead">
-          Une dictée pour macOS qui ne bute pas sur les mots de votre métier :
-          ceux qu'on emprunte à l'anglais, les acronymes, les noms propres.
-          Tout tourne sur votre Mac — pas de cloud, pas de compte, pas de télémétrie.
+          Une dictée pour macOS qui retire vos hésitations et garde vos mots —
+          ceux du métier, ceux qu'on emprunte à l'anglais. Rapide, gratuite,
+          open source, et entièrement sur votre Mac : pas de cloud, pas de compte,
+          pas de télémétrie.
         </p>
 
         <div class="hero-actions">
@@ -271,23 +274,82 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4m0-4h.01"/></svg>
         <span>L'aperçu de la barre vient du moteur de macOS, pas de CrisperWhisper : il n'a pas votre lexique, d'où le «&nbsp;bord&nbsp;» à la place de <span class="term term--ok">board</span>. Il répond à «&nbsp;le micro m'entend-il&nbsp;», pas à «&nbsp;la transcription sera-t-elle juste&nbsp;».</span>
       </p>
+
+      <p class="perks">
+        <span class="perk"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg><span><b>100 % local</b> — rien ne sort de votre Mac</span></span>
+        <span class="perk"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg><span><b>425 ms</b> pour 13 secondes de parole</span></span>
+        <span class="perk"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg><span><b>Open source</b> — code sous licence MIT</span></span>
+        <span class="perk"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg><span><b>Sans compte</b> ni abonnement</span></span>
+      </p>
     </div>
   </section>
 
   <!-- ===================================================================
-       Le vocabulaire de métier — la raison d'être du projet.
+       Avant / après. Le problème que tout le monde a : on ne parle pas
+       comme on écrit.
+       =================================================================== -->
+  <section class="section section--raised" id="dictee" aria-labelledby="dictee-titre">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="dictee-titre">Vous ne parlez pas comme vous écrivez</h2>
+        <p class="lead">
+          On hésite, on se reprend, on repart en arrière. Une dictée classique
+          écrit tout, «&nbsp;euh&nbsp;» compris, et vous relisez pour nettoyer.
+          Caspr rend ce que vous vouliez dire.
+        </p>
+      </div>
+
+      <div class="versus">
+        <div class="versus-card">
+          <p class="versus-label">Une dictée classique</p>
+          <p class="versus-quote">
+            «&nbsp;Alors <span class="filler">euh</span> attends, on va
+            <span class="filler">on va</span> décaler la réunion à jeudi
+            <span class="filler">enfin non</span> vendredi matin
+            <span class="filler">euh</span> et prévenir Sarah&nbsp;»
+          </p>
+          <p class="versus-note">
+            Vous relisez, vous coupez, vous ponctuez. Le temps gagné à la dictée
+            se reperd à la correction.
+          </p>
+        </div>
+
+        <div class="versus-card versus-card--after">
+          <p class="versus-label">Avec Caspr</p>
+          <p class="versus-quote">
+            «&nbsp;On va décaler la réunion à vendredi matin, et prévenir Sarah.&nbsp;»
+          </p>
+          <p class="versus-note">
+            Les hésitations, les reprises et les faux départs sont retirés ; la
+            ponctuation et les majuscules sont déduites du sens.
+          </p>
+        </div>
+      </div>
+
+      <p class="source-note">
+        Le mode «&nbsp;texte nettoyé&nbsp;» vient de CrisperWhisper, et il est celui par
+        défaut. Le mode «&nbsp;mot à mot&nbsp;» écrit à l'inverse exactement ce qui a été
+        dit, hésitations comprises — utile en entretien. Les moteurs de macOS, eux,
+        rendent un seul texte, sans passe de nettoyage.
+      </p>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       Le vocabulaire de métier — le différenciateur.
        =================================================================== -->
   <section class="section section--raised" id="vocabulaire" aria-labelledby="vocabulaire-titre">
     <div class="container">
       <div class="section-head">
-        <h2 id="vocabulaire-titre">Personne ne parle une seule langue à la fois</h2>
+        <h2 id="vocabulaire-titre">Et les mots que les autres écorchent</h2>
         <p class="lead">
-          Un trader dit «&nbsp;le <i lang="en">spread</i> s'est écarté sur le <i lang="en">forward</i>&nbsp;».
-          Une chercheuse dit «&nbsp;le <i lang="en">peer review</i> a retoqué le protocole&nbsp;».
-          Un développeur dit «&nbsp;les <i lang="en">dependencies</i> dans le <i lang="en">useEffect</i>&nbsp;».
-          Les modèles de reconnaissance vocale imposent une langue par segment :
-          en mode français, les mots empruntés à l'anglais sont absorbés
-          phonétiquement — et ce sont précisément ceux qu'on dicte toute la journée.
+          Beaucoup de métiers empruntent leur vocabulaire à l'anglais. Un trader dit
+          «&nbsp;le <i lang="en">spread</i> s'est écarté sur le <i lang="en">forward</i>&nbsp;»,
+          une chercheuse «&nbsp;le <i lang="en">peer review</i> a retoqué le protocole&nbsp;»,
+          un développeur «&nbsp;les <i lang="en">dependencies</i> dans le
+          <i lang="en">useEffect</i>&nbsp;». Les modèles de reconnaissance vocale
+          imposent une langue par segment : en mode français, ces mots sont absorbés
+          phonétiquement.
         </p>
       </div>
 
@@ -584,19 +646,20 @@
   <section class="section" id="local" aria-labelledby="local-titre">
     <div class="container">
       <div class="section-head">
-        <h2 id="local-titre">Rien à envoyer, donc rien à protéger</h2>
+        <h2 id="local-titre">Local par construction, open source par principe</h2>
         <p class="lead">
           La confidentialité n'est pas une promesse que Caspr vous demande de croire,
           c'est une conséquence de son architecture : il n'y a pas de serveur à qui
-          envoyer quoi que ce soit. Le code est public, et vous pouvez vérifier
-          qu'aucune requête ne sort.
+          envoyer quoi que ce soit. Et vous n'avez pas à me croire sur parole —
+          l'intégralité du code est publique, sous licence MIT, lisible et compilable
+          par vous.
         </p>
       </div>
 
       <ul class="facts">
         <li>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
-          <span><strong>Aucun compte.</strong> Vous téléchargez, vous ouvrez, vous parlez.</span>
+          <span><strong>Gratuit et open source.</strong> Code Swift et moteur Python sous licence MIT, sur GitHub. Aucun bridage, aucun abonnement, aucun compte.</span>
         </li>
         <li>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
@@ -744,8 +807,10 @@
   <div class="container">
     <div class="footer-grid">
       <div class="footer-brand">
-        <img src="images/caspr-logo-horizontal.svg" alt="Caspr" width="110" height="28">
-        <p>Dictée vocale locale pour macOS, pensée pour ceux dont le métier a son vocabulaire.</p>
+        <div class="footer-brand-top">
+          <img src="images/caspr-logo-stacked.svg" alt="Caspr" width="84" height="84">
+          <p>Dictée vocale locale pour macOS. Rapide, privée, open source. Zéro cloud, zéro abonnement.</p>
+        </div>
         <a class="footer-studio" href="https://lyriastudio.fr" rel="noopener">
           Un projet de <b>Lyria Studio</b>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
@@ -755,6 +820,7 @@
       <nav class="footer-col" aria-labelledby="foot-produit">
         <h2 id="foot-produit">Le produit</h2>
         <ul>
+          <li><a href="#dictee">La dictée</a></li>
           <li><a href="#vocabulaire">Le vocabulaire</a></li>
           <li><a href="#barre">La barre</a></li>
           <li><a href="#notes">Les notes</a></li>
@@ -842,6 +908,6 @@
   </div>
 </div>
 
-<script src="app.js?v=5" defer></script>
+<script src="app.js?v=6" defer></script>
 </body>
 </html>

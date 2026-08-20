@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Caspr — local, offline dictation for macOS</title>
-<meta name="description" content="Caspr turns speech into text on your own Mac, with no cloud and no account. It writes the words of your trade — borrowed terms, acronyms, proper nouns — without trying to translate them.">
+<meta name="description" content="Caspr turns speech into text on your own Mac, with no cloud and no account. It cleans up the way people actually talk, and writes the words of your trade without translating them.">
 <meta name="theme-color" content="#0b0e14">
 <meta name="color-scheme" content="dark">
 
@@ -19,14 +19,14 @@
 <meta property="og:locale:alternate" content="fr_FR">
 <meta property="og:url" content="https://caspr.lyriastudio.fr/en.html">
 <meta property="og:title" content="Caspr — local, offline dictation for macOS">
-<meta property="og:description" content="Speak naturally. Caspr writes the words of your trade without translating them. Everything runs on your Mac: no cloud, no account, no telemetry.">
+<meta property="og:description" content="Speak naturally. Caspr writes at the speed of your thoughts, and never leaves your Mac: no cloud, no account, no telemetry.">
 <meta property="og:image" content="https://caspr.lyriastudio.fr/images/og-preview-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Caspr — local dictation for macOS">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Caspr — local, offline dictation for macOS">
-<meta name="twitter:description" content="Speak naturally. Caspr writes the words of your trade without translating them.">
+<meta name="twitter:description" content="Speak naturally. Caspr writes at the speed of your thoughts.">
 <meta name="twitter:image" content="https://caspr.lyriastudio.fr/images/og-preview-en.png">
 
 <link rel="icon" type="image/svg+xml" href="images/caspr-app-icon.svg">
@@ -34,7 +34,7 @@
 
 <!-- Aucune police distante : le site emploie la police système de macOS, comme
      l'application. Une requête réseau de moins, et zéro décalage au chargement. -->
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 
 <script type="application/ld+json">
 {
@@ -47,7 +47,7 @@
       "applicationCategory": "UtilitiesApplication",
       "applicationSubCategory": "Dictée vocale",
       "operatingSystem": "macOS 14 or later",
-      "description": "Local dictation app for macOS, built for speech that mixes languages and for the vocabulary of a trade. Transcription runs on the machine, with no remote service.",
+      "description": "Local dictation app for macOS: it removes the hesitations of real speech and keeps the vocabulary of your trade. Transcription runs on the machine, with no remote service.",
       "url": "https://caspr.lyriastudio.fr/",
       "downloadUrl": "https://github.com/mnaji42/caspr/releases/latest",
       "softwareHelp": "https://github.com/mnaji42/caspr#install",
@@ -147,6 +147,7 @@
     </a>
 
     <nav class="site-nav" aria-label="Site sections">
+      <a class="nav-link" href="#dictation">Dictation</a>
       <a class="nav-link" href="#vocabulary">Vocabulary</a>
       <a class="nav-link" href="#bar">The bar</a>
       <a class="nav-link" href="#notes">Notes</a>
@@ -183,20 +184,22 @@
     <div class="container">
       <div class="hero-copy">
         <h1>
-          Speak naturally.<br>
-          Caspr writes
-          <span class="typing">
-            <!-- La doublure invisible réserve la place de la plus longue des
-                 phrases : sans elle, chaque caractère tapé pousserait la page. -->
-            <span class="typing-ghost" aria-hidden="true">the right word</span>
-            <span class="typing-out"><span id="typed"></span><span class="caret" aria-hidden="true"></span></span>
+          Speak naturally.
+          <span class="hero-sub">Caspr writes
+            <span class="typing">
+              <!-- La doublure invisible réserve la place de la plus longue des
+                   phrases : sans elle, chaque caractère tapé pousserait la page. -->
+              <span class="typing-ghost" aria-hidden="true">at the speed of your thoughts</span>
+              <span class="typing-out"><span id="typed"></span><span class="caret" aria-hidden="true"></span></span>
+            </span>
           </span>
         </h1>
 
         <p class="hero-lead">
-          A dictation app for macOS that does not stumble on the words of your trade:
-          the ones borrowed from another language, the acronyms, the proper nouns.
-          Everything runs on your Mac — no cloud, no account, no telemetry.
+          A dictation app for macOS that takes out your hesitations and keeps your
+          words — the ones from your trade, the ones borrowed from another language.
+          Fast, free, open source, and entirely on your Mac: no cloud, no account,
+          no telemetry.
         </p>
 
         <div class="hero-actions">
@@ -271,23 +274,80 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4m0-4h.01"/></svg>
         <span>The bar's preview comes from the macOS engine, not from CrisperWhisper: it has no lexicon, hence “bored” where the inserted text will write <span class="term term--ok">board</span>. It answers “is the mic hearing me”, not “will the transcription be right”.</span>
       </p>
+
+      <p class="perks">
+        <span class="perk"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg><span><b>100% local</b> — nothing leaves your Mac</span></span>
+        <span class="perk"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg><span><b>425 ms</b> for 13 seconds of speech</span></span>
+        <span class="perk"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg><span><b>Open source</b> — MIT licensed code</span></span>
+        <span class="perk"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg><span><b>No account</b>, no subscription</span></span>
+      </p>
     </div>
   </section>
 
   <!-- ===================================================================
-       Le vocabulaire de métier — la raison d'être du projet.
+       Avant / après. Le problème que tout le monde a : on ne parle pas
+       comme on écrit.
+       =================================================================== -->
+  <section class="section section--raised" id="dictation" aria-labelledby="dictation-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="dictation-title">You don't speak the way you write</h2>
+        <p class="lead">
+          We hesitate, we backtrack, we start the sentence again. Ordinary
+          dictation writes all of it down, every “er” included, and then you reread
+          it to clean it up. Caspr writes what you meant.
+        </p>
+      </div>
+
+      <div class="versus">
+        <div class="versus-card">
+          <p class="versus-label">Ordinary dictation</p>
+          <p class="versus-quote">
+            “So <span class="filler">er</span> hang on, we'll
+            <span class="filler">we'll</span> push the meeting to Thursday
+            <span class="filler">no wait</span> Friday morning
+            <span class="filler">er</span> and let Sarah know”
+          </p>
+          <p class="versus-note">
+            You reread it, you cut, you punctuate. The time dictation saved goes
+            straight back into fixing it.
+          </p>
+        </div>
+
+        <div class="versus-card versus-card--after">
+          <p class="versus-label">With Caspr</p>
+          <p class="versus-quote">
+            “We'll push the meeting to Friday morning, and let Sarah know.”
+          </p>
+          <p class="versus-note">
+            Hesitations, restarts and false starts are removed; punctuation and
+            capitals are inferred from the meaning.
+          </p>
+        </div>
+      </div>
+
+      <p class="source-note">
+        The “clean text” mode comes from CrisperWhisper, and it is the default.
+        “Word for word” does the opposite and writes exactly what was said,
+        hesitations included — useful for interviews. The macOS engines return a
+        single text, with no cleanup pass.
+      </p>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       Le vocabulaire de métier — le différenciateur.
        =================================================================== -->
   <section class="section section--raised" id="vocabulary" aria-labelledby="vocabulary-title">
     <div class="container">
       <div class="section-head">
-        <h2 id="vocabulary-title">Nobody speaks one language at a time</h2>
+        <h2 id="vocabulary-title">And the words other engines mangle</h2>
         <p class="lead">
-          A trader says “le <i lang="fr">spread</i> s'est écarté sur le forward”.
-          A researcher says “the peer review a retoqué le protocole”.
-          A developer says “les dependencies dans le useEffect”.
-          Speech models force a single language per segment: in French mode, the
-          words borrowed from English are absorbed phonetically — and those are
-          exactly the ones people dictate all day.
+          Plenty of trades borrow their vocabulary from another language. A French
+          trader says “le <i lang="fr">spread</i> s'est écarté sur le forward”, a
+          researcher “le peer review a retoqué le protocole”, a developer “les
+          dependencies dans le useEffect”. Speech models force one language per
+          segment, so in French mode those words get absorbed phonetically.
         </p>
       </div>
 
@@ -584,18 +644,19 @@
   <section class="section" id="local" aria-labelledby="local-title">
     <div class="container">
       <div class="section-head">
-        <h2 id="local-title">Nothing to send, so nothing to protect</h2>
+        <h2 id="local-title">Local by construction, open source on principle</h2>
         <p class="lead">
           Privacy is not a promise Caspr asks you to take on trust, it is a consequence of
-          how it is built: there is no server to send anything to. The code is public, and
-          you can check for yourself that no request goes out.
+          how it is built: there is no server to send anything to. And you don't have to
+          take my word for it — the whole codebase is public, MIT licensed, yours to read
+          and to build.
         </p>
       </div>
 
       <ul class="facts">
         <li>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
-          <span><strong>No account.</strong> Download, open, talk.</span>
+          <span><strong>Free and open source.</strong> The Swift app and the Python engine are MIT licensed, on GitHub. Nothing held back, no subscription, no account.</span>
         </li>
         <li>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
@@ -743,8 +804,10 @@
   <div class="container">
     <div class="footer-grid">
       <div class="footer-brand">
-        <img src="images/caspr-logo-horizontal.svg" alt="Caspr" width="110" height="28">
-        <p>Local dictation for macOS, built for people whose trade has its own vocabulary.</p>
+        <div class="footer-brand-top">
+          <img src="images/caspr-logo-stacked.svg" alt="Caspr" width="84" height="84">
+          <p>Local dictation for macOS. Fast, private, open source. No cloud, no subscription.</p>
+        </div>
         <a class="footer-studio" href="https://lyriastudio.fr" rel="noopener">
           A project by <b>Lyria Studio</b>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
@@ -754,6 +817,7 @@
       <nav class="footer-col" aria-labelledby="foot-product">
         <h2 id="foot-product">Product</h2>
         <ul>
+          <li><a href="#dictation">Dictation</a></li>
           <li><a href="#vocabulary">Vocabulary</a></li>
           <li><a href="#bar">The bar</a></li>
           <li><a href="#notes">Notes</a></li>
@@ -841,6 +905,6 @@
   </div>
 </div>
 
-<script src="app.js?v=5" defer></script>
+<script src="app.js?v=6" defer></script>
 </body>
 </html>
