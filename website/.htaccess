@@ -1,44 +1,74 @@
 # ==============================================================================
-# HOSTINGER / APACHE CONFIGURATION FOR CASPR LANDING PAGE (100/100 LIGHTHOUSE)
+# Caspr — configuration Apache
 # ==============================================================================
 
-# 1. Default Index File & Rewrite Engine
 DirectoryIndex index.html
+AddDefaultCharset UTF-8
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
-  # Redirection 301 from caspr.lyriastudio.fr to caspr.lyriastudio.fr
-  RewriteCond %{HTTP_HOST} ^caspr\.lyriastudio\.fr$ [NC]
-  RewriteRule ^(.*)$ https://caspr.lyriastudio.fr/$1 [R=301,L]
+  # Forcer HTTPS.
+  # La règle précédente comparait l'hôte à lui-même et se redirigeait donc en
+  # boucle une fois le site servi en HTTPS. C'est le protocole qu'il faut
+  # tester, pas le nom d'hôte.
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+  # Une seule forme d'URL pour la page d'accueil : /index.html renvoie vers /.
+  RewriteCond %{THE_REQUEST} \s/+index\.html[\s?] [NC]
+  RewriteRule ^(.*)index\.html$ /$1 [R=301,L]
 </IfModule>
 
-# 2. Enable GZIP & Deflate Compression
+# --- Compression --------------------------------------------------------------
 <IfModule mod_deflate.c>
-  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json image/svg+xml image/x-icon
+  AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml
+  AddOutputFilterByType DEFLATE application/javascript application/json
+  AddOutputFilterByType DEFLATE application/xml image/svg+xml
 </IfModule>
 
-# 3. Long-Term Browser Caching (1 Year for Static Assets)
+# --- Types --------------------------------------------------------------------
+<IfModule mod_mime.c>
+  AddType image/svg+xml .svg
+  AddType application/xml .xml
+</IfModule>
+
+# --- Durées de cache ----------------------------------------------------------
 <IfModule mod_expires.c>
   ExpiresActive On
   ExpiresDefault "access plus 1 month"
-  ExpiresByType image/jpg "access plus 1 year"
-  ExpiresByType image/jpeg "access plus 1 year"
   ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
   ExpiresByType image/webp "access plus 1 year"
   ExpiresByType image/svg+xml "access plus 1 year"
-  ExpiresByType image/x-icon "access plus 1 year"
   ExpiresByType text/css "access plus 1 year"
   ExpiresByType application/javascript "access plus 1 year"
-  ExpiresByType font/woff2 "access plus 1 year"
+  # Le HTML doit pouvoir changer sans attendre l'expiration d'un cache.
+  ExpiresByType text/html "access plus 0 seconds"
 </IfModule>
 
-# 4. Cache-Control Headers & Security
 <IfModule mod_headers.c>
-  <FilesMatch "\.(ico|jpe?g|png|gif|svg|webp|js|css|woff2?)$">
+  # Les feuilles, scripts et images sont versionnés par requête (?v=) : ils
+  # peuvent être gardés indéfiniment.
+  <FilesMatch "\.(css|js|png|jpe?g|svg|webp|ico|woff2?)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
+
+  <FilesMatch "\.html$">
+    Header set Cache-Control "public, max-age=0, must-revalidate"
+  </FilesMatch>
+
+  # Le plan du site et robots.txt changent avec le contenu.
+  <FilesMatch "^(sitemap\.xml|robots\.txt)$">
+    Header set Cache-Control "public, max-age=3600"
+  </FilesMatch>
+
   Header set X-Content-Type-Options "nosniff"
-  Header set X-Frame-Options "SAMEORIGIN"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
 </IfModule>
+
+# --- Pages d'erreur -----------------------------------------------------------
+ErrorDocument 404 /index.html
