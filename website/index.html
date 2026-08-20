@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Caspr — dictée vocale locale et hors-ligne pour macOS</title>
-<meta name="description" content="Caspr transcrit votre voix directement sur votre Mac, sans cloud ni compte. Il écrit useEffect quand vous dites useEffect, même au milieu d'une phrase en français.">
+<meta name="description" content="Caspr transcrit votre voix sur votre Mac, sans cloud ni compte. Il écrit les mots de votre métier — franglais, acronymes, noms propres — sans essayer de les traduire.">
 <meta name="theme-color" content="#0b0e14">
 <meta name="color-scheme" content="dark">
 
@@ -19,14 +19,14 @@
 <meta property="og:locale:alternate" content="en_US">
 <meta property="og:url" content="https://caspr.lyriastudio.fr/">
 <meta property="og:title" content="Caspr — dictée vocale locale et hors-ligne pour macOS">
-<meta property="og:description" content="La dictée qui écrit useEffect, pas « use effect ». Tout tourne sur votre Mac : pas de cloud, pas de compte, pas de télémétrie.">
+<meta property="og:description" content="Parlez naturellement. Caspr écrit les mots de votre métier sans les traduire. Tout tourne sur votre Mac : pas de cloud, pas de compte, pas de télémétrie.">
 <meta property="og:image" content="https://caspr.lyriastudio.fr/images/og-preview.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Caspr — dictée vocale locale pour macOS">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Caspr — dictée vocale locale et hors-ligne pour macOS">
-<meta name="twitter:description" content="La dictée qui écrit useEffect, pas « use effect ». Tout tourne sur votre Mac.">
+<meta name="twitter:description" content="Parlez naturellement. Caspr écrit les mots de votre métier sans les traduire.">
 <meta name="twitter:image" content="https://caspr.lyriastudio.fr/images/og-preview.png">
 
 <link rel="icon" type="image/svg+xml" href="images/caspr-app-icon.svg">
@@ -34,7 +34,7 @@
 
 <!-- Aucune police distante : le site emploie la police système de macOS, comme
      l'application. Une requête réseau de moins, et zéro décalage au chargement. -->
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 
 <script type="application/ld+json">
 {
@@ -47,7 +47,7 @@
       "applicationCategory": "UtilitiesApplication",
       "applicationSubCategory": "Dictée vocale",
       "operatingSystem": "macOS 14 ou plus récent",
-      "description": "Application de dictée vocale locale pour macOS, conçue pour la parole bilingue français-anglais et le vocabulaire technique. La transcription s'exécute sur la machine, sans service distant.",
+      "description": "Application de dictée vocale locale pour macOS, conçue pour la parole mêlant plusieurs langues et le vocabulaire de métier. La transcription s'exécute sur la machine, sans service distant.",
       "url": "https://caspr.lyriastudio.fr/",
       "downloadUrl": "https://github.com/mnaji42/caspr/releases/latest",
       "softwareHelp": "https://github.com/mnaji42/caspr#install",
@@ -56,11 +56,11 @@
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
       "featureList": [
         "Transcription entièrement locale, sans connexion réseau",
-        "Conditionnement par lexique pour le vocabulaire technique",
-        "Parole bilingue français-anglais dans une même phrase",
+        "Lexique personnel pour le vocabulaire de métier",
+        "Parole mêlant français et anglais dans une même phrase",
         "Insertion du texte au curseur de l'application active",
         "Accumulation des dictées dans un fichier Markdown daté",
-        "Deux moteurs au choix : moteur intégré de macOS ou CrisperWhisper"
+        "Moteurs de macOS ou CrisperWhisper, au choix"
       ],
       "author": { "@id": "https://lyriastudio.fr/#org" }
     },
@@ -87,7 +87,7 @@
           "name": "De quel Mac ai-je besoin ?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Cela dépend du moteur. Le moteur intégré s'appuie sur la reconnaissance vocale de macOS et demande macOS 26 ou plus récent, sur n'importe quel Mac qui fait tourner cette version. CrisperWhisper demande macOS 14 ou plus récent et une puce Apple Silicon (M1 et au-delà), avec environ 1,6 Go de poids à télécharger et 3 Go de mémoire résidente."
+            "text": "Caspr demande macOS 14 ou plus récent. Avec les moteurs de macOS, il fonctionne sur toute machine où la dictée du système fonctionne, Mac Intel compris : la Dictée existe depuis macOS 10.15, et Apple Intelligence s'y ajoute à partir de macOS 26 sur les Mac qui en disposent. Seul CrisperWhisper impose une puce Apple Silicon, avec environ 1,6 Go de poids à télécharger et 3 Go de mémoire résidente."
           }
         },
         {
@@ -95,7 +95,7 @@
           "name": "Ma voix ou mes textes partent-ils sur un serveur ?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Non. La transcription s'exécute sur votre machine, avec les deux moteurs. Il n'y a ni compte, ni serveur, ni télémétrie. Coupez le Wi-Fi et Caspr fonctionne à l'identique. La seule requête réseau que fait l'application est la vérification des mises à jour sur GitHub, et elle se désactive dans les réglages."
+            "text": "Non. La transcription s'exécute sur votre machine, avec tous les moteurs. Il n'y a ni compte, ni serveur, ni télémétrie. Coupez le Wi-Fi et Caspr fonctionne à l'identique. La seule requête réseau que fait l'application est la vérification des mises à jour sur GitHub, et elle se désactive dans les réglages."
           }
         },
         {
@@ -108,10 +108,10 @@
         },
         {
           "@type": "Question",
-          "name": "Caspr comprend-il le franglais et les termes de code ?",
+          "name": "Caspr comprend-il le vocabulaire de mon métier ?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "C'est la raison d'être du projet. CrisperWhisper 2.0 accepte un lexique qui oriente le décodage vers les termes que vous lui donnez. Mesuré sur de la parole réelle mêlant français et anglais, 32 termes techniques sur 34 sont préservés avec lexique, contre 29 sur 34 sans, et sans régression sur les phrases en français simple."
+            "text": "C'est la raison d'être du projet. CrisperWhisper accepte un lexique qui oriente le décodage vers les termes que vous lui donnez, quel que soit le domaine. Mesuré sur de la parole réelle mêlant français et anglais, 32 termes techniques sur 34 sont préservés avec lexique, contre 29 sur 34 sans, et sans régression sur les phrases en français simple."
           }
         },
         {
@@ -147,7 +147,7 @@
     </a>
 
     <nav class="site-nav" aria-label="Sections du site">
-      <a class="nav-link" href="#franglais">Le franglais</a>
+      <a class="nav-link" href="#vocabulaire">Le vocabulaire</a>
       <a class="nav-link" href="#barre">La barre</a>
       <a class="nav-link" href="#notes">Les notes</a>
       <a class="nav-link" href="#moteurs">Les moteurs</a>
@@ -177,17 +177,26 @@
 <main id="main">
 
   <!-- ===================================================================
-       Hero — la thèse : le terme technique survit à la dictée française.
+       Hero.
        =================================================================== -->
   <section class="hero">
     <div class="container">
       <div class="hero-copy">
-        <h1>La dictée qui écrit <span class="term term--ok">useEffect</span>, <span style="white-space:nowrap">pas «&nbsp;use effect&nbsp;»<span class="caret" aria-hidden="true"></span></span></h1>
+        <h1>
+          Parlez naturellement.<br>
+          Caspr écrit
+          <span class="typing">
+            <!-- La doublure invisible réserve la place de la plus longue des
+                 phrases : sans elle, chaque caractère tapé pousserait la page. -->
+            <span class="typing-ghost" aria-hidden="true">vos noms propres</span>
+            <span class="typing-out"><span id="typed"></span><span class="caret" aria-hidden="true"></span></span>
+          </span>
+        </h1>
 
         <p class="hero-lead">
-          Caspr est une application de dictée pour macOS qui suit les développeurs
-          quand ils passent du français à l'anglais au milieu d'une phrase.
-          Tout tourne sur votre Mac : pas de cloud, pas de compte, pas de télémétrie.
+          Une dictée pour macOS qui ne bute pas sur les mots de votre métier :
+          ceux qu'on emprunte à l'anglais, les acronymes, les noms propres.
+          Tout tourne sur votre Mac — pas de cloud, pas de compte, pas de télémétrie.
         </p>
 
         <div class="hero-actions">
@@ -206,76 +215,79 @@
         </p>
 
         <p class="hero-req">
-          <span>macOS 14 ou plus récent</span>
+          <span>macOS 14 ou plus récent, Mac Intel compris</span>
           <span>·</span>
-          <span><a href="#moteurs">Prérequis selon le moteur</a></span>
+          <span><a href="#moteurs">Détail par moteur</a></span>
         </p>
       </div>
 
       <!-- La scène : un document, et la barre de Caspr posée dessus.
-           Reproduction de la barre réelle décrite dans le README. -->
+           Reproduction de RecordingOverlay.swift — 520 pt, pastilles sous la
+           carte, langues à gauche et destination à droite. -->
       <div class="stage">
         <div class="stage-chrome">
           <div class="stage-dots" aria-hidden="true"><i></i><i></i><i></i></div>
-          <span class="stage-file">notes-revue.md</span>
+          <span class="stage-file">compte-rendu.md</span>
         </div>
 
         <div class="stage-doc">
-          <p># Revue de la PR 214</p>
-          <p>- le hook se relance à chaque rendu</p>
-          <p class="doc-live">- il manque les <span class="term term--ok">dependencies</span> dans le <span class="term term--ok">useEffect</span><span class="caret" aria-hidden="true"></span></p>
+          <p># Comité du 20 août</p>
+          <p>- le budget tient, la roadmap glisse d'un mois</p>
+          <p class="doc-live">- valider le <span class="term term--ok">churn</span> avant le prochain <span class="term term--ok">board</span><span class="caret" aria-hidden="true"></span></p>
         </div>
 
         <!-- La barre ne prend jamais le focus dans l'application : elle est donc
              purement descriptive ici, sans élément interactif. -->
-        <div class="bar" role="img" aria-label="La barre de Caspr pendant un enregistrement : mode « texte nettoyé », destination « curseur », minuteur à 42 secondes, collecte active, et l'aperçu de ce qui est entendu en direct.">
-          <div class="bar-tabs" aria-hidden="true">
-            <div class="tab-group">
-              <span class="tab" data-active="true">Texte nettoyé</span>
-              <span class="tab">Mot à mot</span>
-            </div>
-            <div class="tab-group">
-              <span class="tab" data-active="true">Curseur</span>
-              <span class="tab">Notes</span>
-            </div>
-          </div>
-
-          <div class="bar-main" aria-hidden="true">
+        <div class="overlay" role="img" aria-label="La barre de Caspr pendant un enregistrement : minuteur à 42 secondes, micro en mode standard, collecte éteinte, l'aperçu de ce qui est entendu, et sous la carte le français sélectionné à gauche, le curseur comme destination à droite.">
+          <div class="bar" aria-hidden="true">
             <div class="bar-row">
               <span class="rec-dot"></span>
               <span class="rec-timer">0:42</span>
               <span class="vu">
-                <i style="animation-delay:0ms"></i><i style="animation-delay:110ms"></i><i style="animation-delay:220ms"></i><i style="animation-delay:90ms"></i><i style="animation-delay:300ms"></i><i style="animation-delay:170ms"></i><i style="animation-delay:60ms"></i><i style="animation-delay:240ms"></i>
+                <i style="animation-delay:0ms"></i><i style="animation-delay:80ms"></i><i style="animation-delay:160ms"></i><i style="animation-delay:240ms"></i><i style="animation-delay:120ms"></i><i style="animation-delay:200ms"></i><i style="animation-delay:60ms"></i><i style="animation-delay:280ms"></i><i style="animation-delay:140ms"></i>
               </span>
-              <span class="bar-meta">
-                <span class="chip">Isolement</span>
-                <span class="chip chip--collect">COLLECTE</span>
+              <span class="bar-right">
+                <span class="bar-status">Standard</span>
+                <span class="chip-collect" data-on="false">Collecte</span>
               </span>
             </div>
-            <p class="bar-preview">il manque les dépendances dans le use effect</p>
+            <p class="bar-preview">valider le churn avant le prochain bord</p>
+          </div>
+
+          <div class="bar-controls" aria-hidden="true">
+            <div class="pill-group">
+              <span class="pill" data-on="true">🇫🇷 FR</span>
+              <span class="pill">🇺🇸 EN</span>
+            </div>
+            <div class="pill-group">
+              <span class="pill" data-on="true">Curseur</span>
+              <span class="pill">Notes…</span>
+            </div>
           </div>
         </div>
       </div>
 
       <p class="stage-note">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4m0-4h.01"/></svg>
-        <span>L'aperçu de la barre vient du moteur de macOS, pas de CrisperWhisper : il n'a pas votre lexique, donc il écrit «&nbsp;use effect&nbsp;» là où le texte inséré écrira <span class="term term--ok">useEffect</span>. Il répond à «&nbsp;le micro m'entend-il&nbsp;», pas à «&nbsp;la transcription sera-t-elle juste&nbsp;».</span>
+        <span>L'aperçu de la barre vient du moteur de macOS, pas de CrisperWhisper : il n'a pas votre lexique, d'où le «&nbsp;bord&nbsp;» à la place de <span class="term term--ok">board</span>. Il répond à «&nbsp;le micro m'entend-il&nbsp;», pas à «&nbsp;la transcription sera-t-elle juste&nbsp;».</span>
       </p>
     </div>
   </section>
 
   <!-- ===================================================================
-       Le franglais — la raison d'être du projet.
+       Le vocabulaire de métier — la raison d'être du projet.
        =================================================================== -->
-  <section class="section section--raised" id="franglais" aria-labelledby="franglais-titre">
+  <section class="section section--raised" id="vocabulaire" aria-labelledby="vocabulaire-titre">
     <div class="container">
       <div class="section-head">
-        <h2 id="franglais-titre">Un développeur français ne parle pas une langue à la fois</h2>
+        <h2 id="vocabulaire-titre">Personne ne parle une seule langue à la fois</h2>
         <p class="lead">
-          «&nbsp;Tu as oublié les <i lang="en">dependencies</i> dans le <i lang="en">useEffect</i>.&nbsp;»
-          Les modèles de reconnaissance vocale imposent une langue par segment.
-          En mode français, les termes anglais sont absorbés phonétiquement — et
-          c'est exactement ce qu'on dicte toute la journée.
+          Un trader dit «&nbsp;le <i lang="en">spread</i> s'est écarté sur le <i lang="en">forward</i>&nbsp;».
+          Une chercheuse dit «&nbsp;le <i lang="en">peer review</i> a retoqué le protocole&nbsp;».
+          Un développeur dit «&nbsp;les <i lang="en">dependencies</i> dans le <i lang="en">useEffect</i>&nbsp;».
+          Les modèles de reconnaissance vocale imposent une langue par segment :
+          en mode français, les mots empruntés à l'anglais sont absorbés
+          phonétiquement — et ce sont précisément ceux qu'on dicte toute la journée.
         </p>
       </div>
 
@@ -285,7 +297,7 @@
           <thead>
             <tr>
               <th scope="col">Ce que vous dites</th>
-              <th scope="col">Modèles Whisper, mode français</th>
+              <th scope="col">Reconnaissance vocale, mode français</th>
               <th scope="col">Caspr, avec lexique</th>
             </tr>
           </thead>
@@ -311,15 +323,17 @@
 
       <p class="measure">
         <span>Mesuré sur de la parole réelle, français et anglais mêlés :</span>
-        <span class="accent"><b>32 termes techniques sur 34</b> préservés avec lexique</span>
+        <span class="accent"><b>32 termes sur 34</b> préservés avec lexique</span>
         <span>contre <b>29 sur 34</b> sans</span>
         <span>— et aucune régression sur les phrases en français simple.</span>
       </p>
 
       <p class="source-note">
-        Le mécanisme s'appelle le conditionnement par lexique : CrisperWhisper 2.0 accepte
-        une liste de termes qui oriente le décodage. Vos noms de variables, acronymes maison
-        et bibliothèques s'ajoutent dans les réglages, et la transcription cesse de les traduire.
+        Le mécanisme s'appelle le conditionnement par lexique : le moteur accepte une
+        liste de termes qui oriente le décodage. Le vôtre s'écrit dans les réglages —
+        noms de clients, molécules, tickers, jargon de la maison — et la transcription
+        cesse de les traduire. Les trois exemples ci-dessus viennent du corpus de test ;
+        le mécanisme, lui, ne connaît aucun domaine en particulier.
       </p>
     </div>
   </section>
@@ -345,7 +359,7 @@
             <span class="control-icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h13"/></svg></span>
             <span class="control-name">Le mode</span>
           </dt>
-          <dd>Texte nettoyé, ou mot à mot. Le premier retire les hésitations et les faux départs, le second écrit exactement ce qui a été dit — utile en entretien ou en prise de notes.</dd>
+          <dd>Texte nettoyé, ou mot à mot. Le premier retire les hésitations et les faux départs, le second écrit exactement ce qui a été dit.</dd>
         </div>
 
         <div class="control">
@@ -353,7 +367,7 @@
             <span class="control-icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M8 8H6a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2m8-8h2a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/></svg></span>
             <span class="control-name">La destination</span>
           </dt>
-          <dd>Le curseur de l'application où vous êtes, ou un fichier. Le fichier de notes est mémorisé à part de la destination courante : l'aller-retour coûte un clic.</dd>
+          <dd>Le curseur de l'application où vous êtes, ou un fichier. Le fichier de notes est mémorisé à part : l'aller-retour coûte un clic.</dd>
         </div>
 
         <div class="control">
@@ -361,7 +375,7 @@
             <span class="control-icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>
             <span class="control-name">L'aperçu en direct</span>
           </dt>
-          <dd>Ce qui est entendu, pendant que vous le dites. Il vient du moteur de macOS et non de CrisperWhisper, et l'interface le dit : il répond à «&nbsp;le micro m'entend-il&nbsp;», pas à «&nbsp;le texte sera-t-il juste&nbsp;».</dd>
+          <dd>Ce qui est entendu, pendant que vous le dites. Il répond à «&nbsp;le micro m'entend-il&nbsp;», pas à «&nbsp;le texte sera-t-il juste&nbsp;».</dd>
         </div>
 
         <div class="control">
@@ -369,7 +383,7 @@
             <span class="control-icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v3H3zM5 10v9h14v-9M10 14h4"/></svg></span>
             <span class="control-name">La collecte</span>
           </dt>
-          <dd>Désactivée par défaut. Une fois activée, elle archive les dictées sur votre disque pour mesurer les moteurs sur de la vraie voix — la barre le rappelle en permanence, et l'interrupteur reste sous la main. Rien ne quitte la machine.</dd>
+          <dd>Désactivée par défaut. Une fois active, elle archive les dictées sur votre disque pour mesurer les moteurs — et rien ne quitte la machine.</dd>
         </div>
       </dl>
 
@@ -387,72 +401,64 @@
   </section>
 
   <!-- ===================================================================
-       Les notes — parler sans avoir à décider où ça va.
+       Les notes.
        =================================================================== -->
   <section class="section section--raised" id="notes" aria-labelledby="notes-titre">
     <div class="container">
-      <div class="split">
-        <div>
-          <h2 id="notes-titre">Parlez maintenant, triez plus tard</h2>
-          <p class="lead">
-            Toutes les phrases n'ont pas de destination au moment où elles vous viennent.
-            Une idée arrive pendant que vous lisez autre chose, une remarque en réunion,
-            un rappel avant de l'oublier.
-          </p>
-          <p class="lead">
-            Basculer sur <strong>Notes</strong> envoie le texte dans un fichier Markdown daté
-            au lieu du curseur. Vous n'ouvrez pas d'application, vous ne choisissez pas où
-            écrire, vous ne quittez pas ce que vous étiez en train de faire. La journée
-            s'accumule dans un fichier, et vous la relisez quand c'est le moment.
-          </p>
-          <p class="lead">
-            Le fichier reste un fichier texte, sur votre disque, lisible par n'importe quel
-            éditeur. Rien à exporter le jour où vous changez d'outil.
-          </p>
-        </div>
+      <div class="section-head">
+        <h2 id="notes-titre">Parlez maintenant, triez plus tard</h2>
+        <p class="lead">
+          Toutes les phrases n'ont pas de destination au moment où elles vous viennent.
+          Basculez sur <strong>Notes</strong> : le texte part dans un fichier Markdown daté
+          au lieu du curseur, sans ouvrir d'application ni quitter ce que vous faisiez.
+          La journée s'accumule, et vous la relisez quand c'est le moment.
+        </p>
+      </div>
 
-        <div class="notefile">
-          <div class="notefile-head">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></svg>
-            <span>~/Notes/2026-08-20.md</span>
-          </div>
-          <div class="notefile-body">
-            <ol>
-              <li><span class="notefile-time">09:14</span><span class="notefile-text">Rappeler à Sarah que la migration attend sa revue.</span></li>
-              <li><span class="notefile-time">09:41</span><span class="notefile-text">Le cache invalide trop tôt quand deux onglets écrivent en même temps.</span></li>
-              <li><span class="notefile-time">11:02</span><span class="notefile-text">Idée : refaire passer le corpus après le changement de seuil.</span></li>
-              <li><span class="notefile-time">14:27</span><span class="notefile-text">Vérifier la latence sur les dictées de plus de trente secondes.</span></li>
-            </ol>
-          </div>
+      <div class="notefile">
+        <div class="notefile-head">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></svg>
+          <span>~/Notes/2026-08-20.md</span>
+        </div>
+        <div class="notefile-body">
+          <ol>
+            <li><span class="notefile-time">09:14</span><span class="notefile-text">Rappeler à Sarah que le dossier attend sa relecture.</span></li>
+            <li><span class="notefile-time">09:41</span><span class="notefile-text">Le churn remonte sur la cohorte de mars, creuser avant vendredi.</span></li>
+            <li><span class="notefile-time">11:02</span><span class="notefile-text">Idée : reprendre le protocole après le changement de seuil.</span></li>
+            <li><span class="notefile-time">14:27</span><span class="notefile-text">Vérifier le spread sur les échéances longues.</span></li>
+          </ol>
         </div>
       </div>
+
+      <p class="source-note">
+        Le fichier reste un fichier texte, sur votre disque, lisible par n'importe quel
+        éditeur. Rien à exporter le jour où vous changez d'outil.
+      </p>
     </div>
   </section>
 
   <!-- ===================================================================
-       Les moteurs — prérequis honnêtes, en tableau.
+       Les moteurs. Deux familles, trois moteurs — mais une seule décision.
        =================================================================== -->
   <section class="section" id="moteurs" aria-labelledby="moteurs-titre">
     <div class="container">
       <div class="section-head">
-        <h2 id="moteurs-titre">Deux moteurs, et des prérequis très différents</h2>
+        <h2 id="moteurs-titre">Le choix tient en une question</h2>
         <p class="lead">
-          Une seule liste de prérequis induirait en erreur : l'écart entre les deux moteurs
-          est trop large. Le moteur intégré est celui par défaut et ne demande aucune
-          installation. C'est CrisperWhisper qui écrit <span class="term term--ok">useEffect</span>,
-          et il s'active à la demande.
+          macOS, ou CrisperWhisper. Le premier est déjà là et ne demande rien.
+          Le second connaît votre lexique, mais il a des exigences.
         </p>
       </div>
 
       <div class="specs">
         <table>
-          <caption class="sr-only">Prérequis comparés du moteur intégré de macOS et du moteur CrisperWhisper</caption>
+          <caption class="sr-only">Prérequis comparés des moteurs de macOS et du moteur CrisperWhisper</caption>
           <thead>
             <tr>
               <th scope="col"><span class="sr-only">Critère</span></th>
               <th scope="col">
-                <span class="col-name">Moteur intégré</span>
-                <span class="col-note">La reconnaissance vocale de macOS</span>
+                <span class="col-name">macOS</span>
+                <span class="col-note">La reconnaissance vocale du système</span>
               </th>
               <th scope="col">
                 <span class="col-name">CrisperWhisper</span>
@@ -463,42 +469,42 @@
           <tbody>
             <tr>
               <th scope="row">Version de macOS</th>
-              <td data-col="Moteur intégré"><strong>macOS 26</strong> ou plus récent</td>
-              <td data-col="CrisperWhisper"><strong>macOS 14</strong> ou plus récent</td>
+              <td data-col="macOS"><strong>14</strong> ou plus récent, comme l'application</td>
+              <td data-col="CrisperWhisper"><strong>14</strong> ou plus récent</td>
             </tr>
             <tr>
               <th scope="row">Machine</th>
-              <td data-col="Moteur intégré">Tout Mac qui fait tourner macOS 26</td>
+              <td data-col="macOS">Toute machine où la dictée du système fonctionne — <strong>Mac Intel compris</strong></td>
               <td data-col="CrisperWhisper"><strong>Apple Silicon</strong> (M1 et au-delà)</td>
             </tr>
             <tr>
               <th scope="row">À télécharger</th>
-              <td data-col="Moteur intégré">Rien pour le moteur, 50 à 80 Mo par langue</td>
+              <td data-col="macOS">Rien, ou les modèles de langue depuis les Réglages Système</td>
               <td data-col="CrisperWhisper">Environ <strong>1,6 Go</strong> de poids</td>
             </tr>
             <tr>
               <th scope="row">Mémoire</th>
-              <td data-col="Moteur intégré">Négligeable</td>
+              <td data-col="macOS">Négligeable</td>
               <td data-col="CrisperWhisper">Environ <strong>3 Go</strong> résidents</td>
             </tr>
             <tr>
               <th scope="row">Installation</th>
-              <td data-col="Moteur intégré">Aucune, c'est le réglage par défaut</td>
+              <td data-col="macOS">Aucune, c'est le réglage par défaut</td>
               <td data-col="CrisperWhisper">Un script, depuis l'application</td>
             </tr>
             <tr>
-              <th scope="row">Langues</th>
-              <td data-col="Moteur intégré">24 langues, 42 variantes régionales</td>
-              <td data-col="CrisperWhisper">Multilingue, avec bascule au fil de la phrase</td>
-            </tr>
-            <tr>
-              <th scope="row">Vocabulaire technique</th>
-              <td data-col="Moteur intégré">Non — il écrit «&nbsp;use effect&nbsp;»</td>
+              <th scope="row">Vocabulaire de métier</th>
+              <td data-col="macOS">Non — il écrira «&nbsp;use effect&nbsp;»</td>
               <td data-col="CrisperWhisper"><strong>Oui</strong>, par conditionnement du décodage</td>
             </tr>
             <tr>
+              <th scope="row">Modes</th>
+              <td data-col="macOS">Un seul rendu</td>
+              <td data-col="CrisperWhisper">Texte nettoyé, ou mot à mot</td>
+            </tr>
+            <tr>
               <th scope="row">Licence</th>
-              <td data-col="Moteur intégré">Fournie avec macOS</td>
+              <td data-col="macOS">Fournie avec macOS</td>
               <td data-col="CrisperWhisper">
                 Poids en <strong>recherche non commerciale</strong>
                 <span class="flag">
@@ -512,25 +518,33 @@
       </div>
 
       <p class="source-note">
+        Côté macOS il y a en fait deux versions, et Caspr prend la meilleure que votre
+        machine sait faire tourner, sans rien vous demander : la <strong>Dictée</strong>
+        du système, présente depuis macOS 10.15 et jusque sur les Mac Intel, et
+        <strong>Apple Intelligence</strong>, apparue avec macOS 26, plus fine sur les
+        passages longs. La disponibilité est mesurée sur la machine, jamais déduite
+        d'un numéro de version.
+      </p>
+
+      <p class="source-note">
         Les poids de CrisperWhisper 2.0 relèvent d'une licence de recherche non commerciale
         de Nyra Health. Caspr ne les embarque pas et ne les télécharge jamais en silence :
-        la licence s'affiche avant tout téléchargement, et le choix vous revient. Un moteur
-        sans contrainte commerciale est prévu, pour que l'application reste utilisable dans
-        tous les cas. <a href="https://huggingface.co/nyralabs/CrisperWhisper2.0_turbo/blob/main/LICENSE.md" rel="noopener">Lire la licence</a>.
+        la licence s'affiche avant tout téléchargement, et le choix vous revient.
+        <a href="https://huggingface.co/nyralabs/CrisperWhisper2.0_turbo/blob/main/LICENSE.md" rel="noopener">Lire la licence</a>.
       </p>
     </div>
   </section>
 
   <!-- ===================================================================
-       Les mesures — des chiffres reproductibles, pas des adjectifs.
+       Les mesures.
        =================================================================== -->
   <section class="section section--raised" id="mesures" aria-labelledby="mesures-titre">
     <div class="container">
       <div class="section-head">
-        <h2 id="mesures-titre">Des chiffres, pas des adjectifs</h2>
+        <h2 id="mesures-titre">Ce qui a été mesuré</h2>
         <p class="lead">
-          «&nbsp;Ultra-rapide&nbsp;» ne veut rien dire. Voici ce qui a été mesuré, sur des
-          enregistrements de voix réelle et non de la parole synthétique.
+          Sur des enregistrements de voix réelle, et non de la parole synthétique.
+          Les scripts qui reproduisent ces chiffres sont dans le dépôt.
         </p>
       </div>
 
@@ -541,7 +555,7 @@
         </div>
         <div class="metric">
           <span class="metric-value">4 à 5×</span>
-          <span class="metric-label">Plus rapide que la chaîne Python de référence de CrisperWhisper, pour un texte identique à l'octet près</span>
+          <span class="metric-label">Plus rapide que la chaîne Python de référence, pour un texte identique à l'octet près</span>
         </div>
         <div class="metric">
           <span class="metric-value">94 %</span>
@@ -549,7 +563,7 @@
         </div>
         <div class="metric">
           <span class="metric-value">0</span>
-          <span class="metric-label">Octet envoyé sur le réseau pendant une transcription, avec l'un ou l'autre moteur</span>
+          <span class="metric-label">Octet envoyé sur le réseau pendant une transcription, quel que soit le moteur</span>
         </div>
       </div>
 
@@ -560,7 +574,6 @@
         réduire cette fenêtre à 15 secondes retire près de la moitié du temps d'encodage sans
         changer une lettre du résultat. En dessous de 15 secondes le modèle sort de son
         domaine d'entraînement, et Caspr n'y descend pas.
-        Les scripts qui reproduisent ces mesures sont dans le dépôt.
       </p>
     </div>
   </section>
@@ -570,50 +583,45 @@
        =================================================================== -->
   <section class="section" id="local" aria-labelledby="local-titre">
     <div class="container">
-      <div class="split">
-        <div>
-          <h2 id="local-titre">Rien à envoyer, donc rien à protéger</h2>
-          <p class="lead">
-            La confidentialité n'est pas une promesse que Caspr vous demande de croire,
-            c'est une conséquence de son architecture : il n'y a pas de serveur à qui
-            envoyer quoi que ce soit. La transcription se fait dans la mémoire de votre
-            Mac, avec l'un comme avec l'autre moteur.
-          </p>
-          <p class="lead">
-            Le code est public. Vous pouvez lire ce que fait l'application, la compiler
-            vous-même, ou vérifier de vos yeux qu'aucune requête ne sort.
-          </p>
-          <p style="margin-top:var(--s-8)">
-            <a class="btn btn--secondary" href="https://github.com/mnaji42/caspr" rel="noopener">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.95 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.03A9.5 9.5 0 0 1 12 6.8c.85 0 1.71.11 2.5.34 1.91-1.3 2.75-1.03 2.75-1.03.55 1.38.2 2.4.1 2.65.64.7 1.03 1.6 1.03 2.69 0 3.85-2.34 4.7-4.57 4.95.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 22 12c0-5.52-4.48-10-10-10Z"/></svg>
-              Lire le code sur GitHub
-            </a>
-          </p>
-        </div>
-
-        <ul class="facts">
-          <li>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
-            <span><strong>Aucun compte.</strong> Vous téléchargez, vous ouvrez, vous parlez.</span>
-          </li>
-          <li>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
-            <span><strong>Aucune télémétrie.</strong> Pas de statistiques d'usage, pas de traceur, pas de rapport d'incident silencieux.</span>
-          </li>
-          <li>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
-            <span><strong>Hors-ligne pour de bon.</strong> Coupez le Wi-Fi : la dictée fonctionne à l'identique.</span>
-          </li>
-          <li>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
-            <span><strong>Une seule requête, facultative.</strong> La vérification des mises à jour interroge GitHub, et se désactive dans les réglages.</span>
-          </li>
-          <li>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
-            <span><strong>Une désinstallation qui désinstalle.</strong> L'environnement Python, les poids, les caches et les préférences partent avec — et seulement ce qui est réellement présent.</span>
-          </li>
-        </ul>
+      <div class="section-head">
+        <h2 id="local-titre">Rien à envoyer, donc rien à protéger</h2>
+        <p class="lead">
+          La confidentialité n'est pas une promesse que Caspr vous demande de croire,
+          c'est une conséquence de son architecture : il n'y a pas de serveur à qui
+          envoyer quoi que ce soit. Le code est public, et vous pouvez vérifier
+          qu'aucune requête ne sort.
+        </p>
       </div>
+
+      <ul class="facts">
+        <li>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
+          <span><strong>Aucun compte.</strong> Vous téléchargez, vous ouvrez, vous parlez.</span>
+        </li>
+        <li>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
+          <span><strong>Aucune télémétrie.</strong> Pas de statistiques d'usage, pas de traceur, pas de rapport d'incident silencieux.</span>
+        </li>
+        <li>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
+          <span><strong>Hors-ligne pour de bon.</strong> Coupez le Wi-Fi : la dictée fonctionne à l'identique.</span>
+        </li>
+        <li>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
+          <span><strong>Une seule requête, facultative.</strong> La vérification des mises à jour interroge GitHub, et se désactive dans les réglages.</span>
+        </li>
+        <li>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 7"/></svg>
+          <span><strong>Une désinstallation qui désinstalle.</strong> L'environnement Python, les poids, les caches et les préférences partent avec — et seulement ce qui est réellement présent.</span>
+        </li>
+      </ul>
+
+      <p style="text-align:center;margin-top:var(--s-10)">
+        <a class="btn btn--secondary" href="https://github.com/mnaji42/caspr" rel="noopener">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.95 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.03A9.5 9.5 0 0 1 12 6.8c.85 0 1.71.11 2.5.34 1.91-1.3 2.75-1.03 2.75-1.03.55 1.38.2 2.4.1 2.65.64.7 1.03 1.6 1.03 2.69 0 3.85-2.34 4.7-4.57 4.95.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 22 12c0-5.52-4.48-10-10-10Z"/></svg>
+          Lire le code sur GitHub
+        </a>
+      </p>
     </div>
   </section>
 
@@ -622,7 +630,7 @@
        =================================================================== -->
   <section class="section section--raised" id="questions" aria-labelledby="questions-titre">
     <div class="container">
-      <div class="section-head section-head--center">
+      <div class="section-head">
         <h2 id="questions-titre">Questions</h2>
       </div>
 
@@ -635,7 +643,8 @@
             </button>
           </h3>
           <div class="faq-a" id="q1"><div>
-            <p>Cela dépend du moteur. Le moteur intégré s'appuie sur la reconnaissance vocale de macOS : il demande <strong>macOS 26 ou plus récent</strong>, sur n'importe quel Mac capable de faire tourner cette version. CrisperWhisper demande <strong>macOS 14 ou plus récent et une puce Apple Silicon</strong> (M1 et au-delà), avec environ 1,6 Go de poids à télécharger et 3 Go de mémoire résidente pendant l'usage.</p>
+            <p>Caspr demande <strong>macOS 14 ou plus récent</strong>. Avec les moteurs de macOS, il fonctionne partout où la dictée du système fonctionne, <strong>Mac Intel compris</strong> : la Dictée existe depuis macOS 10.15, et Apple Intelligence s'y ajoute à partir de macOS 26 sur les Mac qui en disposent.</p>
+            <p>Seul <strong>CrisperWhisper</strong> impose une puce Apple Silicon (M1 et au-delà), parce qu'il s'exécute sur Metal — avec environ 1,6 Go de poids à télécharger et 3 Go de mémoire résidente pendant l'usage.</p>
           </div></div>
         </div>
 
@@ -647,7 +656,7 @@
             </button>
           </h3>
           <div class="faq-a" id="q2"><div>
-            <p>Non. La transcription s'exécute sur votre machine, avec les deux moteurs. Il n'y a ni compte, ni serveur, ni télémétrie. Coupez le Wi-Fi et Caspr fonctionne à l'identique.</p>
+            <p>Non. La transcription s'exécute sur votre machine, avec tous les moteurs. Il n'y a ni compte, ni serveur, ni télémétrie. Coupez le Wi-Fi et Caspr fonctionne à l'identique.</p>
             <p>La seule requête réseau de l'application est la vérification des mises à jour sur GitHub, et elle se désactive dans les réglages.</p>
           </div></div>
         </div>
@@ -668,13 +677,13 @@
         <div class="faq-item">
           <h3>
             <button type="button" class="faq-q" aria-expanded="false" aria-controls="q4">
-              <span>Caspr comprend-il le franglais et les termes de code&nbsp;?</span>
+              <span>Caspr comprend-il le vocabulaire de mon métier&nbsp;?</span>
               <svg class="faq-sign" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
             </button>
           </h3>
           <div class="faq-a" id="q4"><div>
-            <p>C'est la raison d'être du projet. CrisperWhisper 2.0 accepte un lexique qui oriente le décodage vers les termes que vous lui donnez : noms de variables, acronymes maison, bibliothèques.</p>
-            <p>Mesuré sur de la parole réelle mêlant français et anglais, <strong>32 termes techniques sur 34</strong> sont préservés avec lexique, contre 29 sur 34 sans — et sans régression sur les phrases en français simple. Le moteur intégré de macOS, lui, n'a pas ce mécanisme et écrira «&nbsp;use effect&nbsp;».</p>
+            <p>C'est la raison d'être du projet. CrisperWhisper accepte un lexique qui oriente le décodage vers les termes que vous lui donnez : noms de clients, molécules, tickers, acronymes maison, jargon de la profession. Le mécanisme ne connaît aucun domaine en particulier.</p>
+            <p>Mesuré sur de la parole réelle mêlant français et anglais, <strong>32 termes sur 34</strong> sont préservés avec lexique, contre 29 sur 34 sans — et sans régression sur les phrases en français simple. Les moteurs de macOS, eux, n'ont pas ce mécanisme.</p>
           </div></div>
         </div>
 
@@ -713,7 +722,7 @@
     <div class="container">
       <h2 id="final-titre">Essayez-le sur une phrase que vous n'auriez pas osé dicter</h2>
       <p class="lead">
-        Celle avec deux termes anglais au milieu, un nom de fonction et une hésitation.
+        Celle avec deux mots anglais au milieu, un nom propre et une hésitation.
         C'est le cas pour lequel Caspr a été écrit.
       </p>
       <div class="final-actions">
@@ -736,7 +745,7 @@
     <div class="footer-grid">
       <div class="footer-brand">
         <img src="images/caspr-logo-horizontal.svg" alt="Caspr" width="110" height="28">
-        <p>Dictée vocale locale pour macOS, pensée pour ceux qui parlent deux langues dans la même phrase.</p>
+        <p>Dictée vocale locale pour macOS, pensée pour ceux dont le métier a son vocabulaire.</p>
         <a class="footer-studio" href="https://lyriastudio.fr" rel="noopener">
           Un projet de <b>Lyria Studio</b>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
@@ -746,7 +755,7 @@
       <nav class="footer-col" aria-labelledby="foot-produit">
         <h2 id="foot-produit">Le produit</h2>
         <ul>
-          <li><a href="#franglais">Le franglais</a></li>
+          <li><a href="#vocabulaire">Le vocabulaire</a></li>
           <li><a href="#barre">La barre</a></li>
           <li><a href="#notes">Les notes</a></li>
           <li><a href="#moteurs">Les moteurs</a></li>
@@ -833,6 +842,6 @@
   </div>
 </div>
 
-<script src="app.js?v=4" defer></script>
+<script src="app.js?v=5" defer></script>
 </body>
 </html>
