@@ -23,7 +23,12 @@ final class PermissionsMonitor {
     /// Les deux autorisations sans lesquelles la dictée ne peut rien faire.
     /// La version de macOS n'en fait pas partie : elle ne se corrige pas dans
     /// l'instant, et bloquer dessus enfermerait l'utilisateur.
-    private(set) var speechGranted = LegacySpeechEngine.isAuthorised
+    private(set) var speechAccess = LegacySpeechEngine.authorisation
+
+    /// Raccourci pour tout ce qui n'a besoin que du oui/non — la validation des
+    /// composants, le décompte des autorisations. Les vues qui offrent un
+    /// bouton, elles, ont besoin des trois états.
+    var speechGranted: Bool { speechAccess == .granted }
 
     /// L'interrupteur de la Dictée de macOS, relu au même rythme que les
     /// autorisations.
@@ -87,7 +92,7 @@ final class PermissionsMonitor {
 
     func refresh() {
         micAccess = AudioRecorder.microphoneAccess
-        speechGranted = LegacySpeechEngine.isAuthorised
+        speechAccess = LegacySpeechEngine.authorisation
 
         let granted = AXIsProcessTrusted()
         let wasGranted = accessibilityGranted

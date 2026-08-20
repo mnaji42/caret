@@ -161,7 +161,10 @@ final class LegacySpeechEngine: SpeechEngine, @unchecked Sendable {
     /// où ce moteur est retenu, pas au lancement — inutile d'inquiéter
     /// quelqu'un qui ne s'en servira jamais.
     static func requestAuthorisation() async -> Bool {
-        if SFSpeechRecognizer.authorizationStatus() == .authorized { return true }
+        // Comme `AudioRecorder.requestPermission` : hors de `.undetermined`, on
+        // rend l'état tel quel plutôt que d'appeler un dialogue qui ne viendra
+        // pas. L'appelant doit alors mener vers les Réglages Système.
+        guard authorisation == .undetermined else { return authorisation == .granted }
         return await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { status in
                 continuation.resume(returning: status == .authorized)
@@ -169,9 +172,33 @@ final class LegacySpeechEngine: SpeechEngine, @unchecked Sendable {
         }
     }
 
-    static var isAuthorised: Bool {
-        SFSpeechRecognizer.authorizationStatus() == .authorized
+    /// Les trois états qui comptent, exactement comme pour le micro.
+    ///
+    /// C'est la même mécanique TCC, et donc le **même piège** : macOS ne
+    /// présente son dialogue qu'une fois. Passé un refus — ou une révocation
+    /// depuis les Réglages Système — `requestAuthorization` rappelle aussitôt
+    /// avec `.denied` sans rien afficher. Un bouton « Accorder » y est un
+    /// bouton qui ne fait rien, et l'application paraît cassée sans dire
+    /// pourquoi. Réduire tout ça à un booléen rendait cette distinction
+    /// impossible à faire côté interface : `AudioRecorder.MicrophoneAccess`
+    /// l'avait, celui-ci non.
+    enum Authorisation {
+        case granted
+        /// Jamais demandé : le seul état où le dialogue s'affichera.
+        case undetermined
+        /// Refusé, révoqué ou restreint : plus aucun dialogue possible.
+        case denied
     }
+
+    static var authorisation: Authorisation {
+        switch SFSpeechRecognizer.authorizationStatus() {
+        case .authorized: .granted
+        case .notDetermined: .undetermined
+        default: .denied
+        }
+    }
+
+    static var isAuthorised: Bool { authorisation == .granted }
 
     // MARK: - SpeechEngine
 

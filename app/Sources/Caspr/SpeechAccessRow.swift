@@ -32,8 +32,15 @@ struct SpeechAccessRow: View {
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .top, spacing: 10) {
+                        // Ambre quand le droit a été refusé ou retiré, gris
+                        // quand il n'a simplement jamais été demandé : « il
+                        // reste une étape » et « quelque chose a été coupé » ne
+                        // se lisent pas pareil. Même code couleur que la ligne
+                        // de la Dictée juste au-dessus.
                         Circle()
-                            .strokeBorder(Style.textTertiary, lineWidth: 1.5)
+                            .strokeBorder(monitor.speechAccess == .denied
+                                          ? Style.warning : Style.textTertiary,
+                                          lineWidth: 1.5)
                             .frame(width: 18, height: 18)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Reconnaissance Vocale Apple (Requis)")
@@ -46,13 +53,34 @@ struct SpeechAccessRow: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 8)
-                        Button("Accorder") {
-                            // Le moniteur porte la demande, comme pour le
-                            // micro : c'est lui qui sait reprendre le premier
-                            // plan une fois l'alerte refermée.
-                            Task { await monitor.requestSpeechRecognition() }
+                        // Deux boutons pour deux impasses différentes, et
+                        // jamais celui qui n'ouvrirait rien.
+                        if monitor.speechAccess == .undetermined {
+                            Button("Accorder") {
+                                // Le moniteur porte la demande, comme pour le
+                                // micro : c'est lui qui sait reprendre le
+                                // premier plan une fois l'alerte refermée.
+                                Task { await monitor.requestSpeechRecognition() }
+                            }
+                            .buttonStyle(CasprPrimaryButtonStyle())
+                        } else {
+                            Button("Ouvrir les Réglages") {
+                                Permissions.openSpeechRecognitionSettings()
+                            }
+                            .buttonStyle(CasprPrimaryButtonStyle())
                         }
-                        .buttonStyle(CasprPrimaryButtonStyle())
+                    }
+
+                    // Refusé ou révoqué : dire pourquoi le dialogue ne
+                    // reviendra pas. Sans cette phrase, quelqu'un qui vient de
+                    // décocher la case dans les Réglages Système cherche le
+                    // bouton qui la recocherait, et il n'existe pas.
+                    if monitor.speechAccess == .denied {
+                        Note("macOS ne représente plus son dialogue une fois le "
+                             + "refus enregistré : il faut réactiver Caspr à la "
+                             + "main dans Réglages Système › Confidentialité et "
+                             + "sécurité › Reconnaissance vocale. Caspr le voit "
+                             + "aussitôt et reprend la main.", warning: true)
                     }
 
                     if explains {

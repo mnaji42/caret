@@ -21,6 +21,14 @@ enum Permissions {
         open("Privacy_Accessibility")
     }
 
+    /// Confidentialité et sécurité › Reconnaissance vocale.
+    ///
+    /// Le seul chemin qui reste une fois le droit refusé ou révoqué : macOS ne
+    /// représentera plus son dialogue, et la case ne se recoche qu'ici.
+    static func openSpeechRecognitionSettings() {
+        open("Privacy_SpeechRecognition")
+    }
+
     /// Demande l'accessibilité par le dialogue de macOS, plutôt que d'expédier
     /// l'utilisateur dans les Réglages Système sans prévenir.
     ///
