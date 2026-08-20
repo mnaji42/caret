@@ -14,6 +14,72 @@
   const t = (fr, en) => (LANG === 'en' ? en : fr);
 
   /* ==========================================================================
+     Le texte qui s'écrit, dans le titre
+     -------------------------------------------------------------------------
+     Il énonce ce que Caspr écrit, pas des slogans. La doublure invisible du
+     HTML réserve la place de la plus longue phrase, donc rien ne bouge autour.
+     ========================================================================== */
+
+  /* Des compléments courts, et de longueur voisine : la doublure réserve la
+     place du plus long, et un écart trop grand creuserait un vide sous le
+     titre. Ils disent ce que Caspr écrit — pas des slogans. */
+  const PHRASES = LANG === 'en'
+    ? ['your jargon', 'your acronyms', 'proper nouns', 'the right word']
+    : ['votre franglais', 'vos acronymes', 'vos noms propres', 'le mot juste'];
+
+  const typed = document.getElementById('typed');
+  const ghost = document.querySelector('.typing-ghost');
+  const calmer = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  if (typed) {
+    /* La doublure prend la plus longue des phrases, quelle que soit la langue :
+       la réserve de place ne dépend pas de l'ordre du tableau. */
+    if (ghost) {
+      ghost.textContent = PHRASES.reduce((a, b) => (b.length > a.length ? b : a));
+    }
+
+    if (calmer.matches) {
+      /* Mouvement réduit : la phrase est posée, pas tapée. Le titre reste
+         complet — c'est l'animation qu'on retire, pas l'information. */
+      typed.textContent = PHRASES[0];
+    } else {
+      let phrase = 0;
+      let count = 0;
+      let erasing = false;
+      let timer = null;
+
+      const step = () => {
+        const current = PHRASES[phrase];
+        count += erasing ? -1 : 1;
+        typed.textContent = current.slice(0, count);
+
+        let wait = erasing ? 28 : 45;
+        if (!erasing && count === current.length) {
+          erasing = true;
+          wait = 2400;
+        } else if (erasing && count === 0) {
+          erasing = false;
+          phrase = (phrase + 1) % PHRASES.length;
+          wait = 420;
+        }
+        timer = setTimeout(step, wait);
+      };
+
+      step();
+
+      /* Une boucle décorative n'a rien à faire tourner dans un onglet masqué. */
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          clearTimeout(timer);
+        } else {
+          clearTimeout(timer);
+          timer = setTimeout(step, 400);
+        }
+      });
+    }
+  }
+
+  /* ==========================================================================
      Les questions
      ========================================================================== */
 
