@@ -179,8 +179,15 @@ code, kbd, samp, pre { font-family: var(--font-mono); font-size: 0.9em; }
                               rgba(255, 255, 255, 0.018) 88%, transparent);
 }
 
-.section-head { max-width: 48rem; margin-bottom: var(--s-12); }
-.section-head--center { margin-inline: auto; text-align: center; }
+/* La composition est centrée : titre, chapô et actions sur l'axe, le contenu
+   dense (tableaux, listes) reprenant son alignement à gauche en dessous. */
+.section-head {
+  max-width: 48rem;
+  margin: 0 auto var(--s-12);
+  text-align: center;
+}
+.section-head .lead { margin-inline: auto; }
+.section-head--left { margin-inline: 0; text-align: left; }
 
 /* =============================================================================
    Typographie
@@ -227,6 +234,17 @@ p { max-width: 68ch; text-wrap: pretty; }
   animation: caret-blink 1.1s steps(1) infinite;
 }
 @keyframes caret-blink { 0%, 45% { opacity: 1; } 50%, 95% { opacity: 0; } 100% { opacity: 1; } }
+
+/* Le texte qui s'écrit, dans le titre. La largeur est réservée par le plus long
+   des termes, posé en doublure invisible : sans elle, chaque caractère tapé
+   pousserait la mise en page. */
+.typing { display: grid; }
+.typing > * { grid-area: 1 / 1; }
+.typing-ghost { visibility: hidden; }
+/* Une seule ligne, toujours : c'est ce qui garantit que la doublure réserve
+   exactement la hauteur qu'occupera le texte tapé. */
+.typing-ghost, .typing-out { white-space: nowrap; }
+.typing-out { color: var(--accent); }
 
 /* Le terme technique, écrit comme l'application l'écrit. */
 .term {
@@ -364,17 +382,24 @@ kbd {
 
 .hero { padding-top: clamp(48px, 3rem + 3vw, 88px); padding-bottom: var(--section-y); }
 
-.hero-copy { max-width: 46rem; }
+.hero-copy { max-width: 46rem; margin-inline: auto; text-align: center; }
 
 .hero h1 { margin-bottom: var(--s-6); }
 .hero h1 .term { font-size: 0.78em; padding: 0.1em 0.3em; }
 
-.hero-lead { font-size: var(--t-lead); line-height: 1.65; color: var(--text-2); }
+.hero-lead {
+  font-size: var(--t-lead);
+  line-height: 1.65;
+  color: var(--text-2);
+  max-width: 40rem;
+  margin-inline: auto;
+}
 
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: var(--s-4);
   margin-top: var(--s-8);
 }
@@ -385,6 +410,7 @@ kbd {
   display: flex;
   align-items: flex-start;
   gap: var(--s-2);
+  justify-content: center;
   min-height: 20px;
   margin-top: var(--s-5);
   font-size: var(--t-small);
@@ -405,6 +431,7 @@ kbd {
 .hero-req {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: var(--s-2) var(--s-4);
   margin-top: var(--s-3);
   font-size: var(--t-micro);
@@ -412,7 +439,11 @@ kbd {
 }
 
 /* =============================================================================
-   La barre — reproduction de la barre flottante de l'application
+   La barre — reproduction fidèle de RecordingOverlay.swift
+   -----------------------------------------------------------------------------
+   Les mesures viennent du fichier : carte de 520 pt, padding 13, interligne 9,
+   pastilles de 28 pt posées **sous** la carte avec le même écart de 9 pt qui
+   les fait lire comme deux plans distincts.
    ============================================================================= */
 
 .stage {
@@ -422,6 +453,7 @@ kbd {
   border-radius: var(--r-card);
   background: var(--surface);
   overflow: hidden;
+  text-align: left;
 }
 
 .stage-chrome {
@@ -434,16 +466,11 @@ kbd {
 }
 .stage-dots { display: flex; gap: 6px; }
 .stage-dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--stroke-strong); }
-.stage-file {
-  font-family: var(--font-mono);
-  font-size: var(--t-micro);
-  color: var(--text-3);
-}
+.stage-file { font-family: var(--font-mono); font-size: var(--t-micro); color: var(--text-3); }
 
-/* Le document sous la barre. */
 .stage-doc {
-  padding: var(--s-6) var(--s-6) 132px;
-  min-height: 300px;
+  padding: var(--s-6) var(--s-6) 190px;
+  min-height: 320px;
   font-family: var(--font-mono);
   font-size: var(--t-small);
   line-height: 1.9;
@@ -451,122 +478,141 @@ kbd {
 }
 .stage-doc .doc-live { color: var(--text-1); }
 
-/* La barre elle-même. Non activante dans l'application — elle ne prend jamais
-   le focus — donc ici non plus : aucun élément focusable à l'intérieur. */
-.bar {
+/* L'ensemble flottant : la carte, puis la rangée de pastilles. */
+.overlay {
   position: absolute;
   left: 50%;
   bottom: var(--s-5);
   transform: translateX(-50%);
-  width: min(440px, calc(100% - 32px));
+  width: min(520px, calc(100% - 32px));
+}
+
+.bar {
+  padding: 13px;
   background: rgba(20, 24, 33, 0.96);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--stroke);
-  border-radius: var(--r-card);
+  border: 1px solid var(--stroke-strong);
+  border-radius: 18px;
   box-shadow: var(--shadow-panel);
 }
 
-/* Les onglets flottent au-dessus de la barre, comme dans l'application. */
-.bar-tabs {
+.bar-row { display: flex; align-items: center; gap: var(--s-2); }
+
+/* 8 pt, rouge système, et la pulsation d'opacité de l'application. */
+.rec-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #ff453a;
+  flex-shrink: 0;
+  animation: rec-pulse 1.7s ease-in-out infinite;
+}
+@keyframes rec-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+.rec-timer {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-1);
+}
+
+/* Neuf barres de 3 pt sur 46 pt de large. Les récentes sont franches, les
+   anciennes s'effacent — le sens de défilement se lit sans y penser. */
+.vu { display: flex; align-items: center; gap: 2px; width: 46px; height: 16px; }
+.vu i {
+  flex: 1;
+  border-radius: 1.5px;
+  background: var(--accent);
+  animation: vu-move 900ms ease-in-out infinite alternate;
+}
+@keyframes vu-move { from { height: 3px; } to { height: 14px; } }
+
+.bar-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+
+/* Le mode micro : du texte, sans cadre. */
+.bar-status { font-size: 12px; font-weight: 500; color: var(--text-2); white-space: nowrap; }
+
+/* La collecte. Éteinte : contour et texte discrets. Allumée : ambre plein et
+   texte blanc — c'est le seul réglage qui écrit sur le disque, il ne doit pas
+   se confondre avec un choix de mode. */
+.chip-collect {
+  height: 17px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.chip-collect[data-on="true"] {
+  background: rgba(251, 146, 60, 0.9);
+  border-color: transparent;
+  color: #fff;
+}
+
+.bar-preview {
+  margin-top: 9px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.bar-preview em { font-style: italic; color: var(--text-3); }
+
+/* La rangée de contrôles, sous la carte : rien aux bords, tout l'espace entre
+   les groupes. */
+.bar-controls {
   display: flex;
   justify-content: space-between;
   gap: var(--s-2);
-  margin-bottom: var(--s-2);
+  margin-top: 9px;
 }
-.tab-group {
+
+.pill-group {
   display: flex;
+  align-items: center;
   gap: 2px;
+  height: 28px;
   padding: 3px;
   background: rgba(20, 24, 33, 0.96);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--stroke);
-  border-radius: var(--r-field);
+  border: 1px solid var(--stroke-strong);
+  border-radius: 14px;
   box-shadow: var(--shadow-raised);
 }
-.tab {
-  padding: 4px var(--s-3);
-  font-size: var(--t-micro);
-  font-weight: 500;
-  color: var(--text-3);
-  border-radius: 6px;
-  white-space: nowrap;
-}
-.tab[data-active="true"] { background: var(--accent-dim); color: var(--accent); }
 
-.bar-main { padding: var(--s-3) var(--s-4); }
-
-.bar-row { display: flex; align-items: center; gap: var(--s-3); }
-
-.rec-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: var(--danger);
-  flex-shrink: 0;
-  animation: rec-pulse 1.6s var(--ease) infinite;
-}
-@keyframes rec-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-
-.rec-timer {
-  font-family: var(--font-mono);
-  font-size: var(--t-micro);
-  font-variant-numeric: tabular-nums;
-  color: var(--text-2);
-}
-
-/* Vumètre. Décoratif au sens strict — il ne code aucune donnée réelle ici —
-   donc masqué aux lecteurs d'écran et arrêté si le mouvement est réduit. */
-.vu { display: flex; align-items: center; gap: 3px; height: 18px; }
-.vu i {
-  width: 3px;
-  border-radius: 2px;
-  background: var(--accent);
-  opacity: 0.85;
-  animation: vu-move 900ms var(--ease) infinite alternate;
-}
-@keyframes vu-move { from { height: 4px; } to { height: 16px; } }
-
-.bar-meta { display: flex; align-items: center; gap: var(--s-2); margin-left: auto; }
-
-.chip {
-  padding: 3px var(--s-2);
-  font-size: 0.7rem;
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 11px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  border-radius: 6px;
-  border: 1px solid var(--stroke);
-  color: var(--text-3);
+  color: var(--text-2);
   white-space: nowrap;
 }
-.chip--collect {
-  color: var(--collecting);
-  border-color: rgba(251, 146, 60, 0.35);
-  background: rgba(251, 146, 60, 0.12);
-}
-
-/* L'aperçu en direct. Dans l'application il vient du moteur de macOS et non de
-   CrisperWhisper — l'interface le dit, le site aussi. */
-.bar-preview {
-  margin-top: var(--s-3);
-  padding: var(--s-3);
-  min-height: 42px;
-  background: var(--inner);
-  border-radius: var(--r-inner);
-  font-size: var(--t-small);
-  line-height: 1.5;
-  color: var(--text-2);
-}
+/* Le plein turquoise, avec le texte presque noir : du blanc sur cet accent
+   tomberait sous le seuil lisible. */
+.pill[data-on="true"] { background: var(--accent); color: var(--on-accent); }
 
 .stage-note {
   display: flex;
   align-items: flex-start;
   gap: var(--s-2);
-  margin-top: var(--s-4);
+  max-width: 62ch;
+  margin: var(--s-5) auto 0;
+  text-align: left;
   font-size: var(--t-micro);
   color: var(--text-3);
 }
-.stage-note svg { margin-top: 2px; color: var(--text-3); }
+.stage-note svg { margin-top: 2px; }
 
 /* =============================================================================
    Le problème du franglais — la table de comparaison
@@ -575,10 +621,14 @@ kbd {
 .compare {
   border: 1px solid var(--stroke);
   border-radius: var(--r-card);
-  overflow: hidden;
+  /* Sur petit écran la table est plus large que l'écran. `hidden` la rognait,
+     et la troisième colonne — celle qui porte le propos — disparaissait. Elle
+     défile désormais dans son propre cadre. */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.compare table { width: 100%; border-collapse: collapse; }
+.compare table { width: 100%; min-width: 34rem; border-collapse: collapse; }
 
 .compare th, .compare td {
   padding: var(--s-4) var(--s-5);
@@ -608,7 +658,8 @@ kbd {
 /* La ligne de mesure, sous la table. */
 .measure {
   display: block;
-  max-width: none;
+  max-width: 62rem;
+  text-align: center;
   line-height: 1.7;
   margin-top: var(--s-6);
   padding: var(--s-4) var(--s-5);
@@ -629,11 +680,15 @@ kbd {
   display: grid;
   gap: var(--s-10) var(--s-12);
   grid-template-columns: 1fr;
-  margin: 0;
+  /* Sans borne, les deux colonnes se collent aux bords du conteneur et
+     laissent une gouttière plus large que les textes eux-mêmes. */
+  max-width: 52rem;
+  margin-inline: auto;
 }
 @media (min-width: 760px) { .controls { grid-template-columns: 1fr 1fr; } }
 
-.control dt { display: flex; align-items: center; gap: var(--s-3); }
+.control { text-align: center; }
+.control dt { display: flex; flex-direction: column; align-items: center; gap: var(--s-3); }
 
 .control-icon {
   flex-shrink: 0;
@@ -646,14 +701,15 @@ kbd {
 }
 
 .control-name { font-size: var(--t-body); font-weight: 600; color: var(--text-1); letter-spacing: -0.01em; }
-.control dd { margin-top: var(--s-3); font-size: var(--t-small); color: var(--text-2); line-height: 1.6; }
+.control dd { margin: var(--s-3) auto 0; max-width: 34ch; font-size: var(--t-small); color: var(--text-2); line-height: 1.6; }
 
 /* La règle qui rend le reste possible : mode et destination sont lus à la fin
    de l'enregistrement. Elle mérite d'être détachée du reste. */
 .rule {
   display: flex;
   gap: var(--s-4);
-  margin-top: var(--s-12);
+  max-width: 46rem;
+  margin: var(--s-12) auto 0;
   padding: var(--s-5) var(--s-6);
   background: var(--accent-dim);
   border: 1px solid var(--accent-border);
@@ -676,6 +732,8 @@ kbd {
 
 /* Le fichier de notes, tel qu'il s'écrit au fil de la journée. */
 .notefile {
+  max-width: 46rem;
+  margin-inline: auto;
   background: var(--surface);
   border: 1px solid var(--stroke);
   border-radius: var(--r-card);
@@ -772,17 +830,25 @@ kbd {
 .metric-label { display: block; margin-top: var(--s-2); font-size: var(--t-small); color: var(--text-2); line-height: 1.5; }
 
 .source-note {
-  margin-top: var(--s-6);
+  max-width: 66ch;
+  margin: var(--s-8) auto 0;
   font-size: var(--t-micro);
   color: var(--text-3);
-  max-width: 72ch;
+  text-align: center;
 }
 
 /* =============================================================================
    Confidentialité et code source
    ============================================================================= */
 
-.facts { display: grid; gap: var(--s-3); margin-top: var(--s-8); list-style: none; }
+.facts {
+  display: grid;
+  gap: var(--s-4);
+  max-width: 44rem;
+  margin: var(--s-10) auto 0;
+  list-style: none;
+  text-align: left;
+}
 .facts li {
   display: flex;
   align-items: flex-start;
@@ -1069,6 +1135,10 @@ body[data-modal-open="true"] { overflow: hidden; }
 @media (max-width: 640px) {
   .container { padding-inline: var(--s-5); }
   .hero-actions .btn { width: 100%; }
+  /* Les mentions passent l'une sous l'autre : le point médian qui les séparait
+     reste alors seul en fin de ligne. */
+  .hero-req { flex-direction: column; gap: var(--s-1); }
+  .hero-req > span:nth-child(2) { display: none; }
   .stage-doc { padding: var(--s-5) var(--s-4) 212px; }
   .bar { width: calc(100% - 24px); bottom: var(--s-3); }
   .bar-tabs { flex-direction: column; align-items: stretch; gap: var(--s-2); }
@@ -1089,6 +1159,7 @@ body[data-modal-open="true"] { overflow: hidden; }
     font-weight: 500;
   }
   .compare th, .compare td { padding: var(--s-3); font-size: var(--t-micro); }
+  .compare table { min-width: 30rem; }
 }
 
 /* =============================================================================
