@@ -50,6 +50,20 @@ struct AppleEngineCard: View, ValidatingComponent {
         target == .final ? prefs.finalAppleTechnology : prefs.liveEngineTechnology
     }
 
+    /// La version que la carte **montre**, qui n'est pas toujours celle qui est
+    /// enregistrée.
+    ///
+    /// Quand la machine n'en propose qu'une, c'est elle — le réglage, lui, peut
+    /// encore désigner l'autre : il a été pris sur un Mac où les deux
+    /// existaient, ou il vaut sa valeur par défaut. La carte décrivait alors
+    /// Apple Intelligence sur une machine qui ne sait faire que la Dictée, et
+    /// n'affichait ni le nombre de langues ni la ligne d'autorisation qui va
+    /// avec — deux informations qui manquaient exactement là où elles
+    /// comptaient.
+    private var shownTechnology: EngineChoice {
+        available.count == 1 ? (available.first ?? technology) : technology
+    }
+
     private func setTechnology(_ choice: EngineChoice) {
         switch target {
         case .final:
@@ -109,6 +123,12 @@ struct AppleEngineCard: View, ValidatingComponent {
                     LegacySpeechEngine.unavailabilityReason(for: language)
                         ?? "La Dictée de macOS n'est pas utilisable ici.")
             }
+            // Avant l'autorisation, parce que c'est le manque le plus profond
+            // des deux : accorder la reconnaissance vocale sur un Mac dont la
+            // Dictée est éteinte ne débloque rien, et donne l'impression
+            // d'avoir tout fait — c'est exactement ce qui s'est passé sur la
+            // machine où le défaut a été trouvé.
+            if SystemDictation.isDisabled { return .systemDictationDisabled }
             return PermissionsMonitor.shared.speechGranted
                 ? nil : .speechRecognitionPermissionRequired
         case .crisperWhisper:
@@ -120,11 +140,31 @@ struct AppleEngineCard: View, ValidatingComponent {
     }
 
     var body: some View {
-        if isSubCard {
-            VStack(alignment: .leading, spacing: 12) { content }
-        } else {
-            Card { content }
+        Group {
+            if isSubCard {
+                VStack(alignment: .leading, spacing: 12) { content }
+            } else {
+                Card { content }
+            }
         }
+        // ## L'horloge est tenue ici, et pas plus bas
+        //
+        // La carte lit trois choses qui changent depuis les Réglages Système —
+        // la reconnaissance vocale, et désormais l'interrupteur de la Dictée —
+        // et elle ne les relisait jamais elle-même : elle profitait de ce que
+        // `SpeechAccessRow`, affiché juste en dessous, lançait l'horloge.
+        //
+        // Ça ne pouvait pas tenir pour `SystemDictationRow`, qui ne rend
+        // **rien** tant qu'il n'y a rien à réparer : un `.onAppear` posé sur un
+        // `Group` vide n'est jamais appelé — SwiftUI n'instancie pas
+        // `EmptyView` — donc la ligne n'aurait pu démarrer l'horloge que dans le
+        // cas où elle était déjà visible. Éteindre la Dictée pendant que la
+        // carte est ouverte n'aurait rien affiché du tout.
+        //
+        // Le compteur d'observateurs est un décompte : un abonné de plus ne
+        // fait pas battre l'horloge deux fois.
+        .onAppear { monitor.observe() }
+        .onDisappear { monitor.release() }
     }
 
     @ViewBuilder
@@ -150,8 +190,12 @@ struct AppleEngineCard: View, ValidatingComponent {
 
         versionPicker
 
-        switch technology {
+        switch shownTechnology {
         case .appleLegacy:
+            // Avant l'autorisation : elle ne sert à rien tant que celui-ci
+            // n'est pas levé, et le laisser en second faisait accorder un droit
+            // pour rien.
+            SystemDictationRow()
             SpeechAccessRow(explains: !isSubCard)
         default:
             models
@@ -177,12 +221,12 @@ struct AppleEngineCard: View, ValidatingComponent {
     }
 
     private var headerTitle: String {
-        let version = technology
+        let version = shownTechnology
         return "macOS · \(version.versionLabel ?? version.label)"
     }
 
     private var headerDetail: String {
-        technology == .apple
+        shownTechnology == .apple
             ? "Fourni par macOS 26+ (SpeechTranscriber) : modèles neuronaux sur "
                 + "puce Apple. Zéro donnée envoyée au cloud, 0 Mo de RAM résidente."
             : "Fourni par macOS (SFSpeechRecognizer) : prêt immédiatement, "
@@ -196,12 +240,22 @@ struct AppleEngineCard: View, ValidatingComponent {
         EngineChoice.availableSystemEngines(for: prefs.primaryLanguage)
     }
 
-    /// Deux versions : un sélecteur. Une seule : son nom, et rien qui suggère
-    /// un choix que cette machine ne peut pas honorer. Aucune : la raison
-    /// mesurée et le bouton qui y mène.
+    /// **La même carte dans les deux cas**, à la rangée de choix près.
+    ///
+    /// Une seule version disponible produisait auparavant une mise en page à
+    /// part : pas d'intitulé « VERSION DU MOTEUR », pas de nombre de langues, et
+    /// à la place une ligne « macOS · Dictée — seule version ici » qui répétait
+    /// le titre de la carte deux centimètres plus bas. Ça se lisait comme un
+    /// écran inachevé, et la seule chose qu'on y gagnait — savoir qu'il n'y a
+    /// pas de choix — est déjà dite par l'absence du sélecteur.
+    ///
+    /// Ce qui disparaît, c'est donc **la rangée « Technologie » et elle seule**.
+    /// Le reste est identique, et la version montrée est traitée exactement
+    /// comme si elle avait été choisie. Aucune version disponible reste un cas
+    /// à part : la raison mesurée, et le bouton qui y mène.
     @ViewBuilder
     private var versionPicker: some View {
-        if available.count > 1 {
+        if !available.isEmpty {
             if !isSubCard {
                 Divider().opacity(0.25)
             }
@@ -210,20 +264,18 @@ struct AppleEngineCard: View, ValidatingComponent {
                 .kerning(0.6)
                 .foregroundStyle(Style.textTertiary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Row(label: "Technologie :") {
-                PillPicker(options: available.map { ($0, $0.versionLabel ?? $0.label) },
-                           selection: Binding(
-                               get: { technology },
-                               set: { setTechnology($0) }))
+
+            if available.count > 1 {
+                Row(label: "Technologie :") {
+                    PillPicker(options: available.map { ($0, $0.versionLabel ?? $0.label) },
+                               selection: Binding(
+                                   get: { technology },
+                                   set: { setTechnology($0) }))
+                }
             }
             languageCoverage
 
-            if let explanation = technology.versionExplanation {
-                Note(explanation)
-            }
-        } else if let only = available.first {
-            StatusRow(ok: true, label: only.fullLabel, detail: "seule version ici")
-            if let explanation = only.versionExplanation {
+            if let explanation = shownTechnology.versionExplanation {
                 Note(explanation)
             }
         } else {
@@ -345,13 +397,13 @@ struct AppleEngineCard: View, ValidatingComponent {
     @ViewBuilder
     private var languageCoverage: some View {
         let covered = Language.appleSupports(prefs.primaryLanguage) != false
-        if technology == .apple, let count = assets.appleLocaleCount {
+        if shownTechnology == .apple, let count = assets.appleLocaleCount {
             Note("**\(count) langues** sur ce Mac — français, anglais, espagnol, "
                  + "allemand, italien, portugais, japonais, coréen, chinois…"
                  + (covered ? ""
                     : " **\(prefs.primary.displayName) n'en fait pas partie** : "
                       + "la Dictée de macOS prend le relais."))
-        } else if technology == .appleLegacy {
+        } else if shownTechnology == .appleLegacy {
             Note("**\(LegacySpeechEngine.supportedLocaleCount) langues** sur ce "
                  + "Mac : c'est la liste de la Dictée de macOS, la plus large "
                  + "des trois.")
