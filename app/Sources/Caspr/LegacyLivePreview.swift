@@ -33,6 +33,15 @@ final class LegacyLivePreview: SpeechPreviewing, @unchecked Sendable {
     }
 
     func start(language: String) async {
+        // Avant l'autorisation, et pour la même raison qu'à la transcription :
+        // avec la Dictée de macOS éteinte, tout ce qui suit répond « oui », la
+        // tâche démarre, la barre affiche « en écoute… » et pas un mot
+        // n'arrive jamais. Un aperçu muet ne se distingue pas d'un micro qui
+        // n'entend rien, et c'est ce qu'on a cherché en premier.
+        guard !SystemDictation.isDisabled else {
+            await report("aperçu : la Dictée de macOS est désactivée")
+            return
+        }
         guard await LegacySpeechEngine.requestAuthorisation() else {
             await report("aperçu : reconnaissance vocale non autorisée")
             return

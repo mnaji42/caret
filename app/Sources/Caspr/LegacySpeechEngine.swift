@@ -34,12 +34,15 @@ final class LegacySpeechEngine: SpeechEngine, @unchecked Sendable {
         case unavailable
         case notAuthorised
         case offlineUnsupported(String)
+        case dictationDisabled
         case noResult
 
         var errorDescription: String? {
             switch self {
             case .unavailable:
                 "La dictée de macOS n'est pas disponible pour cette langue."
+            case .dictationDisabled:
+                SystemDictation.instruction
             case .notAuthorised:
                 "macOS n'a pas autorisé Caspr à utiliser la reconnaissance "
                     + "vocale. Réglages Système › Confidentialité et sécurité › "
@@ -83,6 +86,11 @@ final class LegacySpeechEngine: SpeechEngine, @unchecked Sendable {
     /// deux cas change une impasse en une action.
     @MainActor
     static func unavailabilityReason(for language: String) -> String? {
+        // Passe avant tout le reste, y compris avant `isAvailable` : avec la
+        // Dictée éteinte, ce dernier peut très bien répondre « oui » — c'est le
+        // cas mesuré sur la machine virtuelle — et on expliquerait alors une
+        // absence de modèles là où il n'y a qu'un interrupteur à basculer.
+        if SystemDictation.isDisabled { return SystemDictation.instruction }
         if isAvailable(for: language) { return nil }
         // Les autres langues déclarées par l'utilisateur, et non un couple
         // codé en dur : c'est parmi celles-là qu'il reconnaîtra « ah oui,
@@ -178,10 +186,19 @@ final class LegacySpeechEngine: SpeechEngine, @unchecked Sendable {
     func isReady() async -> Bool {
         // La langue est lue sur le fil principal, où vivent les préférences.
         let language = await MainActor.run { Preferences.shared.language }
-        return Self.isAuthorised && Self.isAvailable(for: language)
+        return Self.isAuthorised && !SystemDictation.isDisabled
+            && Self.isAvailable(for: language)
     }
 
     func transcribe(_ request: TranscriptionRequest) async throws -> TranscriptionResult {
+        // Le premier examiné, parce que c'est celui qu'aucun autre ne révèle :
+        // sur un Mac dont la Dictée est éteinte, le recogniseur se déclare
+        // disponible, accepte la tâche, et ne rend jamais rien. Ce qui
+        // remontait alors, c'était « Transcription impossible » — vrai, et sans
+        // le moindre indice sur ce qu'il fallait faire.
+        guard !SystemDictation.isDisabled else {
+            throw EngineError.dictationDisabled
+        }
         guard let recognizer = Self.recognizer(for: request.language) else {
             throw EngineError.unavailable
         }

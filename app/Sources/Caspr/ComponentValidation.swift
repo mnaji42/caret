@@ -12,6 +12,9 @@ enum ComponentValidationError: Equatable, LocalizedError {
     case microphonePermissionRequired
     case accessibilityPermissionRequired
     case speechRecognitionPermissionRequired
+    /// La Dictée de macOS est éteinte dans les Réglages Système. Ce n'est pas
+    /// une autorisation — cf. `SystemDictation` — mais ça empêche autant.
+    case systemDictationDisabled
     case crisperEngineNotReady
     /// Aucune version du moteur de macOS ne fonctionne ici, avec la raison
     /// mesurée — pas déduite d'un numéro de version.
@@ -35,6 +38,9 @@ enum ComponentValidationError: Equatable, LocalizedError {
             "L'accessibilité est nécessaire pour écrire le texte à votre curseur."
         case .speechRecognitionPermissionRequired:
             "Le moteur de la Dictée de macOS demande la reconnaissance vocale."
+        case .systemDictationDisabled:
+            "La Dictée de macOS est désactivée : activez-la dans Réglages "
+                + "Système › Clavier › Dictée."
         case .crisperEngineNotReady:
             "Le service CrisperWhisper n'est pas encore prêt."
         case .noSystemEngine(let reason):

@@ -25,6 +25,15 @@ final class PermissionsMonitor {
     /// l'instant, et bloquer dessus enfermerait l'utilisateur.
     private(set) var speechGranted = LegacySpeechEngine.isAuthorised
 
+    /// L'interrupteur de la Dictée de macOS, relu au même rythme que les
+    /// autorisations.
+    ///
+    /// Ce n'en est pas une — cf. `SystemDictation` — mais il se corrige au même
+    /// endroit et de la même façon : on part dans les Réglages Système, on
+    /// bascule quelque chose, et rien ne revient nous le dire. C'est exactement
+    /// le trou que ce moniteur existe pour boucher.
+    private(set) var dictationDisabled = SystemDictation.isDisabled
+
     /// Le droit de reconnaissance vocale n'entre dans le compte que s'il sert :
     /// l'exiger sur une machine qui dictera avec CrisperWhisper bloquerait
     /// l'accueil sur une autorisation inutile.
@@ -77,21 +86,31 @@ final class PermissionsMonitor {
     }
 
     func refresh() {
-        let wasMic = micAccess
         micAccess = AudioRecorder.microphoneAccess
+        speechGranted = LegacySpeechEngine.isAuthorised
 
         let granted = AXIsProcessTrusted()
         let wasGranted = accessibilityGranted
         accessibilityGranted = granted
-        let wasSpeech = speechGranted
-        speechGranted = LegacySpeechEngine.isAuthorised
 
-        // Accorder une autorisation fait passer les Réglages Système devant,
-        // et l'accueil disparaît derrière — on se retrouve à le chercher dans
-        // Mission Control alors qu'on venait de faire exactement ce qu'il
-        // demandait. macOS ne le remonte pas tout seul.
-        if (granted && !wasGranted) || (micAccess == .granted && wasMic != .granted)
-            || (speechGranted && !wasSpeech) {
+        let wasDictationDisabled = dictationDisabled
+        dictationDisabled = SystemDictation.isDisabled
+
+        // ## Pourquoi seulement ces deux-là
+        //
+        // Se remettre devant ne vaut que pour ce qui s'obtient **ailleurs** :
+        // l'accessibilité et l'interrupteur de la Dictée s'accordent dans les
+        // Réglages Système, et macOS y laisse le focus une fois le geste fait.
+        //
+        // Le micro et la reconnaissance vocale, non : leur dialogue est
+        // présenté par notre propre processus, et macOS nous rend la main tout
+        // seul en le refermant. On s'activait quand même — et sur un Mac où les
+        // Réglages Système étaient restés ouverts derrière (ce qui est le cas
+        // juste après avoir accordé l'accessibilité), cet appel tombait pendant
+        // que le dialogue se refermait et le focus atterrissait sur eux plutôt
+        // que sur Caspr. On accordait le micro et on se retrouvait dans les
+        // Réglages, sans rien avoir demandé.
+        if (granted && !wasGranted) || (wasDictationDisabled && !dictationDisabled) {
             returnToForeground()
         }
         // C'est ici qu'on apprend le plus tôt que le droit vient d'arriver —
@@ -103,8 +122,8 @@ final class PermissionsMonitor {
         }
     }
 
-    /// Ramène Caspr devant, au moment où l'on sait que le droit vient
-    /// d'arriver.
+    /// Ramène Caspr devant, au moment où l'on sait que le geste vient d'être
+    /// fait dans les Réglages Système.
     ///
     /// Seulement si une de ses fenêtres est visible : accorder l'accessibilité
     /// six mois plus tard, depuis les Réglages Système, ne doit pas faire

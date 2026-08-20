@@ -81,3 +81,69 @@ struct SpeechAccessRow: View {
     .frame(width: Style.windowWidth)
     .background(Color(hex: 0x141821))
 }
+
+/// L'interrupteur de la Dictée de macOS, quand il est éteint.
+///
+/// ## Pourquoi ce n'est pas un `SpeechAccessRow` de plus
+///
+/// Les deux se ressemblent et ne sont pas de même nature. La reconnaissance
+/// vocale est une autorisation : Caspr la demande, macOS pose la question, on
+/// répond, c'est fini en un clic sans quitter l'application. Celle-ci est un
+/// réglage du système, que rien ne permet ni de lire officiellement ni de
+/// basculer — le mieux qu'on puisse faire est d'ouvrir le bon volet et de
+/// constater le changement.
+///
+/// Le chemin est donc celui de l'accessibilité, pas celui du micro : un bouton
+/// qui emmène dans les Réglages Système, et `PermissionsMonitor` qui repère la
+/// bascule dans la seconde et remet Caspr devant.
+///
+/// **Invisible tant qu'il n'y a rien à réparer.** Pas de ligne « ✓ Dictée
+/// activée » sur les Mac où elle l'est : ce serait une quatrième pastille verte
+/// pour un réglage que l'utilisateur n'a pas eu à accorder, et la carte en
+/// porte déjà assez.
+struct SystemDictationRow: View {
+    @State private var monitor = PermissionsMonitor.shared
+
+    var body: some View {
+        Group {
+            if monitor.dictationDisabled {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top, spacing: 10) {
+                        Circle()
+                            .strokeBorder(Style.warning, lineWidth: 1.5)
+                            .frame(width: 18, height: 18)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Dictée de macOS (à activer)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white)
+                            Text("Éteinte dans les Réglages Système. C'est elle "
+                                 + "qui installe les modèles de reconnaissance : "
+                                 + "tant qu'elle l'est, ce moteur n'écrit rien.")
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(Style.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 8)
+                        Button("Ouvrir les Réglages") {
+                            SystemDictation.openSettings()
+                        }
+                        .buttonStyle(CasprPrimaryButtonStyle())
+                    }
+
+                    Note("Réglages Système › Clavier › Dictée. Aucune "
+                         + "application ne peut basculer cet interrupteur "
+                         + "elle-même — Caspr reste ouvert pendant ce temps et "
+                         + "se met à jour tout seul dès que c'est fait. **Rien "
+                         + "ne part chez Apple pour autant** : Caspr force la "
+                         + "reconnaissance hors ligne et refuse de transcrire "
+                         + "si la machine ne sait pas le faire.")
+                }
+            }
+        }
+        // Pas de `.onAppear { monitor.observe() }` ici, contrairement à
+        // `SpeechAccessRow` : ce composant ne rend **rien** quand tout va bien,
+        // et un `.onAppear` posé sur un `Group` vide n'est jamais appelé —
+        // SwiftUI n'instancie pas `EmptyView`. L'horloge est donc tenue par la
+        // carte qui l'affiche, cf. `AppleEngineCard.body`.
+    }
+}
