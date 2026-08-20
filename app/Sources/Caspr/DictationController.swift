@@ -106,6 +106,21 @@ final class DictationController {
     /// fonctionnalité même qui existe pour ne rien perdre.
     private var pendingAudioFile: String?
 
+    /// Ce que l'aperçu en direct avait déjà écrit, quand la passe finale a
+    /// échoué.
+    ///
+    /// Le moteur de macOS a transcrit pendant qu'on parlait. Si la passe finale
+    /// échoue, ce texte existe, il est bon — moins précis sur le vocabulaire,
+    /// puisqu'il n'a pas le lexique — et il était jeté. On proposait donc de
+    /// « réessayer » comme seule issue, y compris quand la cause de l'échec ne
+    /// s'arrangera pas d'un second essai : un service qui refuse de démarrer
+    /// refusera encore.
+    ///
+    /// Figé ici plutôt que lu dans `previewText` au moment de l'insertion : ce
+    /// dernier est remis à zéro au début de la dictée suivante, et l'on peut
+    /// très bien reparler avant de décider quoi faire de la précédente.
+    private var pendingPreview: String?
+
     /// Le moteur qui écrit réellement.
     ///
     /// Passe par `EngineSafetyManager` plutôt que de lire la préférence :
@@ -325,12 +340,14 @@ final class DictationController {
                 Log.error("le moteur a rendu un texte vide "
                           + "(\(Preferences.shared.engine.rawValue), "
                           + "\(Int(result.latency.wallMs)) ms)")
-                overlay.showFailure("Rien n'a été entendu — « Réessayer » dans le menu")
+                overlay.showFailure("Rien n'a été entendu",
+                                    hint: Self.rescueHint(preview: previewText))
                 // L'audio est conservé, contrairement à avant. Un moteur mal
                 // configuré rend le vide aussi sûrement qu'un micro coupé, et
                 // dans ce cas jeter la dictée oblige à tout redire — ce que
                 // cette application s'interdit partout ailleurs.
                 pendingAudio = samples
+                pendingPreview = previewText
                 // `.failed` et non `.idle` : la barre renvoyait au menu, et le
                 // menu affichait « Prêt ». Envoyer quelqu'un chercher une
                 // explication à un endroit qui n'en porte aucune est pire que
@@ -351,6 +368,7 @@ final class DictationController {
             history.add(text, mode: used)
             pendingAudio = nil
             pendingAudioFile = nil
+            pendingPreview = nil
             // Ce moteur vient de prouver qu'il sait écrire ici : c'est sur lui
             // que le repli se rabattra si un autre choix échoue plus tard. La
             // preuve est l'insertion réussie, pas la disponibilité annoncée —
@@ -365,13 +383,15 @@ final class DictationController {
                     outcome: .inserted)
         } catch {
             pendingAudio = samples
+            pendingPreview = previewText
             let minutes = Double(samples.count) / AudioRecorder.targetSampleRate / 60
             Log.error("échec de transcription : \(error.localizedDescription) — \(String(format: "%.1f", minutes)) min conservées")
             // Dit là où l'utilisateur regarde. La barre des menus recevait déjà
             // le détail, mais on ne consulte pas un menu qu'on n'a pas de
             // raison d'ouvrir : sans ça, un échec se lit comme « je m'y suis
             // mal pris ».
-            overlay.showFailure(Self.shortReason(for: error))
+            overlay.showFailure(Self.shortReason(for: error),
+                                hint: Self.rescueHint(preview: previewText))
             state = .failed("\(error.localizedDescription) — audio conservé, « Réessayer » dans le menu.")
             // Les autres moteurs tournent quand même : savoir que macOS a
             // écrit la phrase pendant que CrisperWhisper échouait est
@@ -694,20 +714,78 @@ final class DictationController {
         preview = nil
     }
 
+    /// La phrase qui dit que rien n'est perdu, sous le message d'échec.
+    ///
+    /// La barre s'efface au bout de cinq secondes, et c'est voulu : la laisser
+    /// ouverte sur un échec encombrerait l'écran, d'autant que le cas le plus
+    /// fréquent n'en est pas un — on a déclenché sans parler. Mais elle est le
+    /// seul endroit où l'on regarde à ce moment-là, et disparaître sans rien
+    /// dire laisse croire que la dictée est perdue.
+    ///
+    /// Elle nomme donc les deux issues quand les deux existent, et la seule
+    /// quand il n'y en a qu'une : sans aperçu — parce qu'il est coupé, ou
+    /// parce qu'on n'a effectivement rien dit — proposer d'insérer un texte
+    /// vide serait une fausse promesse de plus.
+    private static func rescueHint(preview: String) -> String {
+        preview.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "Rien n'est perdu : « Réessayer » dans le menu de Caspr."
+            : "Rien n'est perdu : insérer l'aperçu ou réessayer, dans le menu de Caspr."
+    }
+
     /// Relance la transcription de l'audio conservé après un échec.
     func retryLast() {
         guard let pendingAudio, state != .processing else { return }
         Task { await transcribeAndInject(pendingAudio) }
     }
 
+    /// Insère ce que l'aperçu en direct avait écrit, faute de mieux.
+    ///
+    /// La seconde issue d'un échec, et souvent la bonne : quand le service
+    /// local refuse de démarrer, réessayer échouera pareil, alors que le texte
+    /// de macOS est là et se suffit à lui-même. Moins précis sur le vocabulaire
+    /// — l'aperçu n'a pas le lexique — mais un texte imparfait vaut mieux que
+    /// dix minutes de parole à redire.
+    ///
+    /// L'audio est libéré comme après une insertion réussie : on a choisi cette
+    /// issue-là, et garder l'autre en réserve laisserait « Réessayer » dans le
+    /// menu au-dessus d'un texte déjà écrit.
+    func insertPendingPreview() {
+        guard let text = pendingPreviewText else { return }
+        Task {
+            do {
+                try await deliver(text)
+            } catch {
+                // L'insertion elle-même a échoué — plus de curseur, fichier
+                // devenu illisible. On garde tout : c'est un autre problème
+                // que celui qu'on essayait de contourner, et il se répare.
+                state = .failed(error.localizedDescription)
+                return
+            }
+            history.add(text, mode: mode)
+            pendingAudio = nil
+            pendingAudioFile = nil
+            pendingPreview = nil
+            state = .idle
+        }
+    }
+
     /// Libère l'audio conservé. Appelé quand l'utilisateur renonce.
     func discardPending() {
         pendingAudio = nil
         pendingAudioFile = nil
+        pendingPreview = nil
         state = .idle
     }
 
     var hasPendingAudio: Bool { pendingAudio != nil }
+
+    /// L'aperçu conservé, s'il porte quelque chose d'insérable.
+    var pendingPreviewText: String? {
+        guard let text = pendingPreview?
+            .trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty
+        else { return nil }
+        return text
+    }
 
     var pendingDuration: TimeInterval {
         Double(pendingAudio?.count ?? 0) / AudioRecorder.targetSampleRate

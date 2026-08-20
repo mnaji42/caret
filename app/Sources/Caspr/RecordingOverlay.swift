@@ -255,6 +255,10 @@ final class RecordingOverlay {
         cardBelowMode?.isActive = false
         cardAtTop?.isActive = true
         statusLabel.isHidden = false
+        // Une ligne, et remise à une ligne : un échec précédent a pu en laisser
+        // deux, et la carte se retrouverait haute de deux lignes pour un
+        // message qui n'en occupe qu'une.
+        statusLabel.maximumNumberOfLines = 1
         statusLabel.stringValue = "Transcription…"
         panel.setContentSize(NSSize(width: Self.cardWidth,
                                     height: 2 * Self.padding + 20))
@@ -275,7 +279,15 @@ final class RecordingOverlay {
     ///
     /// Le message est court exprès : la barre tient sur une ligne, et le
     /// détail complet reste dans le menu, avec « Réessayer ».
-    func showFailure(_ message: String) {
+    ///
+    /// - Parameter hint: la seconde ligne, plus discrète, qui dit que la dictée
+    ///   n'est pas perdue et où la récupérer. Elle existe parce que la barre
+    ///   s'efface au bout de cinq secondes — on ne la garde pas ouverte, le cas
+    ///   le plus fréquent n'étant même pas un échec mais un déclenchement sans
+    ///   parole — alors qu'elle est le seul endroit où l'on regarde à cet
+    ///   instant. Disparaître sans rien dire laissait croire que dix minutes de
+    ///   parole venaient de partir.
+    func showFailure(_ message: String, hint: String? = nil) {
         let panel = self.panel ?? makePanel()
         self.panel = panel
 
@@ -294,10 +306,12 @@ final class RecordingOverlay {
         cardBelowMode?.isActive = false
         cardAtTop?.isActive = true
         statusLabel.isHidden = false
-        statusLabel.stringValue = message
+        statusLabel.maximumNumberOfLines = hint == nil ? 1 : 2
+        statusLabel.attributedStringValue = Self.failureText(message, hint: hint)
 
         panel.setContentSize(NSSize(width: Self.cardWidth,
-                                    height: 2 * Self.padding + 20))
+                                    height: 2 * Self.padding
+                                        + (hint == nil ? 20 : 38)))
         cardSheen?.frame = card?.bounds ?? .zero
         position(panel)
         panel.orderFrontRegardless()
@@ -566,6 +580,32 @@ final class RecordingOverlay {
     }
 
     // MARK: - Construction
+
+    /// La raison, puis ce qu'on peut encore en faire.
+    ///
+    /// Deux graisses et deux gris : la première ligne dit ce qui s'est passé,
+    /// la seconde où le rattraper. Composées dans une seule chaîne plutôt que
+    /// dans deux libellés — le message est centré dans la carte, et deux vues
+    /// empilées demanderaient de recalculer ce centrage à chaque état.
+    private static func failureText(_ message: String,
+                                    hint: String?) -> NSAttributedString {
+        let centred = NSMutableParagraphStyle()
+        centred.alignment = .center
+        centred.lineSpacing = 2
+
+        let text = NSMutableAttributedString(string: message, attributes: [
+            .font: NSFont.systemFont(ofSize: 12, weight: .medium),
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .paragraphStyle: centred,
+        ])
+        guard let hint else { return text }
+        text.append(NSAttributedString(string: "\n" + hint, attributes: [
+            .font: NSFont.systemFont(ofSize: 11),
+            .foregroundColor: NSColor.tertiaryLabelColor,
+            .paragraphStyle: centred,
+        ]))
+        return text
+    }
 
     private static func buttonTitle(_ text: String) -> NSAttributedString {
         NSAttributedString(string: text, attributes: [
@@ -867,6 +907,13 @@ final class RecordingOverlay {
         statusLabel.textColor = .secondaryLabelColor
         statusLabel.lineBreakMode = .byTruncatingTail
         statusLabel.alignment = .center
+        // Deux lignes possibles depuis que l'échec porte sa phrase de secours.
+        // Sans lever le mode ligne unique, le `\n` qui les sépare s'afficherait
+        // comme une espace et la seconde ligne serait tronquée avec la
+        // première.
+        statusLabel.usesSingleLineMode = false
+        statusLabel.cell?.wraps = true
+        statusLabel.maximumNumberOfLines = 1
         languageBadge.font = .systemFont(ofSize: 11, weight: .medium)
         languageBadge.textColor = .tertiaryLabelColor
         languageBadge.alignment = .center

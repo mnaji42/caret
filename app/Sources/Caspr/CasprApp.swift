@@ -412,12 +412,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Une dictée ratée après plusieurs minutes de parole doit pouvoir être
         // relancée sans tout redire : l'audio est encore là.
         if controller.hasPendingAudio {
+            // L'aperçu d'abord, et c'est délibéré : quand le service local
+            // refuse de démarrer, réessayer échouera de la même façon, alors
+            // que le texte de macOS est déjà écrit. C'est l'issue qui aboutit
+            // dans le plus grand nombre de cas, donc celle qu'on lit en
+            // premier. Absente quand il n'y a rien à insérer — l'aperçu est
+            // coupé, ou l'on a déclenché sans parler.
+            if let preview = controller.pendingPreviewText {
+                let insert = NSMenuItem(title: "Insérer l'aperçu de macOS",
+                                        action: #selector(insertPreview),
+                                        keyEquivalent: "")
+                insert.target = self
+                insert.toolTip = "Écrit ce que macOS avait transcrit pendant que "
+                    + "vous parliez. Sans votre lexique, donc moins précis sur "
+                    + "le vocabulaire.\n\n\(preview)"
+                menu.addItem(insert)
+            }
+
             let minutes = controller.pendingDuration / 60
             let label = minutes >= 1
-                ? String(format: "Réessayer (%.1f min conservées)", minutes)
-                : String(format: "Réessayer (%.0f s conservées)", controller.pendingDuration)
+                ? String(format: "Réessayer avec le moteur (%.1f min conservées)", minutes)
+                : String(format: "Réessayer avec le moteur (%.0f s conservées)", controller.pendingDuration)
             let retry = NSMenuItem(title: label, action: #selector(retry), keyEquivalent: "")
             retry.target = self
+            retry.toolTip = "Relance la transcription sur l'enregistrement "
+                + "conservé, avec \(Preferences.shared.engine.fullLabel)."
             menu.addItem(retry)
 
             let discard = NSMenuItem(title: "Abandonner cet enregistrement",
@@ -623,6 +642,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func retry() {
         controller.retryLast()
+    }
+
+    /// Écrit ce que l'aperçu avait transcrit, plutôt que de le jeter.
+    @objc private func insertPreview() {
+        controller.insertPendingPreview()
+        Task { await refreshMenu() }
     }
 
     @objc private func discard() {
