@@ -1,5 +1,65 @@
 import AppKit
 import SwiftUI
+import CasprCore
+
+/// Ce que la version apporte, en puces.
+///
+/// Partagée par la carte des Réglages et la fenêtre du lancement : c'est la
+/// même question posée aux deux endroits, et la laisser à chacun garantissait
+/// qu'elles finiraient par ne plus dire la même chose.
+///
+/// **Vide, elle ne s'affiche pas du tout** — pas d'en-tête « Nouveautés » au-
+/// dessus de rien. Ça arrive : une release publiée sans corps, ou dont le corps
+/// se réduit au pied de page engendré par GitHub.
+///
+/// La hauteur est bornée et le contenu défile. Une release qui rassemble
+/// quarante commits produirait autrement une fenêtre plus haute que l'écran, et
+/// pousserait les boutons hors de portée — la panne que `NSWindow.caspr`
+/// documente par ailleurs.
+struct ReleaseNotesList: View {
+    let notes: String
+    var maxHeight: CGFloat = 120
+
+    private var lines: [String] { ReleaseNotes.lines(from: notes) }
+
+    var body: some View {
+        if !lines.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("NOUVEAUTÉS DANS CETTE VERSION")
+                    .font(.system(size: 10, weight: .bold))
+                    .kerning(0.6)
+                    .foregroundStyle(Style.textTertiary)
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(lines, id: \.self) { line in
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                Text("•").foregroundStyle(Style.accent)
+                                // `.init` pour que le gras et le code en ligne
+                                // des notes rédigées à la main soient rendus.
+                                Text(.init(line))
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Spacer(minLength: 0)
+                            }
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(Style.textSecondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                }
+                .frame(maxHeight: maxHeight)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.black.opacity(0.28))
+                        .overlay(RoundedRectangle(cornerRadius: 8,
+                                                  style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)))
+            }
+        }
+    }
+}
 
 /// La version installée, et de quoi passer à la suivante.
 ///
@@ -99,9 +159,23 @@ struct UpdateCard: View {
     @ViewBuilder
     private func available(_ update: UpdateChecker.Release) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Version \(update.version)")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Style.accent)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("Version \(update.version)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Style.accent)
+                Spacer(minLength: 0)
+                // Le poids du téléchargement, annoncé avant de le lancer. Il
+                // était mesuré depuis toujours — il sert à détecter un
+                // transfert tronqué — et affiché nulle part.
+                if let size = update.asset?.size, size > 0 {
+                    Text(ByteCountFormatter.string(fromByteCount: size,
+                                                   countStyle: .file))
+                        .font(.system(size: 11))
+                        .foregroundStyle(Style.textTertiary)
+                }
+            }
+
+            ReleaseNotesList(notes: update.notes)
 
             action(update)
         }

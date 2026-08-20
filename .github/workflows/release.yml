@@ -162,7 +162,32 @@ jobs:
           # que des gens vont installer.
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" dist/Caspr.dmg --clobber
+            exit 0
+          fi
+
+          # Le corps de la release n'est pas qu'une page web : l'application le
+          # récupère et l'affiche dans la fenêtre qui propose la mise à jour
+          # (cf. `ReleaseNotes.swift`). C'est la seule chose qui puisse motiver
+          # quelqu'un à remplacer un logiciel qui marche.
+          #
+          # `--generate-notes` produit « * Titre du commit by @auteur in URL »,
+          # ce qui se lit sur GitHub et pas dans une fenêtre de 400 points. On
+          # préfère donc des notes écrites à la main, une puce par changement,
+          # en français. Cf. RELEASES.md.
+          notes="release-notes/$GITHUB_REF_NAME.md"
+          if [ -f "$notes" ]; then
+            echo "notes de version : $notes"
+            gh release create "$GITHUB_REF_NAME" \
+              --title "Caspr $GITHUB_REF_NAME" \
+              --notes-file "$notes" \
+              dist/Caspr.dmg
           else
+            # Repli, jamais un échec : une note oubliée ne doit pas retenir un
+            # correctif. L'application sait ramener les notes engendrées à des
+            # phrases lisibles, simplement moins bonnes que celles qu'on aurait
+            # écrites.
+            echo "::warning::$notes absent — notes engendrées par GitHub." \
+                 "Voir RELEASES.md."
             gh release create "$GITHUB_REF_NAME" \
               --title "Caspr $GITHUB_REF_NAME" \
               --generate-notes \

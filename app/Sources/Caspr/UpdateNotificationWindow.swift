@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import CasprCore
 
 /// « Une nouvelle version est disponible », au lancement.
 ///
@@ -35,7 +36,11 @@ final class UpdateNotificationWindowController {
                 self?.close()
             })
         }
-        window.setContentSize(NSSize(width: 400, height: 260))
+        // Plus haute quand il y a des nouveautés à lire, et pas autrement :
+        // une fenêtre qui réserve la place d'une section absente laisse un vide
+        // au-dessus des boutons.
+        let hasNotes = !ReleaseNotes.lines(from: update.notes).isEmpty
+        window.setContentSize(NSSize(width: 400, height: hasNotes ? 400 : 260))
         window.styleMask.remove(.miniaturizable)
         self.window = window
         // Sans voler le focus : on vient d'ouvrir sa session, pas de demander
@@ -76,6 +81,11 @@ private struct UpdateNotificationView: View {
                 .foregroundStyle(Style.textSecondary)
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
+
+            // Ce que la version apporte. C'est la seule raison d'accepter de
+            // remplacer une application qui marche, et la fenêtre ne la disait
+            // pas : elle demandait un geste sans donner son motif.
+            ReleaseNotesList(notes: update.notes, maxHeight: 110)
 
             Spacer(minLength: 0)
 
