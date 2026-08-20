@@ -33,6 +33,11 @@ final class UpdateChecker {
         let version: String
         let page: URL
         let notes: String
+        /// Quand GitHub l'a publiée. La carte l'affiche à côté du numéro :
+        /// « v0.9.2 » ne dit pas si la version date d'hier ou de l'an dernier,
+        /// et c'est ce qui fait la différence entre « installer maintenant » et
+        /// « je verrai plus tard ».
+        let publishedAt: Date?
         /// L'image disque attachée à la release, quand il y en a une.
         ///
         /// Facultative, et c'est voulu : une release publiée à la main, ou
@@ -160,7 +165,11 @@ final class UpdateChecker {
             }
 
             newer = Release(version: remote, page: page,
-                            notes: payload.body ?? "", asset: asset)
+                            notes: payload.body ?? "",
+                            publishedAt: payload.publishedAt.flatMap {
+                                ISO8601DateFormatter().date(from: $0)
+                            },
+                            asset: asset)
         } catch {
             lastError = error.localizedDescription
         }
@@ -172,6 +181,7 @@ final class UpdateChecker {
         let tagName: String
         let htmlUrl: String
         let body: String?
+        let publishedAt: String?
         /// Absent d'une release sans pièce jointe : `decodeIfPresent` plutôt
         /// qu'un champ obligatoire, sinon le décodage échoue en entier et
         /// l'application se croit à jour.
@@ -194,6 +204,7 @@ final class UpdateChecker {
             case htmlUrl = "html_url"
             case body
             case assets
+            case publishedAt = "published_at"
         }
 
         init(from decoder: Decoder) throws {
@@ -202,6 +213,7 @@ final class UpdateChecker {
             htmlUrl = try c.decode(String.self, forKey: .htmlUrl)
             body = try c.decodeIfPresent(String.self, forKey: .body)
             assets = try c.decodeIfPresent([Asset].self, forKey: .assets) ?? []
+            publishedAt = try c.decodeIfPresent(String.self, forKey: .publishedAt)
         }
     }
 

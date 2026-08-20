@@ -38,9 +38,11 @@ final class UpdateNotificationWindowController {
         }
         // Plus haute quand il y a des nouveautés à lire, et pas autrement :
         // une fenêtre qui réserve la place d'une section absente laisse un vide
-        // au-dessus des boutons.
+        // au-dessus des boutons. Le cas vide n'est plus 260 mais 300 : la liste
+        // ne disparaît plus, elle dit qu'elle est vide (cf. `ReleaseNotesList`),
+        // et il lui faut la place de le dire.
         let hasNotes = !ReleaseNotes.lines(from: update.notes).isEmpty
-        window.setContentSize(NSSize(width: 400, height: hasNotes ? 400 : 260))
+        window.setContentSize(NSSize(width: 400, height: hasNotes ? 400 : 300))
         window.styleMask.remove(.miniaturizable)
         self.window = window
         // Sans voler le focus : on vient d'ouvrir sa session, pas de demander
