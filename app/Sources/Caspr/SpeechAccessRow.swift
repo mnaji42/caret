@@ -47,10 +47,10 @@ struct SpeechAccessRow: View {
                         }
                         Spacer(minLength: 8)
                         Button("Accorder") {
-                            Task {
-                                _ = await LegacySpeechEngine.requestAuthorisation()
-                                monitor.refresh()
-                            }
+                            // Le moniteur porte la demande, comme pour le
+                            // micro : c'est lui qui sait reprendre le premier
+                            // plan une fois l'alerte refermée.
+                            Task { await monitor.requestSpeechRecognition() }
                         }
                         .buttonStyle(CasprPrimaryButtonStyle())
                     }

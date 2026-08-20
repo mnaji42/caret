@@ -282,8 +282,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// même pas dans la liste des Réglages tant qu'elle n'a rien demandé.
     private func requestMicrophoneIfNeeded() async {
         guard AudioRecorder.microphoneAccess == .undetermined else { return }
-        NSApp.activate(ignoringOtherApps: true)
-        _ = await AudioRecorder.requestPermission()
+        // Par le moniteur, et non en ligne : c'est lui qui sait activer l'app
+        // avant le dialogue **et** reprendre le premier plan après. Cette
+        // demande-ci s'en passait, et rien ne garantissait qu'elle continue de
+        // s'en passer — un chemin de moins qui puisse diverger.
+        await PermissionsMonitor.shared.requestMicrophone()
         await refreshMenu()
     }
 

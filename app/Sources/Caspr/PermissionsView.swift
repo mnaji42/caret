@@ -144,6 +144,51 @@ final class PermissionsMonitor {
         NSApp.activate(ignoringOtherApps: true)
         _ = await AudioRecorder.requestPermission()
         refresh()
+        reclaimForegroundAfterOwnDialog()
+    }
+
+    /// Idem pour la reconnaissance vocale.
+    ///
+    /// Passe par le moniteur plutôt que par la vue, pour que les deux dialogues
+    /// présentés par notre propre processus suivent exactement le même chemin :
+    /// c'est en les traitant séparément qu'un seul des deux avait reçu la
+    /// parade ci-dessous.
+    func requestSpeechRecognition() async {
+        NSApp.activate(ignoringOtherApps: true)
+        _ = await LegacySpeechEngine.requestAuthorisation()
+        refresh()
+        reclaimForegroundAfterOwnDialog()
+    }
+
+    /// Reprend le premier plan **après** que macOS a fini de le redistribuer.
+    ///
+    /// ## Pourquoi un délai, et pourquoi seulement ici
+    ///
+    /// Caspr tourne en `.accessory` (`LSUIElement`) : il n'est pas dans l'ordre
+    /// de bascule des applications. Quand une alerte système présentée par
+    /// notre processus se referme, macOS ne nous rend donc pas la main — il la
+    /// donne à l'application *ordinaire* la plus en avant, et sur la machine
+    /// où le défaut a été vu c'étaient les Réglages Système, restés ouverts
+    /// depuis l'étape de l'accessibilité.
+    ///
+    /// `requestAccess` et `requestAuthorization` rappellent à l'instant du clic,
+    /// **avant** que l'alerte ait fini de disparaître. S'activer là ne sert à
+    /// rien : on est encore devant, et la redistribution qui suit écrase notre
+    /// appel. C'est le diagnostic de Mehdi, et il est exact — d'où le report.
+    ///
+    /// L'accessibilité, elle, n'a pas besoin de ceci : personne ne rappelle, on
+    /// l'apprend par la relecture d'une fois par seconde, donc toujours long-
+    /// temps après que l'alerte a disparu. C'est pour ça qu'elle marchait déjà.
+    ///
+    /// `isActive` garde le geste inoffensif : si Caspr a conservé le premier
+    /// plan — ou si quelqu'un est parti travailler ailleurs entre-temps — on ne
+    /// fait rien.
+    private func reclaimForegroundAfterOwnDialog() {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(450))
+            guard !NSApp.isActive else { return }
+            returnToForeground()
+        }
     }
 }
 
