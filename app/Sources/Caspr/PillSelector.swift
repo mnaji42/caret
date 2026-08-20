@@ -44,7 +44,7 @@ final class PillSelector: NSView {
         glass.layer?.cornerRadius = Self.height / 2
         glass.layer?.masksToBounds = true
         glass.layer?.borderWidth = 1
-        glass.layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
+        glass.layer?.borderColor = accent.withAlphaComponent(0.35).cgColor
         glass.translatesAutoresizingMaskIntoConstraints = false
         addSubview(glass)
 

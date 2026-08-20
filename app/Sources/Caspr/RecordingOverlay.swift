@@ -223,6 +223,7 @@ final class RecordingOverlay {
 
         startedAt = Date()
         stopProcessingGlow()
+        card?.layer?.borderColor = Self.accent.withAlphaComponent(0.35).cgColor
         statusLabel.isHidden = true
         container?.isHidden = false
         textRow?.isHidden = false
@@ -274,6 +275,7 @@ final class RecordingOverlay {
                                     height: 2 * Self.padding + 20))
         cardSheen?.frame = card?.bounds ?? .zero
         position(panel)
+        card?.layer?.borderColor = Self.accent.withAlphaComponent(0.40).cgColor
         startProcessingGlow()
     }
 
@@ -324,6 +326,7 @@ final class RecordingOverlay {
                                         + (hint == nil ? 20 : 38)))
         cardSheen?.frame = card?.bounds ?? .zero
         position(panel)
+        card?.layer?.borderColor = NSColor.systemRed.withAlphaComponent(0.35).cgColor
         panel.orderFrontRegardless()
 
         // Assez pour être lu, pas assez pour gêner la dictée suivante.
@@ -672,7 +675,7 @@ final class RecordingOverlay {
         card.layer?.cornerRadius = 16
         card.layer?.masksToBounds = true
         card.layer?.borderWidth = 1
-        card.layer?.borderColor = NSColor.white.withAlphaComponent(0.16).cgColor
+        card.layer?.borderColor = Self.accent.withAlphaComponent(0.35).cgColor
         // L'ombre portée du prototype (`0 16px 36px rgba(0, 0, 0, 0.6)`) est
         // déjà rendue par `panel.hasShadow` : macOS la dérive de l'alpha du
         // contenu. La reposer sur le calque obligerait à lever
@@ -681,17 +684,6 @@ final class RecordingOverlay {
         root.addSubview(card)
 
         // Le fond de fenêtre de l'application, et rien d'autre.
-        //
-        // La barre était en verre pur : un `NSVisualEffectView` en
-        // `.behindWindow` ne teinte rien, il diffuse ce qu'il y a derrière. On
-        // lisait donc le texte de la fenêtre du dessous au travers. Le design
-        // système a tranché — plus de glassmorphisme pour les fenêtres — et
-        // c'est la même ardoise partout : accueil, réglages, barre d'écoute.
-        //
-        // Posée dans une vue à part plutôt que sur `card.layer` :
-        // `NSVisualEffectView` gère son propre calque et réécrit sa couleur de
-        // fond quand il ravive son matériau, si bien que la teinte disparaissait
-        // sans prévenir.
         let tint = NSView()
         tint.wantsLayer = true
         tint.layer?.backgroundColor = NSColor.casprWindow.cgColor

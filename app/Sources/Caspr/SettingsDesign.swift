@@ -92,12 +92,12 @@ extension NSColor {
     static let casprAccent = NSColor(srgbRed: 0x00 / 255.0, green: 0xE5 / 255.0,
                                       blue: 0xCC / 255.0, alpha: 1)
 
-    /// Le fond de fenêtre de l'application — `--bg-window`, `#141821` à 96 %.
+    /// Le fond de fenêtre de l'application — `--bg-window`, `#141821` à 85 %.
     ///
     /// Le même pour l'accueil, les réglages et la barre d'écoute : c'est ce
     /// que `WindowBackground` pose en SwiftUI, repris ici pour AppKit.
     static let casprWindow = NSColor(srgbRed: 0x14 / 255.0, green: 0x18 / 255.0,
-                                      blue: 0x21 / 255.0, alpha: 0.96)
+                                      blue: 0x21 / 255.0, alpha: 0.85)
 
     /// L'ambre des avertissements, pour le code AppKit.
     static let casprWarning = NSColor(srgbRed: 0xF5 / 255.0, green: 0x9E / 255.0,
@@ -258,15 +258,14 @@ struct GlassBackground: NSViewRepresentable {
 /// La barre flottante peut se le permettre — elle est petite et éphémère ; une
 /// fenêtre qu'on lit pendant plusieurs minutes, non.
 ///
-/// D'où la couche quasi opaque par-dessus, à la valeur du prototype
-/// (`rgba(20, 24, 33, 0.96)`) : il reste juste ce qu'il faut de verre pour que
-/// la fenêtre appartienne à macOS, et plus assez pour qu'elle dépende du fond
-/// d'écran.
+/// D'où la couche à 85 % par-dessus, à la valeur du prototype
+/// (`rgba(20, 24, 33, 0.85)`) : il reste un bel effet de verre glasmorphisme
+/// caractéristique de macOS, tout en maintenant un contraste élevé sur fond blanc.
 struct WindowBackground: View {
     var body: some View {
         ZStack {
             GlassBackground()
-            Color(hex: 0x141821).opacity(0.96)
+            Color(hex: 0x141821).opacity(0.85)
         }
     }
 }
