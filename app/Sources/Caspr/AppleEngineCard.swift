@@ -165,10 +165,78 @@ struct AppleEngineCard: View, ValidatingComponent {
         // fait pas battre l'horloge deux fois.
         .onAppear { monitor.observe() }
         .onDisappear { monitor.release() }
+        // Sur la carte entière, et non plus dans la branche des modèles d'Apple
+        // Intelligence : ce compte sert aussi à `inconsistency`, qui ne se pose
+        // que sur les machines où cette branche-là ne s'affiche jamais.
+        .task { await assets.refreshLocaleCount() }
+    }
+
+    /// **Ce message ne devrait jamais paraître.**
+    ///
+    /// Il dit qu'un réglage désigne un moteur que cette machine ne sait faire
+    /// tourner pour *aucune* langue — un état que rien, dans l'application, n'a
+    /// le droit d'écrire. S'il s'affiche un jour, la faute est ailleurs dans le
+    /// code, et c'est précisément pour ça qu'il existe : la panne qui l'a
+    /// motivé s'est manifestée par une transcription vide et rien d'autre, et
+    /// il a fallu remonter trois fichiers pour comprendre que le réglage
+    /// pointait sur Apple Intelligence sur un Mac qui n'en a pas.
+    ///
+    /// ## La condition est étroite exprès
+    ///
+    /// « Le moteur réglé n'est pas disponible » ne suffit pas : c'est un état
+    /// **légitime et courant**, celui de quelqu'un qui a choisi Apple
+    /// Intelligence puis dicte dans une langue qu'il ne couvre pas. Le réglage
+    /// n'est alors pas fautif, il ne s'applique simplement pas ici et
+    /// maintenant — `LanguageSwitchCoordinator` le laisse en place à dessein et
+    /// son bandeau le dit déjà. Crier à l'anomalie là-dessus ferait de ce
+    /// message un bruit de fond, et le jour où il dirait vrai plus personne ne
+    /// le lirait.
+    ///
+    /// On exige donc que la machine soit incapable de faire tourner ce moteur
+    /// **du tout** : zéro locale proposée, mesuré auprès du système. C'est la
+    /// différence entre « pas dans cette langue » et « pas sur ce Mac ».
+    private var inconsistency: EngineChoice? {
+        guard !available.isEmpty, !available.contains(technology) else { return nil }
+        // Seul Apple Intelligence peut se retrouver dans cet état par un défaut
+        // de Caspr. Une Dictée indisponible, elle, a toujours une cause visible
+        // côté système — l'interrupteur éteint — et `SystemDictationRow` la
+        // porte déjà.
+        guard technology == .apple, assets.appleLocaleCount == 0 else { return nil }
+        return available.first
+    }
+
+    @ViewBuilder
+    private func inconsistencyNotice(_ fix: EngineChoice) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Note("**Réglage incohérent — c'est un défaut de Caspr, pas une "
+                 + "manipulation de votre part.** "
+                 + (target == .final ? "Ce moteur" : "Cet aperçu")
+                 + " est réglé sur \(technology.fullLabel), que ce Mac ne sait "
+                 + "faire tourner pour aucune langue. Rien n'est bloqué : la "
+                 + "dictée se replie sur \(fix.fullLabel). Mais ce réglage "
+                 + "n'aurait pas dû pouvoir s'écrire ici.", warning: true)
+            ButtonRow {
+                Button("Régler sur \(fix.fullLabel)") { setTechnology(fix) }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: Style.innerRadius, style: .continuous)
+                .fill(Style.warning.opacity(0.08))
+                .overlay(RoundedRectangle(cornerRadius: Style.innerRadius,
+                                          style: .continuous)
+                    .strokeBorder(Style.warning.opacity(0.35), lineWidth: 1)))
     }
 
     @ViewBuilder
     private var content: some View {
+        // En tête, avant tout le reste : si ce filet se déclenche, plus rien
+        // sur la carte ne mérite d'être lu avant lui.
+        if let fix = inconsistency {
+            inconsistencyNotice(fix)
+        }
+
         // Hors sous-carte, la carte porte son propre en-tête : une pastille qui
         // dit si le moteur est opérationnel, le nom de la version active, et ce
         // qu'elle est. En sous-carte, la ligne de choix parente le dit déjà.
@@ -333,7 +401,6 @@ struct AppleEngineCard: View, ValidatingComponent {
         // Chaque langue vérifiée une fois à l'affichage, et de nouveau quand la
         // liste change. `check` ne télécharge rien : on regarde, on ne décide
         // pas à la place de quelqu'un qui n'a pas encore lu la question.
-        .task { await assets.refreshLocaleCount() }
         .task(id: prefs.selectedLanguages) {
             for code in prefs.selectedLanguages {
                 await assets.check(code)
