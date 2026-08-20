@@ -172,17 +172,12 @@ private struct OnboardingView: View {
 
     /// Le logo, ici et nulle part ailleurs. C'est le seul écran où l'on fait
     /// connaissance ; le répéter dans chaque fenêtre le viderait de son sens.
+    ///
+    /// La version empilée — le fantôme au-dessus du nom — et non l'icône de
+    /// l'application : celle-ci vit dans le Dock et dans la fenêtre
+    /// d'installation, où il faut la reconnaître ; ici on présente le produit.
     static var logo: AnyView? {
-        guard let url = Bundle.main.url(forResource: "caspr-logo-stacked",
-                                        withExtension: "svg",
-                                        subdirectory: "icons"),
-              let image = NSImage(contentsOf: url)
-        else { return nil }
-        return AnyView(
-            Image(nsImage: image)
-                .resizable()
-                .scaledToFit()
-                .frame(height: 64))
+        BrandIcon("caspr-logo-stacked", height: 64).map { AnyView($0) }
     }
 
     var body: some View {

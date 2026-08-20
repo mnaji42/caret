@@ -104,6 +104,44 @@ extension NSColor {
                                        blue: 0x0B / 255.0, alpha: 1)
 }
 
+/// Un dessin de la marque, chargé depuis `Resources/icons`.
+///
+/// Les SVG de Caspr voyagent dans le bundle plutôt que dans un catalogue
+/// d'actifs : `install.sh` les copie tels quels, et ils servent aussi à
+/// fabriquer l'`.icns`. Deux vues les chargeaient déjà chacune de leur côté,
+/// avec le même `Bundle.main.url(forResource:withExtension:subdirectory:)`
+/// recopié — d'où cette vue, qui porte aussi le repli.
+///
+/// Rend `nil` plutôt que de dessiner un rectangle vide : une icône absente est
+/// une erreur d'empaquetage, et la fenêtre qui l'accueille sait se passer d'elle
+/// mieux qu'elle ne saurait afficher un trou.
+struct BrandIcon: View {
+    let name: String
+    var height: CGFloat
+
+    init?(_ name: String, height: CGFloat) {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "svg",
+                                        subdirectory: "icons"),
+              let image = NSImage(contentsOf: url)
+        else { return nil }
+        self.name = name
+        self.height = height
+        self.image = image
+    }
+
+    private let image: NSImage
+
+    var body: some View {
+        Image(nsImage: image)
+            .resizable()
+            .scaledToFit()
+            .frame(height: height)
+            // Le dessin porte sa propre identité : le lire à voix haute
+            // « image » n'apprend rien, le nommer si.
+            .accessibilityLabel("Caspr")
+    }
+}
+
 extension Color {
     /// Couleur depuis un littéral hexadécimal — `Color(hex: 0x00E5CC)`.
     ///

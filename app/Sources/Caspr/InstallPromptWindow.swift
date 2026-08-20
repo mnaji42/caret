@@ -56,21 +56,19 @@ private struct InstallPromptView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            // Le sigle, dans le dégradé de l'application. Une icône plutôt
-            // qu'un triangle d'avertissement : rien n'est cassé, on propose de
-            // ranger l'application là où elle doit vivre.
-            RoundedRectangle(cornerRadius: 17, style: .continuous)
-                .fill(LinearGradient(colors: [Color(hex: 0x00F5D4),
-                                              Color(hex: 0x33E1FF)],
-                                     startPoint: .topLeading,
-                                     endPoint: .bottomTrailing))
-                .frame(width: 68, height: 68)
-                .overlay {
-                    Image(systemName: "waveform")
-                        .font(.system(size: 30, weight: .semibold))
-                        .foregroundStyle(Color(hex: 0x042F2E))
-                }
-                .shadow(color: Color(hex: 0x33E1FF).opacity(0.35), radius: 14, y: 6)
+            // L'icône de l'application, celle-là même qu'on propose de ranger
+            // dans Applications. Une icône plutôt qu'un triangle
+            // d'avertissement : rien n'est cassé.
+            //
+            // C'était un `waveform` sur un carré dégradé, dessiné ici à la
+            // main — le dernier symbole générique de l'application, et sur le
+            // tout premier écran qu'on voit depuis l'image disque. La fenêtre
+            // montrait donc autre chose que l'icône du Finder juste derrière
+            // elle, au moment précis où l'on demande de reconnaître les deux.
+            if let icon = BrandIcon("caspr-app-icon", height: 68) {
+                icon.shadow(color: Color(hex: 0x33E1FF).opacity(0.35),
+                            radius: 14, y: 6)
+            }
 
             VStack(spacing: 10) {
                 Text(choice.alreadyInstalled
