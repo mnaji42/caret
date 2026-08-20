@@ -8,17 +8,17 @@
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="fr" href="https://caspr.lyriastudio.fr/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://caspr.lyriastudio.fr/en.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://caspr.lyriastudio.fr/en"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://caspr.lyriastudio.fr/"/>
   </url>
 
   <url>
-    <loc>https://caspr.lyriastudio.fr/en.html</loc>
+    <loc>https://caspr.lyriastudio.fr/en</loc>
     <lastmod>2026-08-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="fr" href="https://caspr.lyriastudio.fr/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://caspr.lyriastudio.fr/en.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://caspr.lyriastudio.fr/en"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://caspr.lyriastudio.fr/"/>
   </url>
 

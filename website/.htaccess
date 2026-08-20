@@ -9,9 +9,6 @@ AddDefaultCharset UTF-8
   RewriteEngine On
 
   # Forcer HTTPS.
-  # La règle précédente comparait l'hôte à lui-même et se redirigeait donc en
-  # boucle une fois le site servi en HTTPS. C'est le protocole qu'il faut
-  # tester, pas le nom d'hôte.
   RewriteCond %{HTTPS} !=on
   RewriteCond %{HTTP:X-Forwarded-Proto} !https
   RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
@@ -19,6 +16,21 @@ AddDefaultCharset UTF-8
   # Une seule forme d'URL pour la page d'accueil : /index.html renvoie vers /.
   RewriteCond %{THE_REQUEST} \s/+index\.html[\s?] [NC]
   RewriteRule ^(.*)index\.html$ /$1 [R=301,L]
+
+  # /en.html renvoie vers /en en 301.
+  RewriteCond %{THE_REQUEST} \s/+en\.html[\s?] [NC]
+  RewriteRule ^(.*)en\.html$ /en [R=301,L]
+
+  # /en sert en.html
+  RewriteRule ^en/?$ en.html [L]
+
+  # URL propres sans .html pour les autres pages
+  RewriteCond %{THE_REQUEST} \s/+(legal|privacy|mentions-legales|politique-de-confidentialite)\.html[\s?] [NC]
+  RewriteRule ^(.*)\.html$ /$1 [R=301,L]
+
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME}\.html -f
+  RewriteRule ^(.*)$ $1.html [L]
 </IfModule>
 
 # --- Compression --------------------------------------------------------------

@@ -12,16 +12,18 @@ src = (ROOT / "index.html").read_text(encoding="utf-8")
 PAIRS = [
 # ---- tête ------------------------------------------------------------------
 ('<html lang="fr">', '<html lang="en">'),
+('<meta name="viewport" content="width=device-width, initial-scale=1">',
+ '<meta name="viewport" content="width=device-width, initial-scale=1">\n<base href="/">'),
 ("<title>Caspr — dictée vocale locale et hors-ligne pour macOS</title>",
  "<title>Caspr — local, offline dictation for macOS</title>"),
 ("Caspr transcrit votre voix sur votre Mac, sans cloud ni compte. Il écrit les mots de votre métier — franglais, acronymes, noms propres — sans essayer de les traduire.",
  "Caspr turns speech into text on your own Mac, with no cloud and no account. It cleans up the way people actually talk, and writes the words of your trade without translating them."),
 ('<link rel="canonical" href="https://caspr.lyriastudio.fr/">',
- '<link rel="canonical" href="https://caspr.lyriastudio.fr/en.html">'),
+ '<link rel="canonical" href="https://caspr.lyriastudio.fr/en">'),
 ('<meta property="og:locale" content="fr_FR">', '<meta property="og:locale" content="en_US">'),
 ('<meta property="og:locale:alternate" content="en_US">', '<meta property="og:locale:alternate" content="fr_FR">'),
 ('<meta property="og:url" content="https://caspr.lyriastudio.fr/">',
- '<meta property="og:url" content="https://caspr.lyriastudio.fr/en.html">'),
+ '<meta property="og:url" content="https://caspr.lyriastudio.fr/en">'),
 ("Caspr — dictée vocale locale et hors-ligne pour macOS", "Caspr — local, offline dictation for macOS"),
 ("Parlez naturellement. Caspr écrit les mots de votre métier sans les traduire. Tout tourne sur votre Mac : pas de cloud, pas de compte, pas de télémétrie.",
  "Speak naturally. Caspr writes at the speed of your thoughts, and never leaves your Mac: no cloud, no account, no telemetry."),
@@ -31,9 +33,9 @@ PAIRS = [
 ("Caspr — dictée vocale locale pour macOS", "Caspr — local dictation for macOS"),
 ('"inLanguage": "fr-FR"', '"inLanguage": "en"'),
 ('"@id": "https://caspr.lyriastudio.fr/#site"', '"@id": "https://caspr.lyriastudio.fr/#site-en"'),
-('"@id": "https://caspr.lyriastudio.fr/#faq"', '"@id": "https://caspr.lyriastudio.fr/en.html#faq"'),
+('"@id": "https://caspr.lyriastudio.fr/#faq"', '"@id": "https://caspr.lyriastudio.fr/en#faq"'),
 ('"url": "https://caspr.lyriastudio.fr/",\n      "name": "Caspr"',
- '"url": "https://caspr.lyriastudio.fr/en.html",\n      "name": "Caspr"'),
+ '"url": "https://caspr.lyriastudio.fr/en",\n      "name": "Caspr"'),
 ('"operatingSystem": "macOS 14 ou plus récent"', '"operatingSystem": "macOS 14 or later"'),
 ("Application de dictée vocale locale pour macOS, conçue pour la parole mêlant plusieurs langues et le vocabulaire de métier. La transcription s'exécute sur la machine, sans service distant.",
  "Local dictation app for macOS: it removes the hesitations of real speech and keeps the vocabulary of your trade. Transcription runs on the machine, with no remote service."),
@@ -64,7 +66,7 @@ PAIRS = [
  "Yes. The app ships an uninstaller that removes the Python environment, the model weights, the caches and the preferences. It only offers to remove what is actually installed."),
 # ---- chrome ----------------------------------------------------------------
 ("Passer au contenu", "Skip to content"),
-('href="/" aria-label="Caspr, retour à l\'accueil"', 'href="en.html" aria-label="Caspr, back to home"'),
+('href="/" aria-label="Caspr, retour à l\'accueil"', 'href="/en" aria-label="Caspr, back to home"'),
 ('aria-label="Sections du site"', 'aria-label="Site sections"'),
 ('href="#dictee">La dictée</a>', 'href="#dictation">Dictation</a>'),
 ('href="#vocabulaire">Le vocabulaire</a>', 'href="#vocabulary">Vocabulary</a>'),
@@ -72,8 +74,8 @@ PAIRS = [
 ('href="#notes">Les notes</a>', 'href="#notes">Notes</a>'),
 ('href="#moteurs">Les moteurs</a>', 'href="#engines">Engines</a>'),
 ('href="#mesures">Les mesures</a>', 'href="#numbers">Measurements</a>'),
-('<a href="/" aria-current="true" lang="fr">FR</a>\n        <a href="en.html" hreflang="en" lang="en">EN</a>',
- '<a href="/" hreflang="fr" lang="fr">FR</a>\n        <a href="en.html" aria-current="true" lang="en">EN</a>'),
+('<a href="/" aria-current="true" lang="fr">FR</a>\n        <a href="/en" hreflang="en" lang="en">EN</a>',
+ '<a href="/" hreflang="fr" lang="fr">FR</a>\n        <a href="/en" aria-current="true" lang="en">EN</a>'),
 ("Voir Caspr sur ", "View Caspr on "),
 (">\n        Télécharger\n      </button>", ">\n        Download\n      </button>"),
 # ---- hero ------------------------------------------------------------------
@@ -406,7 +408,7 @@ PAIRS += [
 ("Signaler un problème", "Report an issue"),
 ("Licence MIT du code", "MIT licence"),
 ('<h2 id="foot-site">Le site</h2>', '<h2 id="foot-site">Site</h2>'),
-('<li><a href="en.html" hreflang="en" lang="en">English version</a></li>', '<li><a href="/" hreflang="fr" lang="fr">Version française</a></li>'),
+('<li><a href="/en" hreflang="en" lang="en">English version</a></li>', '<li><a href="/" hreflang="fr" lang="fr">Version française</a></li>'),
 ('<li><a href="mentions-legales.html">Mentions légales</a></li>', '<li><a href="legal.html">Legal notice</a></li>'),
 ('<li><a href="politique-de-confidentialite.html">Confidentialité</a></li>', '<li><a href="privacy.html">Privacy</a></li>'),
 ('© 2026 Caspr — un projet <a href="https://lyriastudio.fr" rel="noopener">Lyria Studio</a>. Code sous licence MIT.',
@@ -441,6 +443,9 @@ for a, b in [("#dictee", "#dictation"), ("#vocabulaire", "#vocabulary"), ("#barr
     out = out.replace(f'href="{a}"', f'href="{b}"')
 
 (ROOT / "en.html").write_text(out, encoding="utf-8")
+en_dir = ROOT / "en"
+en_dir.mkdir(exist_ok=True)
+(en_dir / "index.html").write_text(out, encoding="utf-8")
 
 # --- contrôle : plus un mot de français dans le texte visible ---------------
 from html.parser import HTMLParser
