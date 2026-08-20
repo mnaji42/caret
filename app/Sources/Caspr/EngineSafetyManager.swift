@@ -61,7 +61,14 @@ final class EngineSafetyManager {
         if isReady(prefs.lastValidEngine, for: language) {
             return prefs.lastValidEngine
         }
-        return EngineChoice.availableSystemEngines(for: language).first ?? wanted
+        // `first { isReady }` et non `first` : cette dernière ligne prenait le
+        // premier moteur *disponible*, et `availableSystemEngines` range Apple
+        // Intelligence en tête. Sur une machine qui n'en a aucun modèle, elle
+        // élisait donc précisément le moteur incapable d'écrire — c'est le
+        // chemin qui a produit « Rien n'a été entendu » sur la VM, pendant que
+        // l'aperçu en direct, lui, tournait très bien sur la Dictée.
+        return EngineChoice.availableSystemEngines(for: language)
+            .first { isReady($0, for: language) } ?? wanted
     }
 
     /// Le moteur retenu est-il en train d'être suppléé ?
@@ -83,6 +90,19 @@ final class EngineSafetyManager {
     func isReady(_ choice: EngineChoice, for language: String) -> Bool {
         guard choice.isAvailable(for: language) else { return false }
         if choice == .crisperWhisper { return EngineService.isAnswering }
+        // ## Apple Intelligence exige une réponse, pas une absence de refus
+        //
+        // `isAvailable` est **volontairement optimiste** : tant que le système
+        // n'a rien dit pour cette langue, elle ne la déclare pas indisponible,
+        // sans quoi les cartes annonceraient « non pris en charge » pendant la
+        // fraction de seconde où la question est en vol.
+        //
+        // Cette optimisme-là est sans danger dans une vue et ruineuse ici :
+        // router une dictée vers un moteur dont personne n'a jamais mesuré
+        // qu'il sait travailler, c'est ce qui a fait rendre une chaîne vide.
+        // D'où la coupure entre les deux prédicats — « on peut l'afficher » et
+        // « on peut lui confier ce que quelqu'un vient de dire ».
+        if choice == .apple { return Language.appleSupports(language) == true }
         return true
     }
 

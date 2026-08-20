@@ -117,7 +117,21 @@ final class AppleSpeechEngine: SpeechEngine, @unchecked Sendable {
         continuation.finish()
         try await analyzer.finalizeAndFinishThroughEndOfInput()
 
-        let text = (try? await collected.value) ?? ""
+        // ## Ce `try?` valait un bug muet, et il l'a produit
+        //
+        // La collecte échoue quand l'analyseur n'a pas de modèle à faire
+        // tourner — le cas d'une machine en macOS 26 sans Apple Intelligence.
+        // L'erreur était avalée, la chaîne vide rendue, et
+        // `TranscriptionResult` s'annonçait comme un **succès**. Le contrôleur
+        // n'avait donc rien d'autre à dire que « Rien n'a été entendu », ce qui
+        // désigne le micro alors que la panne est dans le moteur. Mesuré sur la
+        // VM : l'aperçu en direct affichait le texte pendant ce temps-là, ce qui
+        // achevait de rendre le diagnostic impossible.
+        //
+        // Un moteur qui ne peut pas travailler doit le dire. Le silence est
+        // réservé au vrai silence : un flux qui se termine sans résultat rend
+        // une chaîne vide sans lever, et ce cas-là reste traité comme avant.
+        let text = try await collected.value
         let elapsed = Date().timeIntervalSince(started) * 1000
 
         return TranscriptionResult(

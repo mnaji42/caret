@@ -268,7 +268,23 @@ extension Language {
     // MARK: - Ce qu'Apple Intelligence propose, mémorisé
 
     private static let appleSupportLock = NSLock()
-    nonisolated(unsafe) private static var appleSupport: [String: Bool] = [:]
+    private static let appleSupportKey = "caspr.engine.appleSupport"
+
+    /// **Persistée**, et ce n'est pas une optimisation.
+    ///
+    /// En mémoire seule, elle repartait vide à chaque lancement : `appleSupports`
+    /// rendait `nil` jusqu'à ce que la carte du moteur soit affichée *et* que sa
+    /// vérification asynchrone aboutisse. Or `isAvailable` traite `nil` comme
+    /// « pas encore infirmé », donc Apple Intelligence se déclarait disponible —
+    /// sur toute machine en macOS 26, y compris celles qui n'en ont aucun
+    /// modèle. Une dictée lancée avant ce premier affichage partait donc vers un
+    /// moteur qui ne pouvait rien produire.
+    ///
+    /// Ce que sait faire une machine ne change pas d'un lancement à l'autre. La
+    /// valeur est relue au démarrage suivant, et corrigée dès que le système
+    /// répond autre chose.
+    nonisolated(unsafe) private static var appleSupport: [String: Bool] =
+        UserDefaults.standard.dictionary(forKey: appleSupportKey) as? [String: Bool] ?? [:]
 
     /// Apple Intelligence propose-t-il cette langue **sur cette machine** ?
     ///
@@ -295,7 +311,11 @@ extension Language {
     static func recordAppleSupport(_ language: String, supported: Bool) {
         appleSupportLock.lock()
         appleSupport[language] = supported
+        let snapshot = appleSupport
         appleSupportLock.unlock()
+        // Hors du verrou : `UserDefaults` prend le sien, et les imbriquer sur
+        // un chemin appelé depuis deux acteurs ne s'impose pas.
+        UserDefaults.standard.set(snapshot, forKey: appleSupportKey)
     }
 
     /// Les locales que la version **Apple Intelligence** propose ici.
