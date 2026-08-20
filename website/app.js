@@ -24,8 +24,10 @@
      place du plus long, et un écart trop grand creuserait un vide sous le
      titre. Ils disent ce que Caspr écrit — pas des slogans. */
   const PHRASES = LANG === 'en'
-    ? ['your jargon', 'your acronyms', 'proper nouns', 'the right word']
-    : ['votre franglais', 'vos acronymes', 'vos noms propres', 'le mot juste'];
+    ? ['at the speed of your thoughts', 'your jargon, untranslated',
+       'the words of your trade', 'what you actually meant']
+    : ['à la vitesse de votre pensée', 'votre franglais sans traduire',
+       'les mots de votre métier', 'ce que vous vouliez dire'];
 
   const typed = document.getElementById('typed');
   const ghost = document.querySelector('.typing-ghost');
