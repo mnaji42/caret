@@ -238,12 +238,25 @@ p { max-width: 68ch; text-wrap: pretty; }
 /* Le texte qui s'écrit, dans le titre. La largeur est réservée par le plus long
    des termes, posé en doublure invisible : sans elle, chaque caractère tapé
    pousserait la mise en page. */
-.typing { display: grid; }
+/* La proposition animée, sous l'accroche. Plus petite que le titre : à la
+   taille du display, la plus longue des phrases ne tiendrait pas sur une ligne
+   et la doublure réserverait une ligne vide sous les phrases courtes. */
+.hero-sub {
+  display: block;
+  margin-top: 0.35em;
+  font-size: 0.52em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-2);
+}
+
+.typing { display: inline-grid; vertical-align: top; }
 .typing > * { grid-area: 1 / 1; }
 .typing-ghost { visibility: hidden; }
 /* Une seule ligne, toujours : c'est ce qui garantit que la doublure réserve
    exactement la hauteur qu'occupera le texte tapé. */
 .typing-ghost, .typing-out { white-space: nowrap; }
+.typing-out { text-align: left; }
 .typing-out { color: var(--accent); }
 
 /* Le terme technique, écrit comme l'application l'écrit. */
@@ -382,7 +395,7 @@ kbd {
 
 .hero { padding-top: clamp(48px, 3rem + 3vw, 88px); padding-bottom: var(--section-y); }
 
-.hero-copy { max-width: 46rem; margin-inline: auto; text-align: center; }
+.hero-copy { max-width: 50rem; margin-inline: auto; text-align: center; }
 
 .hero h1 { margin-bottom: var(--s-6); }
 .hero h1 .term { font-size: 0.78em; padding: 0.1em 0.3em; }
@@ -412,7 +425,7 @@ kbd {
   gap: var(--s-2);
   justify-content: center;
   min-height: 20px;
-  margin-top: var(--s-5);
+  margin: var(--s-5) auto 0;
   font-size: var(--t-small);
   color: var(--text-2);
 }
@@ -433,7 +446,7 @@ kbd {
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--s-2) var(--s-4);
-  margin-top: var(--s-3);
+  margin: var(--s-3) auto 0;
   font-size: var(--t-micro);
   color: var(--text-3);
 }
@@ -615,6 +628,81 @@ kbd {
 .stage-note svg { margin-top: 2px; }
 
 /* =============================================================================
+   Le bandeau d'atouts, sous la scène
+   ============================================================================= */
+
+.perks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-3) var(--s-8);
+  max-width: 60rem;
+  margin: var(--s-10) auto 0;
+}
+.perk {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-small);
+  color: var(--text-2);
+}
+.perk svg { color: var(--accent); }
+.perk b { color: var(--text-1); font-weight: 600; }
+
+/* =============================================================================
+   Avant / après — ce que la dictée classique écrit, et ce que Caspr écrit
+   ============================================================================= */
+
+.versus {
+  display: grid;
+  gap: var(--s-5);
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  max-width: 62rem;
+  margin-inline: auto;
+  text-align: left;
+}
+
+.versus-card {
+  padding: var(--s-6);
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-card);
+}
+.versus-card--after {
+  border-color: var(--accent-border);
+  background: rgba(0, 229, 204, 0.05);
+}
+
+.versus-label {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.versus-card--after .versus-label { color: var(--accent); }
+
+.versus-quote {
+  margin-top: var(--s-4);
+  max-width: none;
+  font-size: 1.02rem;
+  line-height: 1.75;
+  color: var(--text-2);
+}
+.versus-card--after .versus-quote { color: var(--text-1); }
+
+/* Les tics de langage, tels qu'une dictée classique les écrit. */
+.filler { color: var(--danger); }
+
+.versus-note {
+  margin-top: var(--s-5);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--stroke);
+  font-size: var(--t-small);
+  color: var(--text-3);
+}
+
+/* =============================================================================
    Le problème du franglais — la table de comparaison
    ============================================================================= */
 
@@ -661,7 +749,7 @@ kbd {
   max-width: 62rem;
   text-align: center;
   line-height: 1.7;
-  margin-top: var(--s-6);
+  margin: var(--s-6) auto 0;
   padding: var(--s-4) var(--s-5);
   background: var(--card);
   border: 1px solid var(--stroke);
@@ -937,14 +1025,15 @@ kbd {
   grid-template-columns: minmax(240px, 1.6fr) repeat(auto-fit, minmax(140px, 1fr));
 }
 
-.footer-brand img { height: 28px; width: auto; }
-.footer-brand p { margin-top: var(--s-4); font-size: var(--t-small); color: var(--text-2); max-width: 38ch; }
+.footer-brand-top { display: flex; align-items: center; gap: var(--s-5); }
+.footer-brand img { height: 84px; width: auto; flex-shrink: 0; }
+.footer-brand p { font-size: var(--t-small); color: var(--text-2); max-width: 34ch; }
 
 .footer-studio {
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
-  margin-top: var(--s-5);
+  margin-top: var(--s-6);
   padding: var(--s-2) var(--s-4);
   font-size: var(--t-micro);
   color: var(--text-2);
