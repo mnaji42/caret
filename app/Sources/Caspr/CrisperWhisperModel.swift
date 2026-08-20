@@ -101,9 +101,19 @@ enum CrisperWhisperModel: String, CaseIterable, Codable, Sendable {
     /// Ne montrer que le poids du modèle ferait découvrir 1,2 Go de plus une
     /// fois le téléchargement lancé.
     var totalDownload: String {
-        let total = downloadBytes + Self.environmentBytes
-        return "\(Self.frenchSize(total)) "
-            + "(uv/python 1,2 Go + modèle \(downloadSize))"
+        "\(totalDownloadShort) (uv/python 1,2 Go + modèle \(downloadSize))"
+    }
+
+    /// Le même total, sans le détail — pour un **bouton**.
+    ///
+    /// « Installer CrisperWhisper (2,82 Go (uv/python 1,2 Go + modèle
+    /// 1,62 Go)) » : deux niveaux de parenthèses dans un libellé de bouton,
+    /// assez long pour s'étaler sur toute la largeur de la carte et se lire
+    /// comme un message d'erreur. Le détail n'est pas perdu — la phrase juste
+    /// au-dessus l'énonce déjà, et c'est sa place : un bouton dit ce qu'il
+    /// fait et ce que ça coûte, pas comment le coût se décompose.
+    var totalDownloadShort: String {
+        Self.frenchSize(downloadBytes + Self.environmentBytes)
     }
 
     /// Ce qu'on sait, et ce qu'on ne sait pas.

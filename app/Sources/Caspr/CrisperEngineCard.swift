@@ -79,6 +79,9 @@ struct CrisperEngineCard: View, ValidatingComponent {
     /// version d'origine lançait un `launchctl` à chaque lecture.
     private var step: EngineInstall.Step { monitor.step(for: draftModel) }
 
+    /// Depuis quand l'installation tourne. Cf. `progressRow`.
+    @State private var installStartedAt: Date?
+
     private var installing: Bool {
         switch bootstrap.phase {
         case .idle, .done, .failed: false
@@ -445,7 +448,7 @@ struct CrisperEngineCard: View, ValidatingComponent {
                     licence
                     installButton(draftModel.isDownloaded
                                   ? "Installer l'environnement (~1,2 Go)"
-                                  : "Installer CrisperWhisper (\(draftModel.totalDownload))")
+                                  : "Installer CrisperWhisper (\(draftModel.totalDownloadShort))")
 
                 case .modelMissing(let model):
                     need(title: "Poids de \(model.catalogueName) manquants",
@@ -537,33 +540,63 @@ struct CrisperEngineCard: View, ValidatingComponent {
     /// que rien ne rappelle sous quelle licence. Or c'est le seul moment où
     /// l'information compte. Cf. `Preferences.crisperLicenceAccepted`.
     private var licence: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Toggle("", isOn: $prefs.crisperLicenceAccepted)
-                .toggleStyle(.checkbox)
-                .labelsHidden()
-            VStack(alignment: .leading, spacing: 4) {
-                Text(.init("J'accepte la **licence de recherche non "
-                           + "commerciale** des poids de Nyra Health."))
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(Style.textSecondary)
-                    .lineSpacing(1.5)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button("Lire la licence") {
-                    NSWorkspace.shared.open(
-                        URL(string: "https://huggingface.co/nyralabs")!)
+        let accepted = prefs.crisperLicenceAccepted
+        return VStack(alignment: .leading, spacing: 4) {
+            // ## Toute la phrase coche, le lien non
+            //
+            // La case seule faisait 16 points de côté : il fallait la viser,
+            // alors que la phrase à côté d'elle ne servait à rien. Elle est donc
+            // dans le bouton, comme le `<label for>` du prototype.
+            //
+            // « Lire la licence » en est **dehors**, et c'est tout l'intérêt de
+            // l'avoir séparé plutôt qu'enchâssé dans le texte : cliquer pour
+            // lire ce qu'on accepte ne doit pas valoir acceptation.
+            Button {
+                prefs.crisperLicenceAccepted.toggle()
+            } label: {
+                HStack(alignment: .top, spacing: 8) {
+                    // La case de Caspr, turquoise une fois cochée. Celle de
+                    // macOS (`.toggleStyle(.checkbox)`) est un carré gris sur un
+                    // panneau sombre : elle passait pour désactivée, sur le seul
+                    // contrôle qui conditionne le bouton d'installation.
+                    CheckBox(checked: accepted)
+                    Text(.init("J'accepte la **licence de recherche non "
+                               + "commerciale** des poids de Nyra Health."))
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(accepted ? Style.textPrimary
+                                                  : Style.textSecondary)
+                        .lineSpacing(1.5)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
                 }
-                .buttonStyle(.link)
-                .font(.system(size: 11))
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(accepted ? [.isSelected, .isButton] : .isButton)
+
+            Button("Lire la licence") {
+                NSWorkspace.shared.open(
+                    URL(string: "https://huggingface.co/nyralabs")!)
+            }
+            .buttonStyle(.link)
+            .font(.system(size: 11))
+            // Aligné sur le texte, pas sur la case : il appartient à la phrase.
+            .padding(.leading, 24)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.white.opacity(0.03))
+                // Tant que ce n'est pas coché, c'est **l'action en attente** de
+                // l'encart : le liseré turquoise le dit sans texte
+                // supplémentaire, et le retire dès que c'est fait.
+                .fill(accepted ? Color.white.opacity(0.03) : Style.accent.opacity(0.05))
                 .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)))
+                    .strokeBorder(accepted ? Color.white.opacity(0.05)
+                                           : Style.accentBorder, lineWidth: 1)))
+        .animation(.easeOut(duration: 0.15), value: accepted)
     }
 
     /// Le bouton d'installation — ou la raison pour laquelle il n'y en a pas.
@@ -600,12 +633,15 @@ struct CrisperEngineCard: View, ValidatingComponent {
                 Text(phaseLabel)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(Style.textSecondary)
+                    .lineLimit(2)
                 Spacer(minLength: 8)
                 if let fraction = phaseFraction {
                     Text("\(Int(fraction * 100)) %")
                         .font(.system(size: 11, weight: .semibold))
                         .monospacedDigit()
                         .foregroundStyle(Style.accent)
+                } else {
+                    elapsedLabel
                 }
             }
             if let fraction = phaseFraction {
@@ -615,7 +651,48 @@ struct CrisperEngineCard: View, ValidatingComponent {
             } else {
                 ProgressView().progressViewStyle(.linear).tint(Style.accent)
             }
+            if case .installingDependencies = bootstrap.phase {
+                longPhaseWarning
+            }
         }
+    }
+
+    /// Le temps écoulé, sur les étapes qui n'ont **rien de mesurable**.
+    ///
+    /// `uv` ne dit pas où il en est quand il pose 1,2 Go de bibliothèques :
+    /// pas de fraction, donc une barre indéterminée qui glisse sans jamais
+    /// avancer. Sur un Mac rapide ça dure deux minutes et personne ne s'en
+    /// aperçoit ; sur une machine lente, c'est trois quarts d'heure de barre
+    /// identique, et le seul moyen de savoir que quelque chose se passe encore
+    /// est un chrono qui tourne.
+    @ViewBuilder
+    private var elapsedLabel: some View {
+        if let start = installStartedAt {
+            TimelineView(.periodic(from: start, by: 1)) { context in
+                let seconds = Int(context.date.timeIntervalSince(start))
+                Text(String(format: "%d:%02d", seconds / 60, seconds % 60))
+                    .font(.system(size: 11, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(Style.textTertiary)
+            }
+        }
+    }
+
+    /// L'étape longue, annoncée comme telle pendant qu'elle dure.
+    ///
+    /// Mesuré : quelques minutes sur un Mac récent, près d'une heure sur une
+    /// machine virtuelle — pour le même 1,2 Go, et alors que les poids du
+    /// modèle, plus lourds, descendent en quelques secondes sur la même
+    /// connexion. Ce n'est donc pas le réseau : c'est l'écriture et l'examen de
+    /// dizaines de milliers de fichiers par le système. On ne peut pas
+    /// l'accélérer depuis ici, on peut cesser de laisser croire à une panne.
+    private var longPhaseWarning: some View {
+        Note("C'est l'étape la plus longue, et la plus variable : quelques "
+             + "minutes sur un Mac récent, bien davantage sur une machine plus "
+             + "ancienne ou virtualisée. Elle pose des dizaines de milliers de "
+             + "fichiers sur le disque. Vous pouvez laisser tourner et vous "
+             + "servir de votre Mac normalement — Caspr reprendra la main tout "
+             + "seul, et les poids du modèle qui suivent iront bien plus vite.")
     }
 
     private var phaseLabel: String {
@@ -747,9 +824,11 @@ struct CrisperEngineCard: View, ValidatingComponent {
         // le modèle dès le premier octet la replierait aussitôt sur la vue
         // compacte, et l'on ne verrait jamais les autres se griser.
         catalogueExpanded = true
+        installStartedAt = Date()
         Task {
             await bootstrap.install(model: draftModel,
                                     licenceAccepted: prefs.crisperLicenceAccepted)
+            installStartedAt = nil
             monitor.refresh()
             // Le catalogue se replie de lui-même quand tout est prêt : la
             // question qu'il posait n'a plus lieu d'être.
