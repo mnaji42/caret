@@ -84,6 +84,12 @@ final class RecordingOverlay {
     /// reprend entre-temps, sinon il ferait disparaître la barre suivante.
     private var dismissal: DispatchWorkItem?
 
+    /// Le mode micro vu au dernier examen — cf. `refreshMicrophoneMode`.
+    private var micMode = AVCaptureDevice.activeMicrophoneMode
+    /// Compteur de battements, pour n'examiner que trois fois par seconde là où
+    /// le chrono bat trente fois.
+    private var micModeTicks = 0
+
     private let dot = NSView()
     private let timeLabel = NSTextField(labelWithString: "0:00")
     private let statusLabel = NSTextField(labelWithString: "")
@@ -465,6 +471,7 @@ final class RecordingOverlay {
             "Ajouté à \($0)\nVaut aussi pour la dictée en cours"
         } ?? "Aucun fichier de notes\nEn choisir un dans le menu de Caspr"
 
+        micMode = AVCaptureDevice.activeMicrophoneMode
         micButton.attributedTitle = Self.buttonTitle(Self.microphoneModeLabel)
         micButton.toolTip = "Mode micro du système\nCliquer pour le changer"
 
@@ -1038,6 +1045,32 @@ final class RecordingOverlay {
 
         pulsePhase += 0.09
         dot.layer?.opacity = Float(0.55 + 0.45 * (sin(pulsePhase) + 1) / 2)
+
+        refreshMicrophoneMode()
+    }
+
+    /// Suit le mode micro pendant que la barre est ouverte.
+    ///
+    /// Il se change dans le Centre de contrôle — ou par le clic sur cette
+    /// pastille même, qui ouvre le panneau système — c'est-à-dire précisément
+    /// pendant qu'on dicte. Le libellé n'était écrit qu'au montage de la barre,
+    /// dans `update(_:)` : il annonçait « Standard » alors qu'on venait de
+    /// passer en Isolement, sur le seul contrôle qui existe pour surveiller ce
+    /// réglage-là.
+    ///
+    /// AVFoundation ne notifie rien sur ce changement : il faut regarder. À
+    /// trois examens par seconde le retard ne se perçoit pas, et la lecture
+    /// d'une propriété de classe ne coûte rien face aux trente battements du
+    /// chrono.
+    private func refreshMicrophoneMode() {
+        micModeTicks += 1
+        guard micModeTicks >= 10 else { return }
+        micModeTicks = 0
+
+        let mode = AVCaptureDevice.activeMicrophoneMode
+        guard mode != micMode else { return }
+        micMode = mode
+        micButton.attributedTitle = Self.buttonTitle(Self.microphoneModeLabel)
     }
 
     @objc private func toggleCorpus() { onToggleCorpus?() }
