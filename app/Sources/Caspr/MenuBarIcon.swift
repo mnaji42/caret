@@ -1,6 +1,6 @@
 import AppKit
 
-/// Le glyphe de la barre de menus, dessiné plutôt qu'emprunté.
+/// Le glyphe de la barre de menus : le fantôme de Caspr, et son état.
 ///
 /// Il utilisait `mic`, `mic.fill` et `mic.badge.plus` — c'est-à-dire très
 /// exactement les symboles de la dictée d'Apple. Deux problèmes. Dans une
@@ -8,16 +8,14 @@ import AppKit
 /// système ; et une application qui réclame le micro *et* le droit de piloter
 /// le clavier a tout intérêt à s'annoncer comme elle-même.
 ///
-/// Le motif est le caret, la barre d'insertion du texte, parce que c'est ce
-/// que Caspr fait de particulier : le texte atterrit là où le curseur est
-/// déjà. Les ondes ne sont pas décoratives, elles portent l'état — elles
-/// n'apparaissent que pendant l'écoute. Un coup d'œil suffit alors à savoir
-/// si le micro tourne, ce qui est la seule question urgente que pose une app
-/// de dictée.
+/// Le motif est donc celui de la marque, le même que l'icône de
+/// l'application : on reconnaît Caspr dans la barre avant de lire son état.
 ///
-/// Dessiné à l'exécution et non chargé depuis un PNG : le `drawingHandler` est
-/// rappelé à chaque rendu, donc à la résolution réelle de l'écran, et les
-/// variantes d'état ne coûtent pas un fichier chacune.
+/// Des SVG chargés depuis `Resources/icons`, et non un tracé Core Graphics : ce
+/// sont les dessins de la marque, ils vivent au même endroit que ceux du Dock
+/// et de l'accueil, et les faire évoluer ne demande pas de recompiler. Les
+/// variantes `menu-` sont les mêmes dessins retaillés pour 18 points et percés
+/// là où il faut — cf. `image(_:)`, qui explique pourquoi.
 enum MenuBarIcon {
     /// 18 pt de haut, la hauteur utile de la barre de menus.
     private static let size = NSSize(width: 18, height: 18)

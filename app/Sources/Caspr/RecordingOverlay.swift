@@ -41,9 +41,19 @@ final class RecordingOverlay {
         /// peut pas ouvrir maintenant.
         var canPickNote: Bool = true
         var previewEnabled: Bool
-        /// Faux quand le moteur actif n'a qu'un rendu : la pastille de mode
-        /// **disparaît** plutôt que d'être grisée. Un contrôle inerte occupe
-        /// la place et l'attention sans rien offrir.
+        /// Faux quand le moteur **retenu** n'a qu'un rendu : la pastille de
+        /// mode **disparaît** plutôt que d'être grisée. Un contrôle inerte
+        /// occupe la place et l'attention sans rien offrir.
+        ///
+        /// Retenu, et non celui qui écrit à cet instant. La nuance compte
+        /// pendant un repli : CrisperWhisper coché mais son service arrêté,
+        /// c'est macOS qui écrit, et macOS ignore le mode. La pastille reste
+        /// pourtant, et c'est délibéré — la barre montre l'intention et la
+        /// configuration, pas l'état interne du filet de sécurité. La faire
+        /// disparaître ferait clignoter la rangée à chaque repli temporaire,
+        /// pour un réglage qui redeviendra effectif dès que le service
+        /// remontera. Le repli est un filet, pas un mode nominal ; c'est le
+        /// bandeau des Réglages qui l'annonce, pas la barre.
         var modesAvailable: Bool = true
         var corpusEnabled: Bool
         var corpusKeepsAudio: Bool
@@ -400,12 +410,12 @@ final class RecordingOverlay {
         modeControl.select(TranscriptionMode.allCases.firstIndex(of: status.mode) ?? 0)
         languageBadge.stringValue = status.languageBadge
 
-        // Trois pastilles au plus. La liste et l'ordre viennent du statut, donc
-        // de l'ordre de déclaration des langues : elles ne se réordonnent pas
-        // en pleine dictée sous les doigts de quelqu'un qui vise.
-        // Trois au plus, et la langue en cours toujours parmi elles : au-delà,
-        // les pastilles mangent la barre, mais en cacher la langue active
-        // reviendrait à ne plus dire dans quelle langue on parle.
+        // Trois pastilles au plus, et la langue en cours toujours parmi
+        // elles : au-delà, les pastilles mangent la barre, mais en cacher la
+        // langue active reviendrait à ne plus dire dans quelle langue on parle.
+        // La liste et l'ordre viennent du statut, donc de l'ordre de
+        // déclaration des langues : elles ne se réordonnent pas en pleine
+        // dictée sous les doigts de quelqu'un qui vise.
         var switchable = Array(status.switchableLanguages.prefix(3))
         if !switchable.contains(where: { $0.code == status.languageCode }),
            let current = status.switchableLanguages.first(where: {
@@ -796,17 +806,25 @@ final class RecordingOverlay {
         return panel
     }
 
-    /// La rangée sous la barre, telle que la dessine le prototype.
+    /// La rangée du bas : les langues à gauche, la destination à droite.
     ///
-    /// - Sous CrisperWhisper : le mode de rendu à gauche, la langue **au
-    ///   centre** et en simple indicateur — le moteur est multilingue par
-    ///   nature, il n'y a rien à lui basculer.
-    /// - Sous macOS avec plusieurs langues : les pastilles de bascule à
-    ///   gauche, rien au centre.
-    /// - Sous macOS avec une seule langue : l'indicateur à gauche, qui dit
-    ///   simplement dans quelle langue on parle.
+    /// Trois compositions à gauche, selon ce qu'il y a à choisir :
     ///
-    /// La destination reste à droite dans les trois cas.
+    /// - **Plusieurs langues, jusqu'à trois** : les pastilles de bascule.
+    /// - **Au-delà de trois** : un menu, qui dit la langue en cours sans
+    ///   élargir la barre.
+    /// - **Une seule** : un simple indicateur, qui dit dans quelle langue on
+    ///   parle.
+    ///
+    /// **Quel que soit le moteur**, y compris CrisperWhisper : la requête lui
+    /// transmet la langue, il n'y avait donc aucune raison de lui retirer la
+    /// bascule. Elle lui était refusée, et la langue apparaissait au centre en
+    /// simple indicateur.
+    ///
+    /// Le mode de rendu n'est pas ici : il est passé **au-dessus de la carte, à
+    /// droite** (cf. `makePanel`). Il n'appartient qu'à CrisperWhisper, et le
+    /// laisser en bas obligeait cette rangée à se réorganiser selon le moteur —
+    /// la destination changeait alors de place d'une dictée à l'autre.
     ///
     /// Appelée à chaque mise à jour, mais ne fait rien tant que la composition
     /// ne change pas : reconstruire des contraintes vingt fois par seconde

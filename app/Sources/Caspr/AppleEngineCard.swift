@@ -2,15 +2,21 @@ import SwiftUI
 
 /// Le moteur de macOS : quelle version, et les modèles qu'elle réclame.
 ///
-/// ## Une seule technologie, pas deux réglages
+/// ## Deux réglages, et c'est l'utilisateur qui arbitre
 ///
-/// Les documents décrivent un paramètre `target: 'live' | 'final'` permettant
-/// de régler séparément la version employée par l'aperçu en direct et celle du
-/// texte final. Ce composant ne l'expose pas, délibérément : quand macOS écrit,
-/// l'aperçu doit employer **exactement** la version qui écrira, sinon il montre
-/// pendant qu'on parle un texte qu'aucun moteur ne produira. Deux réglages
-/// libres auraient permis de configurer précisément cette incohérence.
-/// Cf. `Preferences.liveEngineTechnology`.
+/// Le même composant sert deux fois — sous la bascule de l'aperçu en direct, et
+/// dans le panneau « macOS (Natif) » du moteur final — et chaque exemplaire
+/// pilote **son** réglage, désigné par `target`. C'est ce que fait
+/// `AppleEngineCard.jsx`.
+///
+/// J'avais tranché l'inverse, en croyant qu'un aperçu utilisant une autre
+/// version que la passe finale afficherait pendant qu'on parle un texte
+/// qu'aucun moteur ne produirait. C'est vrai, et ce n'est pas une incohérence :
+/// ce sont deux besoins différents, et quelqu'un peut légitimement vouloir la
+/// Dictée pour un aperçu léger pendant qu'il parle et Apple Intelligence pour
+/// le texte définitif. Les coupler retirait ce choix sans rien garantir en
+/// échange. Cf. `Preferences.liveEngineTechnology`, et le seul point de contact
+/// qui subsiste, dans `setTechnology`.
 ///
 /// ## Ce qui bloque, et ce qui n'a pas à bloquer
 ///

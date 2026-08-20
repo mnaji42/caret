@@ -453,8 +453,6 @@ struct CrisperEngineCard: View, ValidatingComponent {
                          + "prêts. Il reste à télécharger les "
                          + "\(model.downloadSize) du modèle "
                          + "\(model.catalogueName).")
-                    // La licence ne réapparaît que si elle n'a pas été donnée :
-                    // la redemander après un accord serait la faire douter.
                     // Toujours affichée, cochée ou non : c'est un rappel de
                     // ce sous quoi on récupère les poids, pas une formalité
                     // qu'on expédie une fois pour toutes.
@@ -533,9 +531,11 @@ struct CrisperEngineCard: View, ValidatingComponent {
 
     /// La licence, qui conditionne le bouton.
     ///
-    /// Cochée, elle est persistée : elle vivait dans un `@State`, donc fermer
-    /// les Réglages la décochait et l'installation refusait de repartir en
-    /// parlant d'un accord que l'utilisateur croyait avoir donné.
+    /// **Volontairement non persistée**, et redemandée à chaque
+    /// téléchargement. Elle l'était, et la case disparaissait dès qu'on l'avait
+    /// cochée une fois : six mois plus tard on récupérait d'autres poids sans
+    /// que rien ne rappelle sous quelle licence. Or c'est le seul moment où
+    /// l'information compte. Cf. `Preferences.crisperLicenceAccepted`.
     private var licence: some View {
         HStack(alignment: .top, spacing: 8) {
             Toggle("", isOn: $prefs.crisperLicenceAccepted)
@@ -717,11 +717,6 @@ struct CrisperEngineCard: View, ValidatingComponent {
 
     // MARK: - Actions
 
-    /// Choisit un modèle à regarder, et l'applique s'il est déjà installé.
-    ///
-    /// Installé, il n'y a rien à télécharger : on recharge simplement le
-    /// service dessus. Absent, on ne fait que déplacer le brouillon — le
-    /// téléchargement reste un geste explicite.
     /// Regarder un modèle, et parfois le prendre.
     ///
     /// Cliquer sur une tuile ne fait qu'afficher ce modèle : on parcourt la

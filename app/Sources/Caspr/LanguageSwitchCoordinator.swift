@@ -175,11 +175,12 @@ final class LanguageSwitchCoordinator {
     /// identifiants sont suffixés par le code de langue.
     private var dismissed: Set<String> = []
 
-    /// Une confirmation brève, affichée puis retirée.
+    /// Ce qui vient de se passer, dit une fois.
     ///
-    /// « Le modèle est là, Apple Intelligence est de retour » n'a d'intérêt que
-    /// dans les secondes qui suivent le téléchargement : laissé à l'écran, il
-    /// devient un élément d'interface permanent qui ne dit plus rien.
+    /// Elle **reste** à l'écran, et disparaît en quittant la page ou au
+    /// prochain changement de langue. Un texte qui s'évanouit tout seul oblige
+    /// à refaire le geste pour savoir ce qu'il a produit ; et le geste sera
+    /// loin quand on reviendra, où l'écran dira l'état plutôt que l'histoire.
     private(set) var confirmation: String?
 
     // MARK: - Audit
@@ -302,15 +303,11 @@ final class LanguageSwitchCoordinator {
         }
     }
 
-    /// Dit ce qui vient de se passer, brièvement.
+    /// Dit ce qui vient de se passer.
     ///
-    /// Pour les gestes voulus, dont il n'y a rien à redire : le message
-    /// confirme et s'efface. Un bandeau d'avertissement dirait qu'il y a un
-    /// problème là où quelqu'un a simplement obtenu ce qu'il demandait.
-    /// Reste à l'écran. Elle répond à un geste qu'on vient de faire, et un
-    /// texte qui s'évanouit pendant qu'on le lit oblige à recommencer pour
-    /// savoir ce qui s'est passé. Elle disparaît d'elle-même en quittant la
-    /// page — le geste sera loin, et l'écran dira alors l'état, pas l'histoire.
+    /// Pour les gestes voulus, dont il n'y a rien à redire — arrêter le
+    /// service, installer un modèle. Un bandeau d'avertissement dirait qu'il y
+    /// a un problème là où quelqu'un a simplement obtenu ce qu'il demandait.
     func announce(_ message: String) {
         confirmation = message
     }
