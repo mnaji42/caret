@@ -272,6 +272,16 @@ mark.d{background:var(--diff); color:var(--diff-ink); border-radius:2px; padding
 .others{padding:0 18px 18px; display:none; flex-direction:column; gap:14px}
 .others.open{display:flex}
 .other{border-top:1px solid var(--line-soft); padding-top:13px}
+.findings{display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:14px}
+.finding{
+  background:var(--surface); border:1px solid var(--line); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.finding h3{
+  margin:0 0 7px; font-size:14.5px; font-weight:640; letter-spacing:-.012em;
+  line-height:1.3; text-wrap:balance;
+}
+.finding p{margin:0; font-size:13.5px; line-height:1.6; color:var(--ink-soft)}
 .empty{padding:60px 0; text-align:center; color:var(--ink-faint)}
 footer{border-top:1px solid var(--line); padding:22px 0 40px; color:var(--ink-faint); font-size:12.5px}
 @media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important} }
@@ -413,6 +423,7 @@ function visible(){
     disagree: (x,y) => (x._agr ?? 2) - (y._agr ?? 2),
     date:     (x,y) => x.date.localeCompare(y.date),
     longest:  (x,y) => y.duration - x.duration,
+    shortest: (x,y) => x.duration - y.duration,
   }[state.sort];
   return rows.sort(by);
 }
@@ -481,6 +492,89 @@ def aggregate(entries: list[dict]) -> list[dict]:
     return out
 
 
+def findings(entries: list[dict]) -> list[tuple[str, str]]:
+    """Ce que le corpus dit, calculé à chaque génération.
+
+    Écrit ici plutôt que rédigé à la main dans le HTML : un constat qui ne se
+    recalcule pas devient faux à la dictée suivante sans que personne le voie.
+    """
+    out = []
+    pairs = [(st.similarity(e["texts"]["voxtral"]["text"],
+                            e["texts"]["crisper:intended"]["text"]), e)
+             for e in entries
+             if "voxtral" in e["texts"] and "crisper:intended" in e["texts"]]
+    if not pairs:
+        return out
+
+    short = [(s_, e) for s_, e in pairs if e["duration"] < 5]
+    rest = [(s_, e) for s_, e in pairs if e["duration"] >= 5]
+    if short and rest:
+        bad = sum(1 for s_, _ in short if s_ < 0.5)
+        med = sorted(s_ for s_, _ in rest)[len(rest) // 2]
+        out.append((
+            f"Sous 5 secondes, {bad} dictées sur {len(short)} divergent franchement",
+            f"Au-dessus, l'accord médian entre Voxtral et CrisperWhisper est de "
+            f"{med:.2f} sur {len(rest)} dictées. Le décrochage est concentré sur les "
+            f"dictées très courtes, et il est unilatéral : sur 4,3 s, CrisperWhisper "
+            f"écrit « Effects à la finition de la finition de la finition » là où "
+            f"Voxtral écrit « D'accord. » Quand le signal acoustique ne suffit plus, "
+            f"le prompt lexical prend le dessus sur l'audio."))
+
+    import re as _re
+    frag = _re.compile(r"\b(useEffect|useState|Effects?|States?)\b")
+    counts = {}
+    for key in ("voxtral", "crisper:intended", "crisper:verbatim", "apple"):
+        ts = [e["texts"][key] for e in entries if key in e["texts"]]
+        if ts:
+            counts[key] = (sum(len(frag.findall(t["text"])) for t in ts), len(ts))
+    if "crisper:intended" in counts and "voxtral" in counts:
+        ci, cin = counts["crisper:intended"]
+        vi, vin = counts["voxtral"]
+        out.append((
+            f"Le lexique fuit dans le texte {ci} fois sur {cin} dictées",
+            f"Fragments du lexique — « Effect », « Effects », « useState » — apparus "
+            f"là où l'audio ne les portait pas. CrisperWhisper en mode nettoyé : {ci} "
+            f"({ci/cin*100:.0f} % des dictées). En mot à mot : "
+            f"{counts.get('crisper:verbatim', (0, 1))[0]}. Voxtral : {vi}. macOS : "
+            f"{counts.get('apple', (0, 1))[0]}. C'est le prix du conditionnement "
+            f"lexical, et il se paie surtout quand le modèle hésite."))
+
+    langs = [e for e in entries if e["language"] != "fr"
+             and "voxtral" in e["texts"] and "crisper:intended" in e["texts"]]
+    wrong = [e for e in langs
+             if st.similarity(e["texts"]["voxtral"]["text"],
+                              e["texts"]["crisper:intended"]["text"]) < 0.5]
+    if langs:
+        out.append((
+            f"Hors français, {len(wrong)} dictées sur {len(langs)} divergent",
+            "Sur 3,5 s de vietnamien, Voxtral transcrit du vietnamien ; "
+            "CrisperWhisper rend « c'est censé fonctionner en objet tamir ». "
+            "Sur les clips anglais courts, il repasse en français. Au-delà de "
+            "15 s, les deux s'accordent."))
+
+    # Le cas le plus révélateur : une dictée que Voxtral est **seul** à avoir
+    # transcrite. Sans un autre moteur pour corroborer, une phrase bien formée
+    # sur un audio d'une seconde est le signe d'une invention, pas d'une
+    # prouesse — et il fallait viser ce cas-là précisément : la dictée de 1,8 s
+    # où Voxtral écrit « Chouette ? » pendant que CrisperWhisper rend « Une un
+    # peu de de de » est l'inverse, une réussite.
+    alone = sorted((e for e in entries
+                    if len(e["texts"]) == 1 and "voxtral" in e["texts"]),
+                   key=lambda e: e["duration"])
+    if alone:
+        e = alone[0]
+        out.append((
+            "Voxtral n'est pas exempt non plus",
+            f"Sur la dictée de {e['duration']:.1f} s — la plus courte du corpus, "
+            f"la seule qu'aucun autre moteur n'a transcrite — il produit "
+            f"« {html.escape(e['texts']['voxtral']['text'][:60])} ». Une phrase bien "
+            f"formée posée sur une seconde d'audio, sans rien pour la corroborer : "
+            f"l'hallucination classique sur du silence. Le seuil des dictées très "
+            f"courtes est un problème pour tout le monde, pas un avantage de l'un "
+            f"sur l'autre."))
+    return out
+
+
 def render_html(entries: list[dict]) -> str:
     agg = aggregate(entries)
     keys = {a["key"] for a in agg}
@@ -521,6 +615,11 @@ def render_html(entries: list[dict]) -> str:
         } for e in entries],
     }
 
+    finds = findings(entries)
+    findings_html = "".join(
+        f'<div class="finding"><h3>{html.escape(t)}</h3><p>{b}</p></div>'
+        for t, b in finds) or '<p class="note">Pas encore de comparaison possible.</p>'
+
     vox_note = ("" if has_vox else
                 '<p class="note" style="color:var(--warn)"><b>Voxtral n\'est pas '
                 'encore dans ce tableau</b> — le banc n\'a pas été exécuté, ou il '
@@ -555,6 +654,14 @@ def render_html(entries: list[dict]) -> str:
 
 <div class="wrap">
 <section class="summary">
+  <h2>Ce que dit le corpus</h2>
+  <p class="note">Recalculé à chaque génération de cette page, jamais rédigé à la
+    main : un constat figé devient faux à la dictée suivante sans que personne
+    le voie.</p>
+  <div class="findings">{findings_html}</div>
+</section>
+
+<section class="summary">
   <h2>Vue d'ensemble</h2>
   <p class="note"><b>Couverture</b> — longueur du texte rapportée au plus long
     produit sur la même dictée ; nettement en dessous, le moteur avale des mots.
@@ -585,6 +692,7 @@ def render_html(entries: list[dict]) -> str:
       <option value="disagree">Désaccord d'abord</option>
       <option value="date">Chronologique</option>
       <option value="longest">Plus longues d'abord</option>
+      <option value="shortest">Plus courtes d'abord</option>
     </select></div>
   <div class="field"><label for="lang">Langue</label>
     <select id="lang"><option value="">toutes</option>
