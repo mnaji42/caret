@@ -115,8 +115,10 @@ struct FinalEngineCard: View, ValidatingComponent {
 
     private func commitIfReady() {
         guard let draft, draft != prefs.finalEngine else { return }
-        let target: EngineChoice = draft == .crisperWhisper
-            ? .crisperWhisper : prefs.finalAppleTechnology
+        let target: EngineChoice = switch draft {
+        case .crisperWhisper: .crisperWhisper
+        case .apple: prefs.finalAppleTechnology
+        }
         if safety.commit(target, for: prefs.primaryLanguage) {
             self.draft = nil
         }

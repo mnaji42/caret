@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import Speech
+import CasprCore
 
 /// Le moteur de la dictée de macOS, celui qui existe depuis toujours.
 ///

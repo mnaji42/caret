@@ -1,4 +1,5 @@
 import SwiftUI
+import CasprCore
 
 /// Le moteur de macOS : quelle version, et les modèles qu'elle réclame.
 ///

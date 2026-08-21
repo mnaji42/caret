@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import CasprCore
 
 /// Fenêtre de réglages.
 ///
@@ -489,23 +490,34 @@ private struct CollectionTab: View {
         .accessibilityAddTraits(checked ? [.isSelected, .isButton] : .isButton)
     }
 
+    /// Un `switch` plutôt qu'une égalité, et ici la raison n'est pas la même
+    /// qu'ailleurs : ces libellés **nomment une version et un modèle actif**.
+    /// Sous une égalité, un moteur ajouté demain aurait composé tout seul
+    /// « Voxtral 2.0 (Modèle TURBO actif) » — une phrase fausse, affichée sans
+    /// que rien n'ait échoué. Le compilateur pose maintenant la question.
     private func label(for choice: EngineChoice, available: Bool) -> String {
-        guard !available else {
-            guard choice == .crisperWhisper else { return choice.fullLabel }
-            return "\(choice.label) 2.0 (Modèle "
-                + "\(EngineInstall.selectedModel.label.uppercased()) actif)"
+        switch choice {
+        case .crisperWhisper:
+            return available
+                ? "\(choice.label) 2.0 (Modèle "
+                    + "\(EngineInstall.selectedModel.label.uppercased()) actif)"
+                : "CrisperWhisper 2.0 — non téléchargé (indisponible)"
+        case .apple, .appleLegacy:
+            return available
+                ? choice.fullLabel
+                : "\(choice.fullLabel) — indisponible sur ce Mac"
         }
-        return choice == .crisperWhisper
-            ? "CrisperWhisper 2.0 — non téléchargé (indisponible)"
-            : "\(choice.fullLabel) — indisponible sur ce Mac"
     }
 
     private func indisponibility(_ choice: EngineChoice) -> String {
-        choice == .crisperWhisper
-            ? "Téléchargez d'abord un modèle dans l'onglet Moteur IA pour "
+        switch choice {
+        case .crisperWhisper:
+            "Téléchargez d'abord un modèle dans l'onglet Moteur IA pour "
                 + "activer ce comparatif."
-            : "Cette version du moteur de macOS n'est pas utilisable ici, dans "
+        case .apple, .appleLegacy:
+            "Cette version du moteur de macOS n'est pas utilisable ici, dans "
                 + "la langue active."
+        }
     }
 
     // MARK: L'état du corpus

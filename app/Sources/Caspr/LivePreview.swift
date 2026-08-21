@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import Speech
+import CasprCore
 
 /// Ce que la barre affiche pendant qu'on parle.
 ///

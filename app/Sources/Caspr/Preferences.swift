@@ -473,6 +473,20 @@ final class Preferences {
     enum FinalEngineChoice: String, CaseIterable, Codable, Sendable {
         case apple
         case crisperWhisper = "crisperwhisper"
+
+        /// Cette famille demande-t-elle qu'un service local tourne ?
+        ///
+        /// Le pendant de `EngineChoice.isLocalService`, pour les mêmes
+        /// raisons : la plupart des appelants demandaient « CrisperWhisper ? »
+        /// alors qu'ils voulaient savoir « faut-il un démon ? ». Les deux
+        /// coïncident tant qu'il n'y a qu'un moteur local, et divergent au
+        /// deuxième sans que rien ne le signale.
+        var isLocalService: Bool {
+            switch self {
+            case .crisperWhisper: true
+            case .apple: false
+            }
+        }
     }
 
     var finalEngine: FinalEngineChoice {
@@ -533,7 +547,18 @@ final class Preferences {
     /// décompose vers le bon couple, ce qui évite à chaque appelant de savoir
     /// que la décision est désormais rangée en deux morceaux.
     var engine: EngineChoice {
-        get { finalEngine == .crisperWhisper ? .crisperWhisper : finalAppleTechnology }
+        get {
+            // Un `switch` et non un ternaire, alors que le `set` juste en
+            // dessous en est déjà un : c'est *ici* que se jouait la panne la
+            // plus discrète du projet. Le `set` refuse de compiler dès qu'un
+            // cas s'ajoute ; le ternaire, lui, compilait sans rien dire et
+            // renvoyait `finalAppleTechnology` — l'utilisateur choisissait un
+            // moteur, et Caspr dictait avec celui de macOS.
+            switch finalEngine {
+            case .crisperWhisper: .crisperWhisper
+            case .apple: finalAppleTechnology
+            }
+        }
         set {
             switch newValue {
             case .crisperWhisper:
@@ -572,8 +597,8 @@ final class Preferences {
     /// chargé « au cas où » : il faut qu'il écrive, ou qu'il soit coché dans
     /// une collecte réellement active.
     var needsLocalEngine: Bool {
-        if engine == .crisperWhisper { return true }
-        return corpusEnabled && corpusEngines.contains(.crisperWhisper)
+        if engine.isLocalService { return true }
+        return corpusEnabled && corpusEngines.contains(where: \.isLocalService)
     }
 
     /// Moteurs qui produiront une transcription pour cette dictée.
@@ -736,7 +761,10 @@ final class Preferences {
            let choice = FinalEngineChoice(rawValue: stored) {
             resolvedFinal = choice
         } else {
-            resolvedFinal = legacyEngine == .crisperWhisper ? .crisperWhisper : .apple
+            resolvedFinal = switch legacyEngine {
+            case .crisperWhisper: .crisperWhisper
+            case .apple, .appleLegacy, .none: .apple
+            }
         }
         finalEngine = resolvedFinal
         // La version de macOS : celle explicitement rangée, sinon celle que
@@ -752,8 +780,12 @@ final class Preferences {
         // Au premier lancement, le dernier moteur valide est celui qu'on vient
         // de retenir : rien n'a encore échoué, et démarrer sur un repli
         // arbitraire ferait dicter avec autre chose que ce qui est affiché.
+        let impliedValid: EngineChoice = switch resolvedFinal {
+        case .crisperWhisper: .crisperWhisper
+        case .apple: resolvedApple
+        }
         lastValidEngine = EngineChoice(rawValue: defaults.string(forKey: Key.lastValidEngine) ?? "")
-            ?? (resolvedFinal == .crisperWhisper ? .crisperWhisper : resolvedApple)
+            ?? impliedValid
 
         ignoredUpdateVersion = defaults.string(forKey: Key.ignoredUpdate)
         chosenCrisperModel = defaults.string(forKey: Key.crisperChosenModel)

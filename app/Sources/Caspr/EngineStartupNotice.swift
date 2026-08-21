@@ -18,7 +18,7 @@ final class EngineStartupNoticeController {
     /// À appeler au lancement, une fois les réglages appliqués.
     func showIfNeeded() {
         let prefs = Preferences.shared
-        guard prefs.finalEngine == .crisperWhisper,
+        guard prefs.finalEngine.isLocalService,
               EngineInstall.selectedModel.isDownloaded,
               !EngineService.isAnswering,
               window == nil

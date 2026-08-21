@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import CasprCore
 
 /// Le point de passage unique quand la langue principale change.
 ///
@@ -58,7 +59,7 @@ final class LanguageSwitchCoordinator {
                 // titre annonce une bascule ; un message qui se contente de
                 // constater l'absence du modèle laisse croire que la dictée ne
                 // marche plus.
-                let touched = Preferences.shared.finalEngine == .crisperWhisper
+                let touched = Preferences.shared.finalEngine.isLocalService
                     ? "L'aperçu en direct utilise"
                     : "Vos dictées (aperçu en direct et transcription finale) utilisent"
                 return "Le modèle Apple Intelligence pour \(lang.displayName) "
@@ -115,7 +116,7 @@ final class LanguageSwitchCoordinator {
         @MainActor var title: String {
             switch self {
             case .modelMissing:
-                Preferences.shared.finalEngine == .crisperWhisper
+                Preferences.shared.finalEngine.isLocalService
                     ? "Aperçu Live : Bascule sur macOS Dictée"
                     : "Bascule sur macOS Dictée (Aperçu Live & Moteur Final)"
             case .appleVersionSwitched:
@@ -265,6 +266,9 @@ final class LanguageSwitchCoordinator {
         //    leurs langues : il n'y a rien à télécharger, mais la couverture
         //    n'est pas universelle, et écrire du vietnamien avec un modèle qui
         //    ne le connaît pas produit du charabia plutôt qu'une erreur.
+        // Égalité voulue : `isCoveredByCrisperWhisper` est la couverture de
+        // *ces* poids-là. Un moteur local ajouté demain aura la sienne, et
+        // devra passer par un contrôle à lui — pas hériter de celui-ci.
         if prefs.finalEngine == .crisperWhisper,
            !Language.named(language).isCoveredByCrisperWhisper {
             return .crisperUncovered(language: language)

@@ -1,5 +1,6 @@
 import Foundation
 import Speech
+import CasprCore
 
 /// Une langue de dictée, telle qu'on la choisit.
 ///

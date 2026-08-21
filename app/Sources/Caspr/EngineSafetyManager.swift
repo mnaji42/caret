@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import CasprCore
 
 /// Garantit qu'il y a toujours un moteur capable d'écrire.
 ///
@@ -89,7 +90,12 @@ final class EngineSafetyManager {
     /// le disque ne transcrivent rien tant que le daemon n'est pas debout.
     func isReady(_ choice: EngineChoice, for language: String) -> Bool {
         guard choice.isAvailable(for: language) else { return false }
-        if choice == .crisperWhisper { return EngineService.isAnswering }
+        // `isLocalService`, et non une égalité : la question posée est
+        // « ce moteur a-t-il un démon à attendre ? ». Un second moteur local
+        // comparé par égalité sauterait ce contrôle et serait déclaré prêt
+        // sans service debout — exactement la panne que cette classe existe
+        // pour empêcher, réintroduite par la porte de derrière.
+        if choice.isLocalService { return EngineService.isAnswering }
         // ## Apple Intelligence exige une réponse, pas une absence de refus
         //
         // `isAvailable` est **volontairement optimiste** : tant que le système

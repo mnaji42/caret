@@ -234,6 +234,10 @@ enum EngineInstall {
         if selectedModel == model {
             _ = launchctl(["bootout", "gui/\(getuid())/\(EngineService.label)"])
             EngineService.forgetRunningState()
+            // Égalité voulue, et pas `isLocalService` : on retire des poids
+            // *CrisperWhisper*. Un autre moteur local réglé par ailleurs n'a
+            // aucune raison d'être rabattu sur macOS parce que ce modèle-ci
+            // s'en va.
             if Preferences.shared.finalEngine == .crisperWhisper {
                 Preferences.shared.finalEngine = .apple
             }
