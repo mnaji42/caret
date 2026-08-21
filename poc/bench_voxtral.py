@@ -109,6 +109,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--repo", default=REPO)
+    ap.add_argument("--fresh", action="store_true",
+                    help="tout refaire au lieu de compléter")
     args = ap.parse_args()
 
     import soundfile as sf
@@ -116,8 +118,22 @@ def main() -> None:
     from transformers import AutoProcessor, VoxtralForConditionalGeneration
 
     rows = load_corpus()
+
+    # Incrémental : le corpus grossit pendant qu'on travaille, et refaire une
+    # heure de calcul pour rattraper six dictées neuves n'a aucun sens. Les
+    # anciens résultats sont relus et conservés tels quels — ils viennent du
+    # même modèle, dans la même configuration.
+    done: dict[str, dict] = {}
+    if OUT.exists() and not args.fresh:
+        for r in json.loads(OUT.read_text())["results"]:
+            if r.get("text"):
+                done[r["id"]] = r
+    todo = [r for r in rows if r["id"] not in done]
     if args.limit:
-        rows = rows[: args.limit]
+        todo = todo[: args.limit]
+    if done:
+        print(f"{len(done)} déjà transcrites, {len(todo)} à faire")
+    rows = todo
     print(f"{len(rows)} dictées, "
           f"{sum(r['durationSeconds'] for r in rows) / 60:.1f} min d'audio")
 
@@ -128,7 +144,7 @@ def main() -> None:
     load_s = time.time() - t0
     print(f"modèle chargé en {load_s:.1f}s")
 
-    results = []
+    results = list(done.values())
     for i, r in enumerate(rows, 1):
         path = CORPUS / "audio" / r["audioFile"]
         lang = r.get("language", "fr")
@@ -152,6 +168,9 @@ def main() -> None:
             "durationSeconds": r["durationSeconds"], "language": lang,
             "text": text, "latencyMs": round(latency, 1), "error": err,
         })
+        OUT.write_text(json.dumps(
+            {"repo": args.repo, "loadSeconds": round(load_s, 1),
+             "results": results}, ensure_ascii=False, indent=1))
         rtf = latency / 1000 / max(r["durationSeconds"], 0.1)
         flag = "ERREUR" if err else f"{latency/1000:5.1f}s  ×{rtf:.2f}"
         print(f"[{i:3d}/{len(rows)}] {r['durationSeconds']:6.1f}s  {flag}  "
