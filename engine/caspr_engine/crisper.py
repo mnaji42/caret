@@ -26,10 +26,12 @@ import torch
 import torch.nn.functional as F
 
 from caspr_engine import prompt as prompt_mod
+from caspr_engine.contract import (  # noqa: F401  (réexport)
+    SAMPLE_RATE, Timings, Transcription,
+)
 
 log = logging.getLogger(__name__)
 
-SAMPLE_RATE = 16_000
 MEL_FRAMES_PER_S = 100          # le feature extractor produit un hop de 10 ms
 MAX_WINDOW_S = 30.0             # limite architecturale de Whisper
 
@@ -266,32 +268,6 @@ DEFAULT_LEXICON = [
     "endpoint", "dependencies", "async", "await",
     "chunk",
 ]
-
-
-@dataclass
-class Timings:
-    mel_ms: float = 0.0
-    encoder_ms: float = 0.0
-    decoder_ms: float = 0.0
-
-    @property
-    def total_ms(self) -> float:
-        return self.mel_ms + self.encoder_ms + self.decoder_ms
-
-
-@dataclass
-class Transcription:
-    text: str
-    mode: str
-    language: str
-    window_s: float
-    tokens: int
-    timings: Timings = field(default_factory=Timings)
-    truncated: bool = False
-    #: Dernier instant horodaté par le modèle, en secondes depuis le début de
-    #: la fenêtre. Renseigné seulement quand les horodatages sont demandés ;
-    #: c'est lui qui pilote l'avance en long-format.
-    last_timestamp: float | None = None
 
 
 class CrisperWhisperEngine:

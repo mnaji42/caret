@@ -14,6 +14,13 @@ Requêtes acceptées (champ ``op``) :
                  -> {text, timings, window_s, truncated}
     ping         -> {ready, model, device}
     shutdown     -> {ok}
+
+Le moteur se choisit au démarrage :
+
+    uv run python -m caspr_engine.server --engine voxtral
+
+L'application ne voit pas la différence — le protocole n'a jamais nommé de
+modèle, et c'est ce qui rend l'échange possible sans toucher une ligne de Swift.
 """
 
 from __future__ import annotations
@@ -157,7 +164,14 @@ class EngineServer:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Service de transcription Caspr")
-    ap.add_argument("--model", default="nyralabs/CrisperWhisper2.0_turbo")
+    # Le moteur se choisit ici, pas dans le protocole : il se charge une fois
+    # au démarrage et reste chaud, donc en changer suppose de redémarrer le
+    # service de toute façon. L'application ne voit pas la différence — le
+    # protocole n'a jamais nommé de modèle.
+    ap.add_argument("--engine", default="crisper", choices=("crisper", "voxtral"),
+                    help="moteur d'inférence (défaut : crisper)")
+    ap.add_argument("--model", default=None,
+                    help="identifiant du modèle ; défaut selon --engine")
     # « auto » mesure Metal au lieu de le supposer : sur une machine virtuelle
     # macOS il n'y en a pas, et « mps » écrit en dur y tuait le service au
     # chargement du modèle. Cf. caspr_engine.crisper.resolve_device.
@@ -172,11 +186,18 @@ def main() -> int:
         datefmt="%H:%M:%S",
     )
 
-    engine = CrisperWhisperEngine(model_id=args.model, device=args.device)
+    if args.engine == "voxtral":
+        from caspr_engine.voxtral import DEFAULT_MODEL, VoxtralEngine
+        engine = VoxtralEngine(model_id=args.model or DEFAULT_MODEL,
+                               device=args.device)
+    else:
+        engine = CrisperWhisperEngine(
+            model_id=args.model or "nyralabs/CrisperWhisper2.0_turbo",
+            device=args.device)
     # Le device dans la ligne qui précède le chargement : c'est le chargement
     # qui échoue quand il est mauvais, et le journal doit dire sur quoi il
     # portait avant de montrer la trace.
-    log.info("chargement de %s sur %s …", args.model, engine.device)
+    log.info("chargement de %s sur %s …", engine.model_id, engine.device)
     engine.load()
 
     server = EngineServer(engine, args.socket)
