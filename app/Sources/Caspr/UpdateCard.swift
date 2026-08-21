@@ -246,7 +246,7 @@ struct UpdateCard: View {
     private func available(_ update: UpdateChecker.Release) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("🎉 Caspr v\(update.version) est disponible\(sizeSuffix(update))")
+                Text("Caspr v\(update.version) est disponible\(sizeSuffix(update))")
                     .font(.system(size: 12.5, weight: .semibold))
                     .foregroundStyle(Self.amberText)
                     .fixedSize(horizontal: false, vertical: true)

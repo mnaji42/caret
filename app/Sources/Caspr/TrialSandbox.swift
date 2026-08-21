@@ -83,7 +83,7 @@ struct TrialSandbox: View {
                             .strokeBorder(Style.cardStroke, lineWidth: 1)))
 
             if !text.isEmpty {
-                Text("🎉 Bravo ! Votre voix écrit directement au curseur.")
+                Text("Bravo ! Votre voix écrit directement au curseur.")
                     .font(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(Style.accent)
                     .fixedSize(horizontal: false, vertical: true)
