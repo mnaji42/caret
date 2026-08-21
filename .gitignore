@@ -18,7 +18,9 @@ poc/samples_tts/
 # Les scripts qui les produisent sont versionnés ; leur sortie, jamais.
 poc/comparaison-moteurs.html
 poc/voxtral-run.json
+poc/crisper-run.json
 poc/*-run.json
+poc/audio*/
 
 # Python
 .venv/

@@ -25,6 +25,8 @@ import engine_stats as st
 
 CORPUS = Path.home() / "Library/Application Support/Caspr/corpus"
 VOXTRAL_RUN = Path(__file__).parent / "voxtral-run.json"
+CRISPER_RUN = Path(__file__).parent / "crisper-run.json"
+AUDIO_DIR = Path(__file__).parent / "audio16"
 
 # Les moteurs, dans l'ordre où ils s'affichent. La clé est celle du corpus :
 # (engine, mode). La couleur encode la **famille** — deux nuances d'indigo pour
@@ -33,8 +35,12 @@ VOXTRAL_RUN = Path(__file__).parent / "voxtral-run.json"
 # moteurs.
 ENGINES = [
     {"key": "voxtral",      "name": "Voxtral",     "sub": "Mistral · Mini 3B",   "hue": "amber"},
-    {"key": "crisper:intended", "name": "CrisperWhisper", "sub": "turbo · nettoyé", "hue": "indigo"},
-    {"key": "crisper:verbatim", "name": "CrisperWhisper", "sub": "turbo · mot à mot", "hue": "violet"},
+    {"key": "crisper:intended", "name": "CrisperWhisper", "sub": "aujourd'hui · nettoyé", "hue": "indigo"},
+    {"key": "crisper:verbatim", "name": "CrisperWhisper", "sub": "aujourd'hui · mot à mot", "hue": "violet"},
+    # Ce que l'application avait réellement inséré le jour de la dictée. Gardé
+    # exprès : le moteur a beaucoup bougé depuis, et cette colonne est la seule
+    # façon de voir si les correctifs ont payé — sur le même audio, au mot près.
+    {"key": "corpus:crisper", "name": "CrisperWhisper", "sub": "à l'époque · inséré", "hue": "faded"},
     {"key": "apple",        "name": "macOS",       "sub": "Apple Intelligence", "hue": "slate"},
     {"key": "apple-legacy", "name": "macOS",       "sub": "Dictée",             "hue": "steel"},
 ]
@@ -43,7 +49,10 @@ ENGINES = [
 def engine_key(t: dict) -> str:
     e = t.get("engine")
     if e == "crisperwhisper":
-        return f"crisper:{t.get('mode') or 'intended'}"
+        # Le texte du corpus ne rejoint plus la colonne « aujourd'hui » : il a
+        # été produit par un moteur qui n'existe plus. Seul le mode nettoyé est
+        # conservé — c'est celui qui a été inséré, donc le seul qui ait été vu.
+        return "corpus:crisper" if (t.get("mode") or "intended") == "intended" else None
     if e == "apple-legacy":
         return "apple-legacy"
     return "apple" if e == "apple" else e
@@ -55,19 +64,29 @@ def load() -> list[dict]:
     if VOXTRAL_RUN.exists():
         data = json.loads(VOXTRAL_RUN.read_text())
         vox = {r["id"]: r for r in data["results"] if r.get("text")}
+    cri = {}
+    if CRISPER_RUN.exists():
+        data = json.loads(CRISPER_RUN.read_text())
+        cri = {r["id"]: r for r in data["results"]}
 
     entries = []
     for r in rows:
         texts: dict[str, dict] = {}
         for t in r["transcriptions"]:
             k = engine_key(t)
-            if t.get("text") and k not in texts:
+            if k and t.get("text") and k not in texts:
                 texts[k] = {"text": t["text"], "latencyMs": t.get("latencyMs"),
                             "model": t.get("model")}
         if r["id"] in vox:
             v = vox[r["id"]]
             texts["voxtral"] = {"text": v["text"], "latencyMs": v["latencyMs"],
                                 "model": "mistralai/Voxtral-Mini-3B-2507"}
+        if r["id"] in cri:
+            for mode, m in cri[r["id"]]["modes"].items():
+                if m.get("text"):
+                    texts[f"crisper:{mode}"] = {
+                        "text": m["text"], "latencyMs": m["latencyMs"],
+                        "model": cri[r["id"]].get("model")}
         if not texts:
             continue
         longest = max(len(v["text"].split()) for v in texts.values())
@@ -129,6 +148,7 @@ CSS = """
   --violet:#6D28D9; --violet-bg:#F2ECFD;
   --slate:#334155; --slate-bg:#EDF0F4;
   --steel:#5B7189; --steel-bg:#EDF1F6;
+  --faded:#8A93A6; --faded-bg:#F1F3F7;
   --warn:#B42318; --warn-bg:#FDECEA;
   --diff:#FDE68A; --diff-ink:#4A3400;
   --shadow:0 1px 2px rgba(21,24,33,.05), 0 8px 24px -12px rgba(21,24,33,.18);
@@ -142,6 +162,7 @@ CSS = """
   --violet:#C4A5F7; --violet-bg:#251B38;
   --slate:#A8B6CA; --slate-bg:#1C222B;
   --steel:#93A9C2; --steel-bg:#1A212A;
+  --faded:#6E7789; --faded-bg:#191D25;
   --warn:#F2938C; --warn-bg:#33191A;
   --diff:#5C4A12; --diff-ink:#FBE7A8;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
@@ -155,6 +176,7 @@ CSS = """
   --violet:#C4A5F7; --violet-bg:#251B38;
   --slate:#A8B6CA; --slate-bg:#1C222B;
   --steel:#93A9C2; --steel-bg:#1A212A;
+  --faded:#6E7789; --faded-bg:#191D25;
   --warn:#F2938C; --warn-bg:#33191A;
   --diff:#5C4A12; --diff-ink:#FBE7A8;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
@@ -260,6 +282,20 @@ article.entry{
 .text{font-size:14.5px; line-height:1.68; color:var(--ink); overflow-wrap:break-word}
 .text.small{font-size:13.5px}
 mark.d{background:var(--diff); color:var(--diff-ink); border-radius:2px; padding:.5px 1px}
+/* Écouter la dictée. Le bouton est dans l'en-tête, à côté de la durée : c'est
+   la question qu'on se pose en lisant deux transcriptions qui divergent —
+   « qu'est-ce que j'avais dit, au juste ? » */
+.play{
+  display:inline-flex; align-items:center; gap:6px; font:inherit; font-size:11px;
+  font-weight:600; letter-spacing:.02em; cursor:pointer; padding:2px 9px 2px 7px;
+  border-radius:999px; border:1px solid var(--line); background:var(--surface);
+  color:var(--ink-soft);
+}
+.play:hover{border-color:var(--ink-faint); color:var(--ink)}
+.play[aria-pressed=true]{background:var(--ink); color:var(--ground); border-color:transparent}
+.play .glyph{font-size:9px; line-height:1}
+.play .el{font-variant-numeric:tabular-nums; opacity:.75}
+.noaudio{opacity:.4; cursor:default}
 .lonely{margin:0 0 9px; font-size:11px; color:var(--ink-faint); display:flex;
         flex-wrap:wrap; gap:5px; align-items:center}
 .tchip{background:var(--sunken); border:1px solid var(--line); border-radius:5px;
@@ -331,6 +367,46 @@ function agreement(a, b){
 
 const state = {a:null, b:null, sort:'disagree', lang:'', q:'', onlyGap:false};
 
+/* Un seul lecteur pour toute la page : deux dictées qui se superposeraient ne
+   servent personne, et garder 140 éléments <audio> vivants pour rien coûte de
+   la mémoire pour aucun bénéfice. */
+const player = {el:null, id:null, btn:null};
+function stopPlayback(){
+  if(player.el){ player.el.pause(); }
+  if(player.btn){ player.btn.setAttribute('aria-pressed','false'); syncBtn(player.btn, false); }
+  player.id = null; player.btn = null;
+}
+function syncBtn(btn, playing){
+  const g = btn.querySelector('.glyph');
+  if(g) g.textContent = playing ? '❙❙' : '▶';
+}
+function togglePlay(btn){
+  const id = btn.dataset.audio;
+  if(player.id === id){ stopPlayback(); return; }
+  stopPlayback();
+  const src = AUDIO[id];
+  if(!src) return;
+  if(!player.el){
+    player.el = new Audio();
+    player.el.addEventListener('ended', stopPlayback);
+    player.el.addEventListener('error', stopPlayback);
+  }
+  player.el.src = src;
+  player.el.currentTime = 0;
+  player.id = id; player.btn = btn;
+  btn.setAttribute('aria-pressed','true'); syncBtn(btn, true);
+  const el = player.el;
+  el.play().catch(() => stopPlayback());
+  const tick = () => {
+    if(player.el !== el || player.id !== id) return;
+    const left = Math.max(0, (el.duration || 0) - el.currentTime);
+    const span = btn.querySelector('.el');
+    if(span && isFinite(left)) span.textContent = left.toFixed(0) + ' s';
+    if(!el.paused) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
 function engineMeta(k){ return DATA.engines.find(e=>e.key===k); }
 function label(k){ const e=engineMeta(k); return e ? e.name+' · '+e.sub : k; }
 
@@ -373,7 +449,11 @@ function entryHTML(en){
   if(ta && tb){ [ma, mb] = wordDiff(ta.text, tb.text); agr = agreement(ta.text, tb.text); }
   const d = new Date(en.date);
   const chips = [];
-  chips.push('<span class="chip mono">'+en.duration.toFixed(0)+' s</span>');
+  chips.push(AUDIO[en.id]
+    ? '<button class="play mono" data-audio="'+esc(en.id)+'" aria-pressed="false" '
+      + 'title="Écouter cette dictée"><span class="glyph">▶</span>'
+      + '<span class="el">'+en.duration.toFixed(0)+' s</span></button>'
+    : '<span class="chip mono noaudio">'+en.duration.toFixed(0)+' s</span>');
   chips.push('<span class="chip mono">'+en.language+'</span>');
   if(agr !== null){
     const cls = agr < 0.65 ? 'chip gap mono' : 'chip mono';
@@ -440,6 +520,9 @@ function render(){
     b.textContent = open ? 'masquer' : b.dataset.lbl;
   }));
   document.querySelectorAll('.allbtn').forEach(b => { b.dataset.lbl = b.textContent; });
+  stopPlayback();
+  document.querySelectorAll('.play').forEach(b =>
+    b.addEventListener('click', () => togglePlay(b)));
 }
 
 function boot(){
@@ -515,10 +598,12 @@ def findings(entries: list[dict]) -> list[tuple[str, str]]:
             f"Sous 5 secondes, {bad} dictées sur {len(short)} divergent franchement",
             f"Au-dessus, l'accord médian entre Voxtral et CrisperWhisper est de "
             f"{med:.2f} sur {len(rest)} dictées. Le décrochage est concentré sur les "
-            f"dictées très courtes, et il est unilatéral : sur 4,3 s, CrisperWhisper "
-            f"écrit « Effects à la finition de la finition de la finition » là où "
+            f"dictées très courtes, et il est unilatéral : sur 4,3 s, le "
+            f"CrisperWhisper d'aujourd'hui écrit « Effects les deux-mêmes. » là où "
             f"Voxtral écrit « D'accord. » Quand le signal acoustique ne suffit plus, "
-            f"le prompt lexical prend le dessus sur l'audio."))
+            f"le prompt lexical prend le dessus sur l'audio. Les garde-fous ont "
+            f"supprimé la boucle — la même dictée donnait « Effects à la finition de "
+            f"la finition de la finition » à l'époque — mais pas la fuite elle-même."))
 
     import re as _re
     frag = _re.compile(r"\b(useEffect|useState|Effects?|States?)\b")
@@ -538,6 +623,28 @@ def findings(entries: list[dict]) -> list[tuple[str, str]]:
             f"{counts.get('crisper:verbatim', (0, 1))[0]}. Voxtral : {vi}. macOS : "
             f"{counts.get('apple', (0, 1))[0]}. C'est le prix du conditionnement "
             f"lexical, et il se paie surtout quand le modèle hésite."))
+
+    # La question que ce nouveau passage existe pour trancher.
+    both = [e for e in entries
+            if "crisper:intended" in e["texts"] and "corpus:crisper" in e["texts"]]
+    if both:
+        sims = sorted(st.similarity(e["texts"]["crisper:intended"]["text"],
+                                    e["texts"]["corpus:crisper"]["text"])
+                      for e in both)
+        changed = sum(1 for v in sims if v < 0.95)
+        import re as _re2
+        fr = _re2.compile(r"\b(useEffect|useState|Effects?|States?)\b")
+        old_leak = sum(len(fr.findall(e["texts"]["corpus:crisper"]["text"])) for e in both)
+        new_leak = sum(len(fr.findall(e["texts"]["crisper:intended"]["text"])) for e in both)
+        out.append((
+            f"Le moteur d'aujourd'hui diffère de celui d'alors sur {changed} dictées "
+            f"sur {len(both)}",
+            f"Même audio, même modèle, même lexique — seul le code a changé. Accord "
+            f"médian entre les deux passages : {sims[len(sims)//2]:.2f}. Fuites du "
+            f"lexique : {old_leak} à l'époque, {new_leak} aujourd'hui. Les boucles "
+            f"ont disparu, c'est net. Le reste bouge dans les deux sens — sur 2,6 s, "
+            f"« C'est quoi Kindred ? » est devenu « Ext c'est quoi Kindred ? ». "
+            f"Trier par « Plus courtes d'abord » avec ces deux colonnes montre où."))
 
     langs = [e for e in entries if e["language"] != "fr"
              and "voxtral" in e["texts"] and "crisper:intended" in e["texts"]]
@@ -573,6 +680,32 @@ def findings(entries: list[dict]) -> list[tuple[str, str]]:
             f"courtes est un problème pour tout le monde, pas un avantage de l'un "
             f"sur l'autre."))
     return out
+
+
+def audio_payload(entries: list[dict]) -> tuple[dict[str, str], float]:
+    """L'audio embarqué dans la page, en data:.
+
+    Embarqué et non référencé en chemin relatif : la page est faite pour être
+    envoyée et ouverte n'importe où, et un lecteur qui casse dès que le fichier
+    change de dossier ne rend pas le service demandé. Mesuré : les WAV du
+    corpus pèsent 316 Mo, réencodés en Opus 14 kbps mono ils tombent à 8 Mo —
+    de la parole, pas de la musique, et la question posée est « qu'est-ce que
+    j'avais dit », pas « comment ça sonne ».
+    """
+    import base64
+    out: dict[str, str] = {}
+    total = 0
+    for e in entries:
+        name = e.get("audioFile")
+        if not name:
+            continue
+        f = AUDIO_DIR / (Path(name).stem + ".opus")
+        if not f.exists():
+            continue
+        raw = f.read_bytes()
+        total += len(raw)
+        out[e["id"]] = "data:audio/ogg;base64," + base64.b64encode(raw).decode()
+    return out, total / 1e6
 
 
 def render_html(entries: list[dict]) -> str:
@@ -615,6 +748,7 @@ def render_html(entries: list[dict]) -> str:
         } for e in entries],
     }
 
+    audio, audio_mb = audio_payload(entries)
     finds = findings(entries)
     findings_html = "".join(
         f'<div class="finding"><h3>{html.escape(t)}</h3><p>{b}</p></div>'
@@ -647,6 +781,7 @@ def render_html(entries: list[dict]) -> str:
       <span><b>{total_min:.0f}</b> minutes</span>
       <span><b>{len(agg)}</b> moteurs</span>
       <span><b>{', '.join(langs)}</b></span>
+      <span><b>{len(audio)}</b> audio embarqués</span>
       <span>généré le <b>{datetime.now():%d/%m/%Y à %H:%M}</b></span>
     </div>
   </div>
@@ -708,10 +843,12 @@ def render_html(entries: list[dict]) -> str:
 
 <footer><div class="wrap">
   Corpus de Caspr — surligné en jaune : les mots où les deux moteurs choisis
-  divergent. Aucun audio n'est embarqué dans cette page.
+  divergent. Le bouton ▶ de chaque dictée lit l'enregistrement d'origine,
+  embarqué dans la page en Opus 14 kbps.
 </div></footer>
 
 <script>const DATA = {json.dumps(payload, ensure_ascii=False)};</script>
+<script>const AUDIO = {json.dumps(audio, ensure_ascii=False)};</script>
 <script>{JS}</script>
 </body></html>"""
 
@@ -724,7 +861,9 @@ def main() -> None:
     out = Path(args.out)
     out.write_text(render_html(entries), encoding="utf-8")
     size = out.stat().st_size / 1e6
-    print(f"{len(entries)} dictées → {out} ({size:.1f} Mo)")
+    audio, audio_mb = audio_payload(entries)
+    print(f"{len(entries)} dictées → {out} ({size:.1f} Mo, dont "
+          f"{len(audio)} audio pour {audio_mb:.1f} Mo)")
     for a in aggregate(entries):
         lat = f"{a['medianLatency']/1000:.2f}s" if a["medianLatency"] else "—"
         print(f"  {a['name']:16s} {a['sub']:22s} n={a['n']:3d}  lat={lat:>7s}  "
