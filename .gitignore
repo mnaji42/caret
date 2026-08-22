@@ -20,6 +20,8 @@ poc/comparaison-moteurs.html
 poc/voxtral-run.json
 poc/crisper-run.json
 poc/*-run.json
+poc/run-*.json
+poc/benchmark-complet.json
 poc/cost-*.json
 poc/audio*/
 
