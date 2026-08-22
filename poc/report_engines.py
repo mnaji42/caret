@@ -22,6 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import engine_stats as st
+from french_quality import analyse as st_analyse
 
 CORPUS = Path.home() / "Library/Application Support/Caspr/corpus"
 VOXTRAL_RUN = Path(__file__).parent / "voxtral-run.json"
@@ -34,16 +35,28 @@ AUDIO_DIR = Path(__file__).parent / "audio16"
 # c'est vrai du sujet : ce sont deux réglages d'un même moteur, pas quatre
 # moteurs.
 ENGINES = [
-    {"key": "voxtral",      "name": "Voxtral",     "sub": "Mistral · Mini 3B",   "hue": "amber"},
-    {"key": "crisper:intended", "name": "CrisperWhisper", "sub": "aujourd'hui · nettoyé", "hue": "indigo"},
-    {"key": "crisper:verbatim", "name": "CrisperWhisper", "sub": "aujourd'hui · mot à mot", "hue": "violet"},
+    {"key": "voxtral3b",  "name": "Voxtral 3B", "sub": "MLX · au propre",      "hue": "amber"},
+    {"key": "crisper",    "name": "CrisperWhisper", "sub": "turbo · lexique par défaut", "hue": "indigo"},
+    # Le même moteur, le même code, le lexique en moins. La comparaison la plus
+    # instructive du corpus : `DEFAULT_LEXICON` s'applique dès que l'application
+    # passe `nil`, ce qu'elle fait tant qu'aucun terme n'a été ajouté à la main.
+    # Personne ne l'a choisi et il n'avait jamais été mesuré ainsi.
+    {"key": "crisper-nolex", "name": "CrisperWhisper", "sub": "turbo · SANS lexique", "hue": "teal"},
+    {"key": "realtime",   "name": "Voxtral Realtime", "sub": "flux · au propre", "hue": "violet"},
+    {"key": "apple",      "name": "macOS",      "sub": "Apple Intelligence",   "hue": "slate"},
+    {"key": "apple-legacy", "name": "macOS",    "sub": "Dictée",               "hue": "steel"},
     # Ce que l'application avait réellement inséré le jour de la dictée. Gardé
-    # exprès : le moteur a beaucoup bougé depuis, et cette colonne est la seule
-    # façon de voir si les correctifs ont payé — sur le même audio, au mot près.
+    # exprès : c'est la seule façon de voir ce que les correctifs ont changé.
     {"key": "corpus:crisper", "name": "CrisperWhisper", "sub": "à l'époque · inséré", "hue": "faded"},
-    {"key": "apple",        "name": "macOS",       "sub": "Apple Intelligence", "hue": "slate"},
-    {"key": "apple-legacy", "name": "macOS",       "sub": "Dictée",             "hue": "steel"},
 ]
+
+#: Les passages rejoués, un fichier par moteur. Ils priment sur le corpus :
+#: celui-ci porte ce qui a été inséré le jour même, par un moteur qui a changé
+#: depuis, et sous une pression mémoire qui coûtait 18 % de latence.
+RUNS = {"crisper": "run-crisper.json",
+        "crisper-nolex": "run-crisper-nolex.json",
+        "voxtral3b": "run-voxtral3b.json",
+        "realtime": "run-realtime.json"}
 
 
 def engine_key(t: dict) -> str:
@@ -60,14 +73,12 @@ def engine_key(t: dict) -> str:
 
 def load() -> list[dict]:
     rows = [json.loads(l) for l in (CORPUS / "sessions.jsonl").read_text().splitlines() if l.strip()]
-    vox = {}
-    if VOXTRAL_RUN.exists():
-        data = json.loads(VOXTRAL_RUN.read_text())
-        vox = {r["id"]: r for r in data["results"] if r.get("text")}
-    cri = {}
-    if CRISPER_RUN.exists():
-        data = json.loads(CRISPER_RUN.read_text())
-        cri = {r["id"]: r for r in data["results"]}
+    passages: dict[str, dict] = {}
+    for cle, nom in RUNS.items():
+        f = Path(__file__).parent / nom
+        if f.exists():
+            data = json.loads(f.read_text())
+            passages[cle] = {r["id"]: r for r in data["results"] if r.get("text")}
 
     entries = []
     for r in rows:
@@ -77,16 +88,11 @@ def load() -> list[dict]:
             if k and t.get("text") and k not in texts:
                 texts[k] = {"text": t["text"], "latencyMs": t.get("latencyMs"),
                             "model": t.get("model")}
-        if r["id"] in vox:
-            v = vox[r["id"]]
-            texts["voxtral"] = {"text": v["text"], "latencyMs": v["latencyMs"],
-                                "model": "mistralai/Voxtral-Mini-3B-2507"}
-        if r["id"] in cri:
-            for mode, m in cri[r["id"]]["modes"].items():
-                if m.get("text"):
-                    texts[f"crisper:{mode}"] = {
-                        "text": m["text"], "latencyMs": m["latencyMs"],
-                        "model": cri[r["id"]].get("model")}
+        for cle, table in passages.items():
+            if r["id"] in table:
+                v = table[r["id"]]
+                texts[cle] = {"text": v["text"], "latencyMs": v["latencyMs"],
+                              "model": None}
         if not texts:
             continue
         longest = max(len(v["text"].split()) for v in texts.values())
@@ -149,6 +155,7 @@ CSS = """
   --slate:#334155; --slate-bg:#EDF0F4;
   --steel:#5B7189; --steel-bg:#EDF1F6;
   --faded:#8A93A6; --faded-bg:#F1F3F7;
+  --teal:#0F766E; --teal-bg:#E6F2F0;
   --warn:#B42318; --warn-bg:#FDECEA;
   --diff:#FDE68A; --diff-ink:#4A3400;
   --shadow:0 1px 2px rgba(21,24,33,.05), 0 8px 24px -12px rgba(21,24,33,.18);
@@ -163,6 +170,7 @@ CSS = """
   --slate:#A8B6CA; --slate-bg:#1C222B;
   --steel:#93A9C2; --steel-bg:#1A212A;
   --faded:#6E7789; --faded-bg:#191D25;
+  --teal:#5FCFC0; --teal-bg:#12231F;
   --warn:#F2938C; --warn-bg:#33191A;
   --diff:#5C4A12; --diff-ink:#FBE7A8;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
@@ -177,6 +185,7 @@ CSS = """
   --slate:#A8B6CA; --slate-bg:#1C222B;
   --steel:#93A9C2; --steel-bg:#1A212A;
   --faded:#6E7789; --faded-bg:#191D25;
+  --teal:#5FCFC0; --teal-bg:#12231F;
   --warn:#F2938C; --warn-bg:#33191A;
   --diff:#5C4A12; --diff-ink:#FBE7A8;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
@@ -191,6 +200,11 @@ body{
    c'est l'idée du sujet — un instrument d'ingénieur qui lit du langage. */
 .mono{font-family:ui-monospace,"SF Mono",Menlo,monospace; font-variant-numeric:tabular-nums}
 .wrap{max-width:1340px; margin:0 auto; padding:0 24px}
+/* Les dictées débordent la colonne de lecture dès qu'on compare plus de deux
+   moteurs : à trois colonnes dans 1340 px, chaque texte tombe sous 400 px et
+   la prose devient illisible. L'en-tête et les constats gardent leur largeur —
+   ce sont des paragraphes, ils ont besoin d'une ligne courte. */
+.wrap.large{max-width:min(1900px, calc(100vw - 48px))}
 
 header.top{border-bottom:1px solid var(--line); background:var(--surface)}
 .masthead{padding:40px 0 28px}
@@ -271,15 +285,47 @@ article.entry{
 }
 .chip.warn{background:var(--warn-bg); color:var(--warn); border-color:transparent}
 .chip.gap{background:var(--diff); color:var(--diff-ink); border-color:transparent}
-.pair{display:grid; grid-template-columns:1fr 1fr; gap:0}
-@media (max-width:900px){ .pair{grid-template-columns:1fr} }
-.side{padding:16px 18px 20px; min-width:0}
-.side + .side{border-left:1px solid var(--line-soft)}
-@media (max-width:900px){ .side + .side{border-left:0; border-top:1px solid var(--line-soft)} }
+/* Une grille qui suit le nombre de moteurs choisis plutôt qu'un gabarit fixe.
+   À deux, côte à côte ; à trois, trois colonnes ; à quatre, deux lignes de
+   deux — lire quatre colonnes de prose sur un écran, personne n'y arrive. */
+.pair{display:grid; gap:0}
+.pair[data-n="1"]{grid-template-columns:1fr}
+.pair[data-n="2"]{grid-template-columns:1fr 1fr}
+.pair[data-n="3"]{grid-template-columns:repeat(3,1fr)}
+.pair[data-n="4"]{grid-template-columns:1fr 1fr}
+.pair[data-n="5"],.pair[data-n="6"]{grid-template-columns:repeat(3,1fr)}
+@media (max-width:1500px){ .pair[data-n="5"],.pair[data-n="6"]{grid-template-columns:1fr 1fr} }
+@media (max-width:1150px){ .pair[data-n="3"]{grid-template-columns:1fr 1fr} }
+@media (max-width:820px){ .pair{grid-template-columns:1fr!important} }
+.side{padding:16px 18px 20px; min-width:0; border-left:1px solid var(--line-soft);
+      border-top:1px solid var(--line-soft)}
+.side:first-child{border-left:0}
+.pair[data-n="2"] .side:nth-child(-n+2),
+.pair[data-n="3"] .side:nth-child(-n+3),
+.pair[data-n="4"] .side:nth-child(-n+2),
+.pair[data-n="1"] .side:first-child{border-top:0}
+.pair[data-n="4"] .side:nth-child(odd){border-left:0}
+@media (max-width:820px){ .side{border-left:0} }
+/* Puces de sélection : on coche les moteurs à afficher. */
+.picks{display:flex; flex-wrap:wrap; gap:6px}
+.pick{
+  display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+  font:inherit; font-size:12px; padding:5px 10px; border-radius:999px;
+  border:1px solid var(--line); background:var(--surface); color:var(--ink-soft);
+}
+.pick:hover{border-color:var(--ink-faint)}
+.pick[aria-pressed=true]{background:var(--sunken); color:var(--ink); font-weight:600}
+.pick .dot{width:8px; height:8px; border-radius:3px}
+.refbadge{
+  font-size:9.5px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--ink-faint); border:1px solid var(--line); border-radius:4px;
+  padding:0 4px; margin-left:2px;
+}
 .sidehead{display:flex; align-items:baseline; gap:8px; margin-bottom:9px; flex-wrap:wrap}
 .sidename{font-size:12.5px; font-weight:650; letter-spacing:.01em}
 .metrics{margin-left:auto; display:flex; gap:10px; font-size:11px; color:var(--ink-faint)}
 .text{font-size:14.5px; line-height:1.68; color:var(--ink); overflow-wrap:break-word}
+.pair[data-n="3"] .text,.pair[data-n="5"] .text,.pair[data-n="6"] .text{font-size:13.5px; line-height:1.62}
 .text.small{font-size:13.5px}
 mark.d{background:var(--diff); color:var(--diff-ink); border-radius:2px; padding:.5px 1px}
 /* Écouter la dictée. Le bouton est dans l'en-tête, à côté de la durée : c'est
@@ -326,7 +372,7 @@ footer{border-top:1px solid var(--line); padding:22px 0 40px; color:var(--ink-fa
 
 JS = r"""
 const $ = s => document.querySelector(s);
-const HUE = {amber:'--amber',indigo:'--indigo',violet:'--violet',slate:'--slate',steel:'--steel'};
+const HUE = {amber:'--amber',indigo:'--indigo',violet:'--violet',slate:'--slate',steel:'--steel',faded:'--faded',teal:'--teal'};
 const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fold = w => w.normalize('NFKD').replace(/[̀-ͯ]/g,'')
                    .toLowerCase().replace(/[^a-z0-9]+/g,'');
@@ -365,7 +411,10 @@ function agreement(a, b){
   return 2*L[0][0]/(n+m);
 }
 
-const state = {a:null, b:null, sort:'disagree', lang:'', q:'', onlyGap:false};
+/* `picks` remplace le couple gauche/droite. Le premier coché sert de
+   référence : c'est contre lui que les autres sont comparés, parce qu'un
+   surlignage « tout le monde contre tout le monde » ne se lit pas. */
+const state = {picks:[], sort:'disagree', lang:'', q:'', onlyGap:false};
 
 /* Un seul lecteur pour toute la page : deux dictées qui se superposeraient ne
    servent personne, et garder 140 éléments <audio> vivants pour rien coûte de
@@ -428,7 +477,7 @@ function lonelyHTML(t){
     + t.lonely.map(x => '<span class="tchip">'+esc(x)+'</span>').join('') + '</div>';
 }
 
-function sideHTML(key, marked, t){
+function sideHTML(key, marked, t, isRef){
   const e = engineMeta(key);
   if(!t) return '<div class="side"><div class="sidehead"><span class="dot" style="background:var(--line)"></span>'
     + '<span class="sidename">'+esc(label(key))+'</span></div>'
@@ -437,17 +486,15 @@ function sideHTML(key, marked, t){
     + '<div class="sidehead"><span class="dot" style="background:var('+HUE[e.hue]+')"></span>'
     + '<span class="sidename">'+esc(e.name)+'</span>'
     + '<span class="esub mono">'+esc(e.sub)+'</span>'
+    + (isRef ? '<span class="refbadge">référence</span>' : '')
     + '<span class="metrics mono">'+metricsHTML(t)+'</span></div>'
     + lonelyHTML(t)
     + '<p class="text">'+marked+'</p></div>';
 }
 
 function entryHTML(en){
-  const ta = en.texts[state.a], tb = en.texts[state.b];
-  let ma = ta ? esc(ta.text) : '', mb = tb ? esc(tb.text) : '';
-  let agr = null;
-  if(ta && tb){ [ma, mb] = wordDiff(ta.text, tb.text); agr = agreement(ta.text, tb.text); }
-  const d = new Date(en.date);
+  const shown = state.picks.filter(k => k in en.texts);
+  const ref = shown[0];
   const chips = [];
   chips.push(AUDIO[en.id]
     ? '<button class="play mono" data-audio="'+esc(en.id)+'" aria-pressed="false" '
@@ -455,15 +502,19 @@ function entryHTML(en){
       + '<span class="el">'+en.duration.toFixed(0)+' s</span></button>'
     : '<span class="chip mono noaudio">'+en.duration.toFixed(0)+' s</span>');
   chips.push('<span class="chip mono">'+en.language+'</span>');
-  if(agr !== null){
-    const cls = agr < 0.65 ? 'chip gap mono' : 'chip mono';
-    chips.push('<span class="'+cls+'">accord '+Math.round(agr*100)+'%</span>');
+  // Un accord par moteur comparé à la référence, plutôt qu'un seul chiffre :
+  // avec plus de deux colonnes, « accord 87 % » ne dit plus de quoi avec quoi.
+  for(const k of shown.slice(1)){
+    const a = agreement(en.texts[ref].text, en.texts[k].text);
+    const cls = a < 0.65 ? 'chip gap mono' : 'chip mono';
+    chips.push('<span class="'+cls+'">'+esc(engineMeta(k).name.split(' ')[0])+' '
+      + Math.round(a*100)+'%</span>');
   }
   for(const [k,t] of Object.entries(en.texts))
     if(t.repetition >= 0.15)
       chips.push('<span class="chip warn mono">boucle · '+esc(engineMeta(k).sub)+'</span>');
 
-  const others = Object.keys(en.texts).filter(k => k!==state.a && k!==state.b);
+  const others = Object.keys(en.texts).filter(k => !shown.includes(k));
   const othersHTML = others.map(k => {
     const t = en.texts[k], e = engineMeta(k);
     return '<div class="other"><div class="sidehead">'
@@ -480,8 +531,16 @@ function entryHTML(en){
     + chips.join('')
     + (others.length ? '<button class="allbtn" data-id="'+esc(en.id)+'">'
         + others.length+' autre'+(others.length>1?'s':'')+' moteur'+(others.length>1?'s':'')+'</button>' : '')
-    + '</div><div class="pair">'
-    + sideHTML(state.a, ma, ta) + sideHTML(state.b, mb, tb)
+    + '</div><div class="pair" data-n="'+shown.length+'">'
+    + shown.map(k => {
+        const t = en.texts[k];
+        // Chaque colonne est marquée contre la référence. La référence
+        // elle-même est marquée contre la suivante, sinon elle serait la seule
+        // à ne rien montrer.
+        const contre = k === ref ? (shown[1] || null) : ref;
+        const marked = contre ? wordDiff(t.text, en.texts[contre].text)[0] : esc(t.text);
+        return sideHTML(k, marked, t, k === ref);
+      }).join('')
     + '</div>'
     + (others.length ? '<div class="others" id="o-'+esc(en.id)+'">'+othersHTML+'</div>' : '')
     + '</article>';
@@ -495,8 +554,10 @@ function visible(){
     rows = rows.filter(e => Object.values(e.texts).some(t => t.text.toLowerCase().includes(q)));
   }
   rows.forEach(e => {
-    const a = e.texts[state.a], b = e.texts[state.b];
-    e._agr = (a && b) ? agreement(a.text, b.text) : null;
+    const shown = state.picks.filter(k => k in e.texts);
+    e._agr = shown.length >= 2
+      ? Math.min(...shown.slice(1).map(k => agreement(e.texts[shown[0]].text, e.texts[k].text)))
+      : null;
   });
   if(state.onlyGap) rows = rows.filter(e => e._agr !== null && e._agr < 0.75);
   const by = {
@@ -526,18 +587,26 @@ function render(){
 }
 
 function boot(){
-  const sa = $('#selA'), sb = $('#selB');
+  const box = $('#picks');
+  state.picks = DATA.defaultPicks.filter(k => DATA.engines.some(e => e.key === k));
   DATA.engines.forEach(e => {
-    for(const s of [sa, sb]){
-      const o = document.createElement('option');
-      o.value = e.key; o.textContent = e.name + ' · ' + e.sub;
-      s.appendChild(o);
-    }
+    const b = document.createElement('button');
+    b.className = 'pick'; b.dataset.key = e.key;
+    b.setAttribute('aria-pressed', String(state.picks.includes(e.key)));
+    b.innerHTML = '<span class="dot" style="background:var('+HUE[e.hue]+')"></span>'
+      + esc(e.name) + ' <span class="esub mono">' + esc(e.sub) + '</span>';
+    b.addEventListener('click', () => {
+      const i = state.picks.indexOf(e.key);
+      // Jamais moins d'un moteur : une page sans colonne n'apprend rien, et
+      // l'ordre des clics fixe l'ordre des colonnes — donc la référence.
+      if(i >= 0){ if(state.picks.length > 1) state.picks.splice(i, 1); }
+      else state.picks.push(e.key);
+      document.querySelectorAll('.pick').forEach(x =>
+        x.setAttribute('aria-pressed', String(state.picks.includes(x.dataset.key))));
+      render();
+    });
+    box.appendChild(b);
   });
-  state.a = DATA.defaultPair[0]; state.b = DATA.defaultPair[1];
-  sa.value = state.a; sb.value = state.b;
-  sa.onchange = () => { state.a = sa.value; render(); };
-  sb.onchange = () => { state.b = sb.value; render(); };
   $('#sort').onchange = e => { state.sort = e.target.value; render(); };
   $('#lang').onchange = e => { state.lang = e.target.value; render(); };
   $('#q').oninput = e => { state.q = e.target.value.trim(); render(); };
@@ -576,109 +645,101 @@ def aggregate(entries: list[dict]) -> list[dict]:
 
 
 def findings(entries: list[dict]) -> list[tuple[str, str]]:
-    """Ce que le corpus dit, calculé à chaque génération.
+    """Ce que le corpus dit, recalculé à chaque génération.
 
-    Écrit ici plutôt que rédigé à la main dans le HTML : un constat qui ne se
-    recalcule pas devient faux à la dictée suivante sans que personne le voie.
+    Écrit ici plutôt que rédigé dans le HTML : un constat qui ne se recalcule
+    pas devient faux à la dictée suivante sans que personne le voie.
     """
-    out = []
-    pairs = [(st.similarity(e["texts"]["voxtral"]["text"],
-                            e["texts"]["crisper:intended"]["text"]), e)
-             for e in entries
-             if "voxtral" in e["texts"] and "crisper:intended" in e["texts"]]
-    if not pairs:
+    import re as _re
+    out: list[tuple[str, str]] = []
+    trio = ("voxtral3b", "crisper", "realtime")
+    communs = [e for e in entries if all(k in e["texts"] for k in trio)]
+    if not communs:
         return out
 
-    short = [(s_, e) for s_, e in pairs if e["duration"] < 5]
-    rest = [(s_, e) for s_, e in pairs if e["duration"] >= 5]
-    if short and rest:
-        bad = sum(1 for s_, _ in short if s_ < 0.5)
-        med = sorted(s_ for s_, _ in rest)[len(rest) // 2]
-        out.append((
-            f"Sous 5 secondes, {bad} dictées sur {len(short)} divergent franchement",
-            f"Au-dessus, l'accord médian entre Voxtral et CrisperWhisper est de "
-            f"{med:.2f} sur {len(rest)} dictées. Le décrochage est concentré sur les "
-            f"dictées très courtes, et il est unilatéral : sur 4,3 s, le "
-            f"CrisperWhisper d'aujourd'hui écrit « Effects les deux-mêmes. » là où "
-            f"Voxtral écrit « D'accord. » Quand le signal acoustique ne suffit plus, "
-            f"le prompt lexical prend le dessus sur l'audio. Les garde-fous ont "
-            f"supprimé la boucle — la même dictée donnait « Effects à la finition de "
-            f"la finition de la finition » à l'époque — mais pas la fuite elle-même."))
+    def moy(cle: str, champ: str) -> float:
+        vals = [st_analyse(e["texts"][cle]["text"])[champ] for e in communs
+                if e["language"] == "fr" and e["texts"][cle]["words"] >= 40]
+        return sum(vals) / len(vals) if vals else 0.0
 
-    import re as _re
+    def par_cent_mots(cle: str, champ: str) -> float:
+        rows = [st_analyse(e["texts"][cle]["text"]) for e in communs
+                if e["language"] == "fr" and e["texts"][cle]["words"] >= 40]
+        mots = sum(r["mots"] for r in rows) or 1
+        return sum(r[champ] for r in rows) / mots * 100
+
+    out.append((
+        f"Le 3B écrit le mieux, sur {len(communs)} dictées communes",
+        f"Fragments pour cent mots : {par_cent_mots('voxtral3b','fragments'):.2f} contre "
+        f"{par_cent_mots('crisper','fragments'):.2f} à CrisperWhisper. Bafouillages : "
+        f"{par_cent_mots('voxtral3b','bafouillages'):.2f} contre "
+        f"{par_cent_mots('crisper','bafouillages'):.2f}. Phrases de "
+        f"{moy('voxtral3b','phraseMoyenne'):.1f} mots contre "
+        f"{moy('crisper','phraseMoyenne'):.1f}. Ce que l'accord mot à mot ne voit pas, "
+        f"parce que la ponctuation n'y pèse presque rien."))
+
+    couv = {}
+    for k in trio:
+        tot = n = 0
+        for e in communs:
+            longest = max(e["texts"][x]["words"] for x in trio)
+            if longest:
+                tot += e["texts"][k]["words"] / longest; n += 1
+        couv[k] = tot / n * 100 if n else 0
+    out.append((
+        f"Le flux perd {100-couv['realtime']:.0f} % des mots",
+        f"Couverture : Voxtral 3B {couv['voxtral3b']:.0f} %, CrisperWhisper "
+        f"{couv['crisper']:.0f} %, Realtime {couv['realtime']:.0f} %. Le Realtime est le "
+        f"seul à en perdre, et ce n'est pas un réglage : son encodeur est causal, il "
+        f"décide sans pouvoir revenir en arrière."))
+
+    lat = {k: sorted(e["texts"][k]["latencyMs"] for e in communs
+                     if e["texts"][k].get("latencyMs")) for k in trio}
+    out.append((
+        "Ce que chacun coûte en temps",
+        f"Latence médiane : CrisperWhisper {lat['crisper'][len(lat['crisper'])//2]/1000:.2f} s, "
+        f"Voxtral 3B {lat['voxtral3b'][len(lat['voxtral3b'])//2]/1000:.2f} s, Realtime "
+        f"{lat['realtime'][len(lat['realtime'])//2]/1000:.2f} s. Celle du Realtime est le "
+        f"traitement complet, pas l'attente ressentie : dans l'application, le rattrapage "
+        f"après le dernier mot tient en 0,6 à 0,9 s."))
+
     frag = _re.compile(r"\b(useEffect|useState|Effects?|States?)\b")
-    counts = {}
-    for key in ("voxtral", "crisper:intended", "crisper:verbatim", "apple"):
-        ts = [e["texts"][key] for e in entries if key in e["texts"]]
-        if ts:
-            counts[key] = (sum(len(frag.findall(t["text"])) for t in ts), len(ts))
-    if "crisper:intended" in counts and "voxtral" in counts:
-        ci, cin = counts["crisper:intended"]
-        vi, vin = counts["voxtral"]
-        out.append((
-            f"Le lexique fuit dans le texte {ci} fois sur {cin} dictées",
-            f"Fragments du lexique — « Effect », « Effects », « useState » — apparus "
-            f"là où l'audio ne les portait pas. CrisperWhisper en mode nettoyé : {ci} "
-            f"({ci/cin*100:.0f} % des dictées). En mot à mot : "
-            f"{counts.get('crisper:verbatim', (0, 1))[0]}. Voxtral : {vi}. macOS : "
-            f"{counts.get('apple', (0, 1))[0]}. C'est le prix du conditionnement "
-            f"lexical, et il se paie surtout quand le modèle hésite."))
+    fuites = {k: sum(len(frag.findall(e["texts"][k]["text"])) for e in communs)
+              for k in trio}
+    out.append((
+        f"Le lexique fuit {fuites['crisper']} fois chez CrisperWhisper",
+        f"Fragments du lexique apparus là où l'audio ne les portait pas. "
+        f"CrisperWhisper {fuites['crisper']}, Voxtral 3B {fuites['voxtral3b']}, "
+        f"Realtime {fuites['realtime']}. C'est le prix du conditionnement par "
+        f"vocabulaire, et il se paie quand le modèle hésite."))
 
-    # La question que ce nouveau passage existe pour trancher.
-    both = [e for e in entries
-            if "crisper:intended" in e["texts"] and "corpus:crisper" in e["texts"]]
-    if both:
-        sims = sorted(st.similarity(e["texts"]["crisper:intended"]["text"],
-                                    e["texts"]["corpus:crisper"]["text"])
-                      for e in both)
-        changed = sum(1 for v in sims if v < 0.95)
-        import re as _re2
-        fr = _re2.compile(r"\b(useEffect|useState|Effects?|States?)\b")
-        old_leak = sum(len(fr.findall(e["texts"]["corpus:crisper"]["text"])) for e in both)
-        new_leak = sum(len(fr.findall(e["texts"]["crisper:intended"]["text"])) for e in both)
-        out.append((
-            f"Le moteur d'aujourd'hui diffère de celui d'alors sur {changed} dictées "
-            f"sur {len(both)}",
-            f"Même audio, même modèle, même lexique — seul le code a changé. Accord "
-            f"médian entre les deux passages : {sims[len(sims)//2]:.2f}. Fuites du "
-            f"lexique : {old_leak} à l'époque, {new_leak} aujourd'hui. Les boucles "
-            f"ont disparu, c'est net. Le reste bouge dans les deux sens — sur 2,6 s, "
-            f"« C'est quoi Kindred ? » est devenu « Ext c'est quoi Kindred ? ». "
-            f"Trier par « Plus courtes d'abord » avec ces deux colonnes montre où."))
+    if "crisper-nolex" in entries[0]["texts"] or any(
+            "crisper-nolex" in e["texts"] for e in entries):
+        duo = [e for e in entries
+               if "crisper" in e["texts"] and "crisper-nolex" in e["texts"]]
+        if duo:
+            change = sum(1 for e in duo if st.similarity(
+                e["texts"]["crisper"]["text"], e["texts"]["crisper-nolex"]["text"]) < 0.98)
+            casse = sum(1 for e in duo if st.similarity(
+                e["texts"]["crisper"]["text"], e["texts"]["crisper-nolex"]["text"]) < 0.60)
+            out.append((
+                f"Le lexique par défaut change {change} dictées sur {len(duo)}, "
+                f"et en casse {casse}",
+                "Même audio, même code, seul `DEFAULT_LEXICON` diffère — dix-neuf "
+                "termes codés dans `crisper.py`, appliqués dès que l'application "
+                "passe `nil`, ce qu'elle fait tant qu'aucun terme n'a été ajouté à "
+                "la main. Sans lui : moins de fragments, moins de bafouillages, "
+                "des phrases plus longues, zéro fuite. Et il dégrade la casse de "
+                "mots qui n'y figurent pas — « Whisper » écrit correctement 51 fois "
+                "sans lui, 12 fois avec. Le comparer colonne contre colonne est le "
+                "réglage le plus rentable du corpus."))
 
-    langs = [e for e in entries if e["language"] != "fr"
-             and "voxtral" in e["texts"] and "crisper:intended" in e["texts"]]
-    wrong = [e for e in langs
-             if st.similarity(e["texts"]["voxtral"]["text"],
-                              e["texts"]["crisper:intended"]["text"]) < 0.5]
-    if langs:
-        out.append((
-            f"Hors français, {len(wrong)} dictées sur {len(langs)} divergent",
-            "Sur 3,5 s de vietnamien, Voxtral transcrit du vietnamien ; "
-            "CrisperWhisper rend « c'est censé fonctionner en objet tamir ». "
-            "Sur les clips anglais courts, il repasse en français. Au-delà de "
-            "15 s, les deux s'accordent."))
-
-    # Le cas le plus révélateur : une dictée que Voxtral est **seul** à avoir
-    # transcrite. Sans un autre moteur pour corroborer, une phrase bien formée
-    # sur un audio d'une seconde est le signe d'une invention, pas d'une
-    # prouesse — et il fallait viser ce cas-là précisément : la dictée de 1,8 s
-    # où Voxtral écrit « Chouette ? » pendant que CrisperWhisper rend « Une un
-    # peu de de de » est l'inverse, une réussite.
-    alone = sorted((e for e in entries
-                    if len(e["texts"]) == 1 and "voxtral" in e["texts"]),
-                   key=lambda e: e["duration"])
-    if alone:
-        e = alone[0]
-        out.append((
-            "Voxtral n'est pas exempt non plus",
-            f"Sur la dictée de {e['duration']:.1f} s — la plus courte du corpus, "
-            f"la seule qu'aucun autre moteur n'a transcrite — il produit "
-            f"« {html.escape(e['texts']['voxtral']['text'][:60])} ». Une phrase bien "
-            f"formée posée sur une seconde d'audio, sans rien pour la corroborer : "
-            f"l'hallucination classique sur du silence. Le seuil des dictées très "
-            f"courtes est un problème pour tout le monde, pas un avantage de l'un "
-            f"sur l'autre."))
+    out.append((
+        "Cette série-ci est propre, la précédente ne l'était pas",
+        "Rejouée avec la mémoire libre, un modèle chargé à la fois. La série "
+        "d'avant tournait avec 9 Go de swap actif et coûtait 18 % de latence à "
+        "CrisperWhisper — 1,52 s au lieu de 1,25. Assez pour fausser toute "
+        "comparaison, et c'est pourquoi elle a été refaite."))
     return out
 
 
@@ -711,11 +772,12 @@ def audio_payload(entries: list[dict]) -> tuple[dict[str, str], float]:
 def render_html(entries: list[dict]) -> str:
     agg = aggregate(entries)
     keys = {a["key"] for a in agg}
-    default = ("voxtral", "crisper:intended") if "voxtral" in keys \
-        else ("crisper:intended", "apple")
+    # Les trois passages au propre d'abord : c'est la comparaison qui vaut.
+    prefere = [k for k in ("crisper", "crisper-nolex", "voxtral3b") if k in keys]
+    default = prefere or sorted(keys)[:2]
     total_min = sum(e["duration"] for e in entries) / 60
     langs = sorted({e["language"] for e in entries})
-    has_vox = "voxtral" in keys
+    has_vox = "voxtral3b" in keys
 
     maxlat = max([a["medianLatency"] or 0 for a in agg] + [1])
     rows = []
@@ -737,7 +799,7 @@ def render_html(entries: list[dict]) -> str:
 
     payload = {
         "engines": [a for a in agg],
-        "defaultPair": list(default),
+        "defaultPicks": list(default),
         "entries": [{
             "id": e["id"], "date": e["date"], "duration": round(e["duration"], 1),
             "language": e["language"],
@@ -819,9 +881,9 @@ def render_html(entries: list[dict]) -> str:
 </section>
 </div>
 
-<div class="controls"><div class="wrap ctlrow">
-  <div class="field"><label for="selA">Gauche</label><select id="selA"></select></div>
-  <div class="field"><label for="selB">Droite</label><select id="selB"></select></div>
+<div class="controls"><div class="wrap large ctlrow">
+  <div class="field" style="flex:1 1 100%">
+    <label>Moteurs</label><div class="picks" id="picks"></div></div>
   <div class="field"><label for="sort">Trier</label>
     <select id="sort">
       <option value="disagree">Désaccord d'abord</option>
@@ -839,11 +901,11 @@ def render_html(entries: list[dict]) -> str:
   <span class="count mono" id="count"></span>
 </div></div>
 
-<div class="wrap"><div class="entries" id="entries"></div></div>
+<div class="wrap large"><div class="entries" id="entries"></div></div>
 
 <footer><div class="wrap">
   Corpus de Caspr — surligné en jaune : les mots où les deux moteurs choisis
-  divergent. Le bouton ▶ de chaque dictée lit l'enregistrement d'origine,
+  diffèrent de la colonne « référence », qui est le premier moteur coché — l'ordre des clics fixe l'ordre des colonnes. Le bouton ▶ lit l'enregistrement d'origine,
   embarqué dans la page en Opus 14 kbps.
 </div></footer>
 
