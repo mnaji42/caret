@@ -227,15 +227,28 @@ class VoxtralStream:
     def close(self) -> str:
         """Ferme l'entrée et rend ce qui restait à décoder.
 
-        La boucle est bornée : `step` finit par ne plus rien produire, mais un
-        modèle qui déraille pourrait ne jamais s'arrêter, et un service qui ne
-        rend pas la main bloque la dictée suivante.
+        ## Le bug que cette méthode a eu, et qui coupait les phrases
+
+        Première version : boucler tant que `_drain()` rend du texte, s'arrêter
+        au premier tour vide. C'est faux, et ça se voyait à l'usage — « Non,
+        non, là, le texte que je vois, il est », dix mots pour quarante
+        prononcés, coupé net au milieu d'une phrase. Une dictée avec des pauses
+        les déclenchait presque à coup sûr.
+
+        `step()` peut ne rien rendre pendant qu'il travaille encore : un tour
+        vide ne veut pas dire terminé. La session a un état pour ça, `done`, et
+        c'est celui que la boucle de référence de mlx-audio interroge. On fait
+        pareil.
+
+        La borne reste, mais large : elle est là pour qu'un modèle qui déraille
+        ne bloque pas la dictée suivante, pas pour arrêter le décodage normal.
         """
         if not self._closed:
             self._session.close()
             self._closed = True
-        for _ in range(400):
-            if not self._drain():
+        for _ in range(4000):
+            self._drain()
+            if getattr(self._session, "done", True):
                 break
         return self.text
 
