@@ -36,6 +36,23 @@ BANCS = {
 }
 
 
+#: Les moteurs de macOS ne sont **pas** rejouables hors de l'application : le
+#: framework Speech exige l'autorisation de reconnaissance vocale, accordée à
+#: `Caspr.app` et refusée à un binaire d'essai — éprouvé, l'analyseur rend
+#: `nilError`. Leurs transcriptions viennent donc du corpus, captées en direct
+#: au fil des dictées. C'est une différence de nature, pas de détail, et le
+#: fichier doit la porter : les quatre autres ont été rejoués à code figé et
+#: mémoire libre, ceux-ci non.
+MACOS = {
+    "macos_apple_intelligence": ("apple",
+        "macOS 26 SpeechTranscriber (Apple Intelligence) — capté en direct par "
+        "l'application, PAS rejoué"),
+    "macos_dictee": ("apple-legacy",
+        "macOS SFSpeechRecognizer, le moteur de la Dictée du système — capté en "
+        "direct par l'application, PAS rejoué"),
+}
+
+
 def main() -> None:
     runs = {}
     for cle, (nom, desc) in BANCS.items():
@@ -44,7 +61,7 @@ def main() -> None:
             continue
         d = json.loads(f.read_text())
         runs[cle] = {"description": desc, "modele": d.get("model"),
-                     "lexique": d.get("lexicon", "DEFAULT_LEXICON"),
+                     "lexique": d.get("lexicon", "DEFAULT_LEXICON"), "rejoue": True,
                      "resultats": {r["id"]: r for r in d["results"] if r.get("text")}}
 
     meta = {}
@@ -53,8 +70,32 @@ def main() -> None:
             r = json.loads(l)
             meta[r["id"]] = r
 
+    # Les moteurs macOS, tirés du corpus. Une seule transcription par moteur et
+    # par dictée : quand l'application en a gardé plusieurs, on retient celle
+    # qui a été insérée, sinon la première.
+    for cle, (nom_moteur, desc) in MACOS.items():
+        res = {}
+        for i, r in meta.items():
+            cands = [t for t in r["transcriptions"]
+                     if t["engine"] == nom_moteur and t.get("text")]
+            if not cands:
+                continue
+            t = next((x for x in cands if x.get("inserted")), cands[0])
+            res[i] = {"id": i, "text": t["text"], "latencyMs": t.get("latencyMs"),
+                      "durationSeconds": r["durationSeconds"]}
+        if res:
+            runs[cle] = {"description": desc, "modele": nom_moteur,
+                         "lexique": "sans objet (l'API ignore contextualStrings, mesuré)",
+                         "rejoue": False, "resultats": res}
+
     tous = sorted(set().union(*(set(v["resultats"]) for v in runs.values())))
     communs = sorted(set.intersection(*(set(v["resultats"]) for v in runs.values())))
+    # Le sous-ensemble qui porte la comparaison la plus solide : les quatre
+    # moteurs rejoués dans les mêmes conditions. « Tous les six » est plus
+    # restrictif sans être plus rigoureux, la Dictée de macOS n'ayant tourné
+    # que sur une partie du corpus.
+    rejoues = [k for k, v in runs.items() if v["rejoue"]]
+    quatre = sorted(set.intersection(*(set(runs[k]["resultats"]) for k in rejoues)))
 
     dictees = []
     for i in tous:
@@ -63,6 +104,8 @@ def main() -> None:
              "dureeSecondes": round(m.get("durationSeconds", 0), 1),
              "langueDeclaree": m.get("language"),
              "transcritParTous": i in communs,
+             "transcritParLesQuatreRejoues": i in quatre,
+             "moteursPresents": [],
              "moteurs": {}}
         for cle, v in runs.items():
             r = v["resultats"].get(i)
@@ -70,6 +113,7 @@ def main() -> None:
                 e["moteurs"][cle] = {"texte": r["text"],
                                      "latenceMs": r.get("latencyMs"),
                                      "mots": len(r["text"].split())}
+                e["moteursPresents"].append(cle)
         dictees.append(e)
 
     sortie = {
@@ -85,21 +129,38 @@ def main() -> None:
                                   "la main. Il n'y a donc pas de référence, et un "
                                   "WER n'est pas calculable — comparer les "
                                   "moteurs entre eux est tout ce qui est possible.",
+            "attention": "Quatre moteurs ont été REJOUÉS sur le même audio, à "
+                         "code figé, un seul modèle chargé à la fois, mémoire "
+                         "libre. Les deux moteurs macOS n'ont PAS pu l'être — le "
+                         "framework Speech exige une autorisation que seule "
+                         "l'application possède — donc leurs textes viennent du "
+                         "corpus, captés en direct. Leurs latences ne sont pas "
+                         "comparables aux quatre autres.",
             "machine": "Apple M4 Pro, 48 Go, macOS 26.6",
             "dicteesTotal": len(tous),
             "dicteesTranscritesParTous": len(communs),
+            "dicteesTranscritesParLesQuatreRejoues": len(quatre),
+            "conseil": "Pour comparer les moteurs entre eux, filtrer sur "
+                       "`transcritParLesQuatreRejoues` : c'est le plus grand "
+                       "sous-ensemble mesuré dans des conditions identiques. "
+                       "`transcritParTous` est plus restrictif sans être plus "
+                       "rigoureux, la Dictée de macOS n'ayant tourné que sur une "
+                       "partie du corpus.",
         },
         "moteurs": {k: {"description": v["description"], "modele": v["modele"],
-                        "lexique": v["lexique"], "dictees": len(v["resultats"])}
+                        "lexique": v["lexique"], "rejoueAuPropre": v["rejoue"],
+                        "dictees": len(v["resultats"])}
                     for k, v in runs.items()},
         "dictees": dictees,
     }
     f = POC / "benchmark-complet.json"
     f.write_text(json.dumps(sortie, ensure_ascii=False, indent=1))
-    print(f"{len(tous)} dictées ({len(communs)} communes) → {f}")
+    print(f"{len(tous)} dictées → {f}")
+    print(f"  {len(quatre)} avec les quatre moteurs rejoués, {len(communs)} avec les six")
     print(f"  {f.stat().st_size/1e6:.1f} Mo")
     for k, v in sortie["moteurs"].items():
-        print(f"  {k:32s} {v['dictees']:3d} dictées")
+        marque = "rejoué" if v["rejoueAuPropre"] else "capté en direct"
+        print(f"  {k:32s} {v['dictees']:3d} dictées   {marque}")
 
 
 if __name__ == "__main__":
