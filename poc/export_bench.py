@@ -30,6 +30,10 @@ BANCS = {
     "voxtral_3b_mlx": ("run-voxtral3b.json",
         "Voxtral-Mini-3B-2507 bf16 sous MLX, language=fr, max_tokens=4096, "
         "transcription en lot"),
+    "macos_apple_intelligence": ("run-macos.json",
+        "macOS 26 SpeechTranscriber (Apple Intelligence), rejoué par Caspr.app "
+        "elle-même — le framework Speech exige une autorisation que seule "
+        "l'application détient, donc c'est elle qui mesure, via --bench-corpus"),
     "voxtral_realtime_flux": ("run-realtime.json",
         "Voxtral-Mini-4B-Realtime-2602 4-bit sous MLX, vrai streaming, "
         "morceaux d'une seconde, delay 480 ms"),
@@ -44,12 +48,12 @@ BANCS = {
 #: fichier doit la porter : les quatre autres ont été rejoués à code figé et
 #: mémoire libre, ceux-ci non.
 MACOS = {
-    "macos_apple_intelligence": ("apple",
-        "macOS 26 SpeechTranscriber (Apple Intelligence) — capté en direct par "
-        "l'application, PAS rejoué"),
     "macos_dictee": ("apple-legacy",
         "macOS SFSpeechRecognizer, le moteur de la Dictée du système — capté en "
-        "direct par l'application, PAS rejoué"),
+        "direct par l'application, PAS rejoué : lancé depuis le mode banc il fait "
+        "planter le process sur une vérification TCC, alors que la clé "
+        "NSSpeechRecognitionUsageDescription est bien présente et que le moteur "
+        "fonctionne dans le parcours normal"),
 }
 
 
@@ -60,6 +64,20 @@ def main() -> None:
         if not f.exists():
             continue
         d = json.loads(f.read_text())
+        if nom == "run-macos.json":
+            # Ce banc-là porte plusieurs moteurs par ligne ; on n'en retient
+            # qu'un, et on remet la sortie à la forme commune.
+            res = {}
+            for r in d["results"]:
+                m = r.get("apple") or {}
+                if m.get("text"):
+                    res[r["id"]] = {"id": r["id"], "text": m["text"],
+                                    "latencyMs": round(m.get("latencyMs", 0), 1),
+                                    "durationSeconds": r.get("durationSeconds")}
+            runs[cle] = {"description": desc, "modele": "macOS 26 SpeechTranscriber",
+                         "lexique": "sans objet (contextualStrings sans effet, mesuré)",
+                         "rejoue": True, "resultats": res}
+            continue
         runs[cle] = {"description": desc, "modele": d.get("model"),
                      "lexique": d.get("lexicon", "DEFAULT_LEXICON"), "rejoue": True,
                      "resultats": {r["id"]: r for r in d["results"] if r.get("text")}}
@@ -104,7 +122,7 @@ def main() -> None:
              "dureeSecondes": round(m.get("durationSeconds", 0), 1),
              "langueDeclaree": m.get("language"),
              "transcritParTous": i in communs,
-             "transcritParLesQuatreRejoues": i in quatre,
+             "transcritParLesCinqRejoues": i in quatre,
              "moteursPresents": [],
              "moteurs": {}}
         for cle, v in runs.items():
@@ -129,7 +147,7 @@ def main() -> None:
                                   "la main. Il n'y a donc pas de référence, et un "
                                   "WER n'est pas calculable — comparer les "
                                   "moteurs entre eux est tout ce qui est possible.",
-            "attention": "Quatre moteurs ont été REJOUÉS sur le même audio, à "
+            "attention": "Cinq moteurs ont été REJOUÉS sur le même audio, à "
                          "code figé, un seul modèle chargé à la fois, mémoire "
                          "libre. Les deux moteurs macOS n'ont PAS pu l'être — le "
                          "framework Speech exige une autorisation que seule "
@@ -139,9 +157,9 @@ def main() -> None:
             "machine": "Apple M4 Pro, 48 Go, macOS 26.6",
             "dicteesTotal": len(tous),
             "dicteesTranscritesParTous": len(communs),
-            "dicteesTranscritesParLesQuatreRejoues": len(quatre),
+            "dicteesTranscritesParLesCinqRejoues": len(quatre),
             "conseil": "Pour comparer les moteurs entre eux, filtrer sur "
-                       "`transcritParLesQuatreRejoues` : c'est le plus grand "
+                       "`transcritParLesCinqRejoues` : c'est le plus grand "
                        "sous-ensemble mesuré dans des conditions identiques. "
                        "`transcritParTous` est plus restrictif sans être plus "
                        "rigoureux, la Dictée de macOS n'ayant tourné que sur une "
@@ -156,7 +174,7 @@ def main() -> None:
     f = POC / "benchmark-complet.json"
     f.write_text(json.dumps(sortie, ensure_ascii=False, indent=1))
     print(f"{len(tous)} dictées → {f}")
-    print(f"  {len(quatre)} avec les quatre moteurs rejoués, {len(communs)} avec les six")
+    print(f"  {len(quatre)} avec les cinq moteurs rejoués, {len(communs)} avec les six")
     print(f"  {f.stat().st_size/1e6:.1f} Mo")
     for k, v in sortie["moteurs"].items():
         marque = "rejoué" if v["rejoueAuPropre"] else "capté en direct"
