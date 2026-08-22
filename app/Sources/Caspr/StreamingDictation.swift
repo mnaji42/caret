@@ -17,6 +17,16 @@ import SwiftUI
 /// demander dans quel monde elle vit. Deux chemins parallèles, aucun n'a à
 /// connaître l'autre — et celui qui marche aujourd'hui ne risque rien.
 ///
+/// ## Ce que ce chemin ne sait pas faire
+///
+/// La session de flux de mlx-audio ne prend **aucune langue** :
+/// `create_streaming_session(max_tokens:temperature:transcription_delay_ms:)`,
+/// il n'y a rien d'autre. Le modèle devine, et sur une ouverture courte ou
+/// ambiguë il se trompe — relevé au premier essai réel, vingt-deux mots de
+/// français rendus en allemand, là où cent quarante-six mots sortent justes.
+/// Le réglage de langue de Caspr n'a donc aucun effet ici, et c'est une raison
+/// de plus de garder ce chemin séparé plutôt que de le fondre dans l'existant.
+///
 /// ## Ce qu'on éprouve ici
 ///
 /// Une seule chose : est-ce que 0,84 s d'attente au lieu de 34 s change
