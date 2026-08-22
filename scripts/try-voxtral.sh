@@ -46,6 +46,23 @@ else
   echo "→ CrisperWhisper turbo"
 fi
 
+# Préchauffage, et c'est le correctif qui compte. La première version coupait
+# le service puis laissait launchd lancer `uv run --project`, qui commence par
+# résoudre l'environnement et peut télécharger des roues. Mesuré : 4 min 39 se
+# sont écoulées entre l'arrêt de l'ancien moteur et le démarrage du nouveau —
+# et pendant ce temps l'application est retombée en silence sur macOS. Les
+# dictées de test ont donc été écrites par macOS, pas par le moteur qu'on
+# croyait éprouver.
+#
+# On paie donc la résolution ici, pendant que l'ancien moteur sert encore.
+echo "→ préchauffage de l'environnement"
+"$UV" run --project "$PROJECT" python -c "
+import importlib, sys
+for m in ('mlx', 'mlx_audio') if '$ENGINE' == 'voxtral' else ('torch',):
+    importlib.import_module(m)
+print('  dépendances résolues')
+" || { echo "✗ l'environnement n'est pas prêt — rien n'a été changé"; exit 1; }
+
 mkdir -p "$LOGDIR" "$(dirname "$PLIST")"
 cat > "$PLIST" <<PLIST_EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -70,16 +87,36 @@ rm -f "$HOME/Library/Caches/caspr/engine.sock"
 launchctl bootstrap "$DOMAIN" "$PLIST"
 
 printf "→ chargement "
-for _ in $(seq 1 90); do
+for _ in $(seq 1 300); do
   [ -S "$HOME/Library/Caches/caspr/engine.sock" ] && break
   printf "."; sleep 1
 done
 echo
-if [ -S "$HOME/Library/Caches/caspr/engine.sock" ]; then
-  echo "✓ prêt — dictez normalement, l'application ne voit pas la différence."
-  echo "  journal : tail -f $LOGDIR/engine.log"
-else
-  echo "✗ le socket n'est pas apparu. Voir $LOGDIR/engine.log"
-  tail -5 "$LOGDIR/engine.log" 2>/dev/null
-  exit 1
-fi
+
+# Interroger le service plutôt que constater un fichier. Un socket présent dit
+# qu'un processus écoute, pas lequel — et c'est précisément la confusion qui a
+# fait juger macOS en croyant juger Voxtral.
+"$PROJECT/.venv/bin/python" - <<'PING'
+import json, socket, struct, sys
+from pathlib import Path
+p = Path.home() / "Library/Caches/caspr/engine.sock"
+if not p.exists():
+    print("✗ aucun service ne répond. Voir le journal."); sys.exit(1)
+try:
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM); s.settimeout(10)
+    s.connect(str(p))
+    h = json.dumps({"op": "ping", "payload_bytes": 0}).encode()
+    s.sendall(struct.pack(">I", len(h)) + h)
+    (n,) = struct.unpack(">I", s.recv(4))
+    r = json.loads(s.recv(n))
+except Exception as exc:
+    print(f"✗ le service ne répond pas : {exc}"); sys.exit(1)
+print(f"✓ répond : {r['model']}")
+print(f"  prêt : {r['ready']} | calcul : {r['device']}")
+print()
+print("  Dictez normalement — l'application ne voit pas la différence.")
+print("  Pour vérifier après coup QUI a écrit une dictée, la collecte note")
+print("  le moteur dans le corpus : c'est la seule preuve qui ne se discute pas.")
+PING
+rc=$?
+[ $rc -eq 0 ] || { tail -6 "$LOGDIR/engine.log" 2>/dev/null; exit 1; }
