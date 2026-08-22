@@ -1,4 +1,5 @@
 import AppKit
+import CasprCore
 import Observation
 import SwiftUI
 
@@ -53,6 +54,9 @@ final class StreamingDictation {
 
     private let recorder = AudioRecorder()
     private let injector = TextInjector()
+    /// Identifiant de la dictée en cours, réservé au départ pour que l'audio et
+    /// la ligne du corpus portent le même nom.
+    private var entryID: String?
     private var client: VoxtralStreamClient?
     private var overlay: NSPanel?
     /// Les morceaux arrivent sur le fil audio ; le réseau ne doit pas s'y
@@ -78,11 +82,15 @@ final class StreamingDictation {
     /// pendant qu'on parle, et le rattrapage à la fin grandit avec la durée.
     /// C'est ce qui faisait « des fois c'est rapide, des fois c'est lent ».
     ///
-    /// À une seconde on est à ×0,67 : le modèle garde de l'avance quoi qu'il
-    /// arrive. Le prix est un aperçu qui avance par paliers d'une seconde au
-    /// lieu de couler, ce qui est le bon échange — l'aperçu rassure, le
-    /// rattrapage fait attendre.
-    private static let chunkSamples = 16_000
+    /// À une seconde on était à ×0,67, à 500 ms à ×0,69 — deux centièmes, pour
+    /// un aperçu qui avance deux fois plus souvent. C'est l'échange qui vaut :
+    /// le retard perçu entre la parole et le texte affiché venait de ce palier,
+    /// pas du modèle, et une seconde se voit à l'œil nu.
+    ///
+    /// En dessous, ça cesse de payer : à 250 ms on tombe à ×0,81 et à 85 ms —
+    /// ce que livre le robinet audio brut — à ×1,04, où le modèle ne suit plus
+    /// la parole du tout.
+    private static let chunkSamples = 8_000
 
     var isRunning: Bool { phase == .listening || phase == .connecting }
 
@@ -100,6 +108,7 @@ final class StreamingDictation {
         }
         text = ""
         lastTailMs = nil
+        entryID = Corpus.makeIdentifier()
         phase = .connecting
         showOverlay()
 
@@ -138,14 +147,19 @@ final class StreamingDictation {
         guard isRunning, let client else { return }
         phase = .finishing
         recorder.onSamples = nil
-        _ = recorder.stop()
+        // Les échantillons complets, gardés pour le corpus : sans eux une dictée
+        // ne peut pas être rejouée, et une transcription qu'on ne peut pas
+        // rejouer ne peut pas être diagnostiquée. C'est exactement ce qui a
+        // manqué le jour où ce chemin coupait des phrases — le journal disait
+        // « 129 mots » sans qu'on puisse savoir de quel audio.
+        let captured = recorder.stop()
 
-        // Le reste du tampon part avant la fermeture : sans ça, jusqu'à une
-        // seconde de parole — la fin de la dernière phrase — n'atteindrait
-        // jamais le moteur.
+        // Le reste du tampon part avant la fermeture : sans ça, la fin de la
+        // dernière phrase n'atteindrait jamais le moteur.
         let tail = buffer.drain()
 
         let began = Date()
+        let elapsed = startedAt.map { Date().timeIntervalSince($0) } ?? 0
         pump.async { [weak self] in
             if !tail.isEmpty { _ = try? client.feed(tail) }
             let final = (try? client.finish()) ?? ""
@@ -159,6 +173,7 @@ final class StreamingDictation {
                 }
                 self.text = final
                 await self.insert(final)
+                self.archive(final, samples: captured, duration: elapsed)
                 self.phase = .idle
                 self.hideOverlay(after: 0.35)
             }
@@ -185,6 +200,29 @@ final class StreamingDictation {
         client = nil
         phase = .failed(message)
         hideOverlay(after: 3)
+    }
+
+    /// Range la dictée dans le corpus, comme le fait le chemin principal.
+    ///
+    /// Le moteur est nommé `voxtral-realtime` plutôt que réutilisé de
+    /// `EngineChoice` : ce chemin n'en passe par aucun, et lui prêter le nom
+    /// d'un moteur que l'application sait piloter ferait croire au corpus qu'il
+    /// pourrait être rejoué par l'interface. Il ne le peut pas.
+    private func archive(_ final: String, samples: [Float], duration: TimeInterval) {
+        guard Preferences.shared.corpusEnabled, let id = entryID else { return }
+        let entry = CorpusEntry(
+            id: id, date: Date(), durationSeconds: duration,
+            language: Preferences.shared.primaryLanguage,
+            appVersion: Bundle.main
+                .infoDictionary?["CFBundleShortVersionString"] as? String,
+            destination: "curseur",
+            transcriptions: [CorpusTranscription(
+                engine: "voxtral-realtime",
+                model: "mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit",
+                text: final, latencyMs: lastTailMs, inserted: true)],
+            audioFile: Corpus.shared.writeAudio(samples, id: id))
+        Corpus.shared.append(entry)
+        entryID = nil
     }
 
     private func insert(_ final: String) async {
