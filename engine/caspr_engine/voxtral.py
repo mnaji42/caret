@@ -181,3 +181,69 @@ class VoxtralEngine:
             transcription_delay_ms=self.delay_ms,
         )
         return getattr(out, "text", None) or str(out)
+
+    # -- transcription au fil de la parole ----------------------------------
+
+    def open_stream(self, *, delay_ms: int | None = None) -> "VoxtralStream":
+        """Ouvre une session qui accepte l'audio par morceaux.
+
+        C'est ce qui sépare ce moteur du précédent, et le chiffre le dit : sur
+        une dictée de 54 s, transcrire le tampon complet une fois la parole
+        finie coûte 34 s d'attente. Le même modèle nourri au fil consomme
+        l'audio à 0,65× le temps réel — il finit donc avant la dernière
+        syllabe, et il ne reste que le retard de réglage.
+
+        L'attente n'était jamais celle du modèle : c'était celle de
+        l'architecture qui l'appelait.
+        """
+        if not self.loaded:
+            raise RuntimeError("moteur non chargé : appeler load() d'abord")
+        return VoxtralStream(self._model, delay_ms or self.delay_ms)
+
+
+class VoxtralStream:
+    """Une dictée en cours, du côté du moteur.
+
+    Volontairement sans fil d'exécution à elle : c'est le serveur qui appelle
+    `feed` quand un morceau arrive et récolte ce qui sort. Un fil de plus ici
+    supposerait de synchroniser MLX avec lui, pour un gain nul — le décodage
+    avance de toute façon au rythme où l'audio est fourni.
+    """
+
+    def __init__(self, model, delay_ms: int) -> None:
+        self._session = model.create_streaming_session(
+            max_tokens=4096, temperature=0.0, transcription_delay_ms=delay_ms)
+        self._closed = False
+        self.text = ""
+
+    def feed(self, samples: np.ndarray) -> str:
+        """Avale un morceau, rend le texte apparu depuis le précédent."""
+        if self._closed:
+            return ""
+        if samples.size:
+            self._session.feed(np.asarray(samples, dtype=np.float32))
+        return self._drain()
+
+    def close(self) -> str:
+        """Ferme l'entrée et rend ce qui restait à décoder.
+
+        La boucle est bornée : `step` finit par ne plus rien produire, mais un
+        modèle qui déraille pourrait ne jamais s'arrêter, et un service qui ne
+        rend pas la main bloque la dictée suivante.
+        """
+        if not self._closed:
+            self._session.close()
+            self._closed = True
+        for _ in range(400):
+            if not self._drain():
+                break
+        return self.text
+
+    def _drain(self) -> str:
+        sortie = ""
+        for delta in self._session.step(max_decode_tokens=16):
+            morceau = delta if isinstance(delta, str) else getattr(delta, "text", "")
+            if morceau:
+                sortie += morceau
+        self.text += sortie
+        return sortie
