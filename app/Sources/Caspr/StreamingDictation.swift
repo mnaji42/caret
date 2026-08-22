@@ -59,6 +59,31 @@ final class StreamingDictation {
     /// faire. Une file à part, sérielle, garde l'ordre sans bloquer la capture.
     private let pump = DispatchQueue(label: "fr.lyriastudio.caspr.voxtral.pump")
 
+    /// Les échantillons en attente d'être versés.
+    ///
+    /// Dans une boîte à part, et pas par goût : ce contrôleur est
+    /// `@MainActor`, alors que le robinet audio livre ses morceaux sur son
+    /// propre fil. Une propriété du contrôleur serait donc inaccessible depuis
+    /// la capture — le compilateur le refuse, à raison. La boîte n'appartient à
+    /// aucun acteur et se garde elle-même.
+    private let buffer = SampleBuffer()
+
+    /// Une seconde d'audio avant d'appeler le moteur.
+    ///
+    /// Le robinet audio livre ~85 ms à la fois, et les verser tels quels était
+    /// ma première version. Mesuré sur 39,7 s de dictée : **41,4 s de calcul en
+    /// morceaux de 85 ms contre 26,5 s en morceaux d'une seconde**. Le texte
+    /// produit est le même — ce n'est pas une question de qualité — mais à
+    /// ×1,04 du temps réel le modèle ne suit plus la parole, prend du retard
+    /// pendant qu'on parle, et le rattrapage à la fin grandit avec la durée.
+    /// C'est ce qui faisait « des fois c'est rapide, des fois c'est lent ».
+    ///
+    /// À une seconde on est à ×0,67 : le modèle garde de l'avance quoi qu'il
+    /// arrive. Le prix est un aperçu qui avance par paliers d'une seconde au
+    /// lieu de couler, ce qui est le bon échange — l'aperçu rassure, le
+    /// rattrapage fait attendre.
+    private static let chunkSamples = 16_000
+
     var isRunning: Bool { phase == .listening || phase == .connecting }
 
     // MARK: - Le cycle
@@ -92,8 +117,10 @@ final class StreamingDictation {
         // minute.
         recorder.onSamples = { [weak self] samples in
             guard let self else { return }
+            let ready = self.buffer.append(samples, releasingAt: Self.chunkSamples)
+            guard !ready.isEmpty else { return }
             self.pump.async {
-                guard let delta = try? client.feed(samples), !delta.isEmpty else { return }
+                guard let delta = try? client.feed(ready), !delta.isEmpty else { return }
                 Task { @MainActor [weak self] in self?.text += delta }
             }
         }
@@ -113,8 +140,14 @@ final class StreamingDictation {
         recorder.onSamples = nil
         _ = recorder.stop()
 
+        // Le reste du tampon part avant la fermeture : sans ça, jusqu'à une
+        // seconde de parole — la fin de la dernière phrase — n'atteindrait
+        // jamais le moteur.
+        let tail = buffer.drain()
+
         let began = Date()
         pump.async { [weak self] in
+            if !tail.isEmpty { _ = try? client.feed(tail) }
             let final = (try? client.finish()) ?? ""
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -134,6 +167,7 @@ final class StreamingDictation {
 
     func cancel() {
         recorder.onSamples = nil
+        _ = buffer.drain()
         recorder.cancel()
         client?.cancel()
         client = nil
@@ -145,6 +179,7 @@ final class StreamingDictation {
 
     private func fail(_ message: String) {
         recorder.onSamples = nil
+        _ = buffer.drain()
         recorder.cancel()
         client?.cancel()
         client = nil
@@ -190,5 +225,37 @@ final class StreamingDictation {
         overlay = nil
         guard let panel else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { panel.close() }
+    }
+}
+
+/// Le tampon d'échantillons, partagé entre le fil audio et la file d'envoi.
+///
+/// Une classe minuscule plutôt qu'un `actor` : la capture audio appelle depuis
+/// un fil temps réel, où attendre l'ordonnancement d'un acteur est exactement
+/// ce qu'il ne faut pas faire. Un verrou tenu le temps d'un `append` coûte
+/// quelques nanosecondes et ne cède jamais le fil.
+final class SampleBuffer: @unchecked Sendable {
+    private var samples: [Float] = []
+    private let lock = NSLock()
+
+    /// Ajoute, et rend le lot complet dès qu'il atteint le seuil — sinon rien.
+    func append(_ new: [Float], releasingAt threshold: Int) -> [Float] {
+        lock.lock()
+        defer { lock.unlock() }
+        samples.append(contentsOf: new)
+        guard samples.count >= threshold else { return [] }
+        let ready = samples
+        samples.removeAll(keepingCapacity: true)
+        return ready
+    }
+
+    /// Vide et rend ce qui restait — la fin de la dernière phrase.
+    @discardableResult
+    func drain() -> [Float] {
+        lock.lock()
+        defer { lock.unlock() }
+        let rest = samples
+        samples.removeAll(keepingCapacity: true)
+        return rest
     }
 }
